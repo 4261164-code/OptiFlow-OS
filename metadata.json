@@ -1,0 +1,6 @@
+{
+  "name": "AffiliateOS",
+  "description": "An autonomous affiliate marketing and digital publishing operating system.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

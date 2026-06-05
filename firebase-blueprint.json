@@ -1,0 +1,85 @@
+{
+  "entities": {
+    "Job": {
+      "title": "Job",
+      "description": "A run of the agent pipeline for a specific keyword",
+      "type": "object",
+      "properties": {
+        "keyword": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "research", "writing", "pinterest", "monetization", "completed", "error"] },
+        "userId": { "type": "string" },
+        "researchResult": { "type": "string" },
+        "articleId": { "type": "string" },
+        "createdAt": { "type": "number", "description": "Timestamp" },
+        "updatedAt": { "type": "number" },
+        "error": { "type": "string" }
+      },
+      "required": ["keyword", "status", "userId", "createdAt", "updatedAt"]
+    },
+    "Article": {
+      "title": "Article",
+      "description": "Generated SEO article",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "keyword": { "type": "string" },
+        "jobId": { "type": "string" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["title", "content", "keyword", "jobId", "userId", "createdAt", "updatedAt"]
+    },
+    "Pin": {
+      "title": "Pinterest Pin",
+      "description": "Generated Pinterest pin data",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "concept": { "type": "string" },
+        "articleId": { "type": "string" },
+        "jobId": { "type": "string" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["title", "description", "concept", "articleId", "jobId", "userId", "createdAt", "updatedAt"]
+    },
+    "Offer": {
+      "title": "Affiliate Offer",
+      "description": "Monetization and affiliate offer reference for link insertion",
+      "type": "object",
+      "properties": {
+        "brand": { "type": "string", "description": "e.g., Canva, Nike" },
+        "keyword": { "type": "string", "description": "LSI or target keyword trigger" },
+        "link": { "type": "string", "description": "Affiliate URL or internal guide link" },
+        "anchor": { "type": "string", "description": "Optional custom anchor text" },
+        "description": { "type": "string" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["brand", "keyword", "link", "userId", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "jobs/{jobId}": {
+      "schema": { "$ref": "#/entities/Job" },
+      "description": "Agent pipeline jobs"
+    },
+    "articles/{articleId}": {
+      "schema": { "$ref": "#/entities/Article" },
+      "description": "Generated articles"
+    },
+    "pins/{pinId}": {
+      "schema": { "$ref": "#/entities/Pin" },
+      "description": "Generated Pinterest pins"
+    },
+    "offers/{offerId}": {
+      "schema": { "$ref": "#/entities/Offer" },
+      "description": "Affiliate and internal offers index"
+    }
+  }
+}
