@@ -5,5 +5,37 @@
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Playfair Display", ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  
+  --color-primary: #a8ff35;
+  --color-primary-hover: #92ec1d;
+  --color-accent-blue: #a8ff35;
+  --color-accent-blue-hover: #92ec1d;
+  --color-dark-bg: #06070a;
+  --color-dark-card: #101115;
+  --color-dark-sidebar: #090a0d;
 }
+
+@layer utilities {
+  .executive-glass-card {
+    background: var(--glass-bg, rgba(255, 255, 255, 0.6));
+    backdrop-filter: blur(12px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  }
+
+  .dark .executive-glass-card {
+    --glass-bg: rgba(255, 255, 255, 0.08);
+  }
+
+  @supports not (backdrop-filter: blur(1px)) {
+    .executive-glass-card {
+      background: rgba(255, 255, 255, 0.95);
+    }
+    .dark .executive-glass-card {
+      background: rgba(30, 30, 30, 0.95);
+    }
+  }
+}
+
 

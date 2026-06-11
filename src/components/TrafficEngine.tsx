@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button, Input } from './ui';
 import { db, auth } from '../lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
-import { Sparkles, Loader2, Rocket, Search, Clock, ListPlus, Share2, Award, Zap, Copy, ExternalLink, CheckCircle } from 'lucide-react';
+import { Loader2, Rocket, Search, Clock, ListPlus, Share2, Award, Zap, Copy, ExternalLink, CheckCircle } from 'lucide-react';
 
 interface RecommendedBoard {
   name: string;
@@ -111,7 +111,10 @@ export function TrafficEngine() {
       const resp = await fetch('/api/traffic-engine', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ keyword: keywordToRun })
+        body: JSON.stringify({ 
+          keyword: keywordToRun,
+          userId: auth.currentUser?.uid
+        })
       });
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error || "Failed to fetch traffic stats");

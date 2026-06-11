@@ -182,12 +182,12 @@ export function OffersPage() {
           <div className="flex gap-3">
             {offers.length === 0 && (
               <Button variant="outline" size="sm" onClick={seedSampleOffers} disabled={submitting}>
-                {submitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+                {submitting ? <Loader2 className="w-5 h-5 mr-1.5 animate-spin stroke-[2.8]" /> : <RefreshCw className="w-5 h-5 mr-1.5 stroke-[2.8]" />}
                 Seed Sample Offers
               </Button>
             )}
             <Button size="sm" onClick={() => setIsAdding(true)}>
-              <Plus className="w-4 h-4 mr-2" /> Add Offer
+              <Plus className="w-5 h-5 mr-1.5 stroke-[2.8]" /> Add Offer
             </Button>
           </div>
         )}
@@ -284,8 +284,8 @@ export function OffersPage() {
       ) : offers.length === 0 ? (
         <Card className="bg-[#121214] border-dashed border-white/5 py-12">
           <CardContent className="flex flex-col items-center justify-center text-center space-y-4">
-            <div className="w-12 h-12 rounded-xl bg-[#1C1D21] border border-white/5 flex items-center justify-center text-zinc-600">
-              <Link2 className="w-5 h-5" />
+            <div className="w-14 h-14 rounded-xl bg-[#1C1D21] border border-white/5 flex items-center justify-center text-zinc-600">
+              <Link2 className="w-7 h-7 stroke-[2.8]" />
             </div>
             <div>
               <p className="text-zinc-300 font-semibold text-sm">No affiliate offers found</p>
@@ -311,17 +311,17 @@ export function OffersPage() {
                 <div className="flex items-start justify-between">
                   <div className="space-y-1">
                     <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold uppercase bg-[#d7f941]/10 text-[#bce122] border border-[#d7f941]/20">
-                      <Tag className="w-3 h-3" />
+                      <Tag className="w-4 h-4 stroke-[2.8]" />
                       {offer.keyword}
                     </span>
-                    <CardTitle className="text-lg text-white font-sans tracking-tight tracking-tight mt-1">{offer.brand}</CardTitle>
+                    <CardTitle className="text-lg text-white font-sans tracking-tight mt-1">{offer.brand}</CardTitle>
                   </div>
                   <div className="flex gap-1.5">
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(offer)}>
-                      <Edit2 className="w-3.5 h-3.5" />
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(offer)}>
+                      <Edit2 className="w-4.5 h-4.5 stroke-[2.8]" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-400" onClick={() => handleDelete(offer.id)}>
-                      <Trash2 className="w-3.5 h-3.5" />
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-400" onClick={() => handleDelete(offer.id)}>
+                      <Trash2 className="w-4.5 h-4.5 stroke-[2.8]" />
                     </Button>
                   </div>
                 </div>
@@ -341,7 +341,7 @@ export function OffersPage() {
 
                 <div className="pt-3 border-t border-white/5/65 flex items-center justify-between mt-auto">
                   <div className="flex items-center gap-1 text-[11px] text-zinc-500 truncate max-w-[180px]">
-                    <Link2 className="w-3.5 h-3.5 text-zinc-600 flex-shrink-0" />
+                    <Link2 className="w-4.5 h-4.5 text-zinc-650 flex-shrink-0 stroke-[2.8]" />
                     <span className="truncate">{offer.link}</span>
                   </div>
                   <a 

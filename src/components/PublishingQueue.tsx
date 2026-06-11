@@ -18,13 +18,223 @@ import {
   Image as ImageIcon,
   Check,
   RefreshCw,
-  AlertOctagon
+  AlertOctagon,
+  Twitter,
+  Linkedin
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
+import { ContentCalendarView } from './ContentCalendarView';
+
+interface SocialDistributionSectionProps {
+  item: any;
+  collectionName: 'articles' | 'pins';
+  hasTwitterSetup: boolean;
+  hasLinkedInSetup: boolean;
+  opLoading: Record<string, boolean>;
+  generateSocialCopy: (id: string, collectionName: 'articles' | 'pins') => Promise<void>;
+  publishToTwitter: (id: string, text: string, collectionName: 'articles' | 'pins') => Promise<void>;
+  publishToLinkedIn: (id: string, text: string, collectionName: 'articles' | 'pins') => Promise<void>;
+}
+
+function SocialDistributionSection({
+  item,
+  collectionName,
+  hasTwitterSetup,
+  hasLinkedInSetup,
+  opLoading,
+  generateSocialCopy,
+  publishToTwitter,
+  publishToLinkedIn
+}: SocialDistributionSectionProps) {
+  const [twitterText, setTwitterText] = useState(item.twitterPostContent || '');
+  const [linkedinText, setLinkedinText] = useState(item.linkedinPostContent || '');
+  const [isEditing, setIsEditing] = useState(false);
+
+  // Sync state if item updates in Firestore
+  useEffect(() => {
+    if (item.twitterPostContent && !twitterText) {
+      setTwitterText(item.twitterPostContent);
+    }
+    if (item.linkedinPostContent && !linkedinText) {
+      setLinkedinText(item.linkedinPostContent);
+    }
+  }, [item.twitterPostContent, item.linkedinPostContent]);
+
+  const genOpKey = `${item.id}_gen_social`;
+  const twitterOpKey = `${item.id}_twitter`;
+  const linkedinOpKey = `${item.id}_linkedin`;
+
+  const isGenLoading = opLoading[genOpKey];
+  const isTwLoading = opLoading[twitterOpKey];
+  const isLiLoading = opLoading[linkedinOpKey];
+
+  const twStatus = item.twitterStatus || 'idle';
+  const liStatus = item.linkedinStatus || 'idle';
+
+  const hasCopy = !!item.twitterPostContent || !!item.linkedinPostContent;
+
+  return (
+    <div className="mt-4 pt-4 border-t border-white/5 space-y-4">
+      <div className="flex items-center justify-between">
+        <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-2">
+          <span>𝕏 (Twitter) & LinkedIn Distribution Engine</span>
+        </h4>
+        
+        {!hasCopy ? (
+          <button
+            onClick={() => generateSocialCopy(item.id, collectionName)}
+            disabled={isGenLoading}
+            className="text-xs font-semibold text-black bg-[#d7f941] hover:bg-[#bce122] disabled:opacity-50 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition cursor-pointer"
+          >
+            {isGenLoading ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-black" />
+            ) : (
+              <span>Generate Social Copy ON REQUEST</span>
+            )}
+          </button>
+        ) : (
+          <button
+            onClick={() => setIsEditing(!isEditing)}
+            className="text-[10px] uppercase font-bold text-[#d7f941] border border-[#d7f941]/30 hover:bg-[#d7f941]/5 px-2.5 py-1 rounded transition cursor-pointer"
+          >
+            {isEditing ? 'Finish Customizing' : 'Customize Narrative'}
+          </button>
+        )}
+      </div>
+
+      {hasCopy && (
+        <div className="grid md:grid-cols-2 gap-4">
+          {/* X/Twitter distribution channel */}
+          <div className="bg-[#1C1D21]/30 border border-white/5/40 p-3 rounded-lg flex flex-col justify-between">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
+                  <Twitter className="w-3.5 h-3.5 text-zinc-400" />
+                  <span>X (Twitter) Narrative</span>
+                </span>
+                
+                {twStatus === 'published' && item.twitterUrl ? (
+                  <a href={item.twitterUrl} target="_blank" rel="noreferrer" referrerPolicy="no-referrer" className="text-xs text-sky-400 hover:underline flex items-center gap-1">
+                    <span>View Tweet</span>
+                    <ExternalLink className="w-3" />
+                  </a>
+                ) : (
+                  <span className={`text-[10px] font-semibold ${twStatus === 'publishing' ? 'text-amber-500' : 'text-zinc-500'}`}>
+                    {twStatus === 'publishing' ? 'Sending tweet...' : 'Draft ready'}
+                  </span>
+                )}
+              </div>
+
+              {isEditing ? (
+                <textarea
+                  value={twitterText}
+                  onChange={(e) => setTwitterText(e.target.value)}
+                  maxLength={280}
+                  className="w-full text-xs text-zinc-200 bg-[#0F0F12] border border-white/5 rounded p-2 focus:ring-1 focus:ring-[#d7f941] h-24 focus:outline-none"
+                />
+              ) : (
+                <p className="text-xs text-zinc-400 leading-relaxed bg-[#0F0F12]/60 p-2.5 rounded border border-white/5/50 font-mono select-all">
+                  {twitterText || item.twitterPostContent}
+                </p>
+              )}
+            </div>
+
+            {item.twitterError && (
+              <p className="text-[10px] text-red-400 border-l border-red-500 pl-2 mt-2 break-all">{item.twitterError}</p>
+            )}
+
+            <div className="mt-3 pt-2 border-t border-white/5/40 flex justify-end">
+              <button
+                onClick={() => publishToTwitter(item.id, twitterText || item.twitterPostContent, collectionName)}
+                disabled={isTwLoading || twStatus === 'publishing'}
+                className="text-xs font-semibold text-white bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition cursor-pointer"
+              >
+                {isTwLoading ? (
+                  <Loader2 className="w-3 h-3 animate-spin text-white" />
+                ) : twStatus === 'published' ? (
+                  <>
+                    <RefreshCw className="w-3 h-3 text-[#d7f941]" />
+                    <span>Re-share to 𝕏</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-3 h-3" />
+                    <span>Publish to 𝕏</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* LinkedIn distribution channel */}
+          <div className="bg-[#1C1D21]/30 border border-white/5/40 p-3 rounded-lg flex flex-col justify-between">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
+                  <Linkedin className="w-3.5 h-3.5 text-[#0077b5]" />
+                  <span>LinkedIn Narrative</span>
+                </span>
+                
+                {liStatus === 'published' && item.linkedinUrl ? (
+                  <a href={item.linkedinUrl} target="_blank" rel="noreferrer" referrerPolicy="no-referrer" className="text-xs text-[#0077b5] hover:underline flex items-center gap-1">
+                    <span>View Post</span>
+                    <ExternalLink className="w-3" />
+                  </a>
+                ) : (
+                  <span className={`text-[10px] font-semibold ${liStatus === 'publishing' ? 'text-amber-500' : 'text-zinc-500'}`}>
+                    {liStatus === 'publishing' ? 'Broadcasting post...' : 'Draft ready'}
+                  </span>
+                )}
+              </div>
+
+              {isEditing ? (
+                <textarea
+                  value={linkedinText}
+                  onChange={(e) => setLinkedinText(e.target.value)}
+                  className="w-full text-xs text-zinc-200 bg-[#0F0F12] border border-white/5 rounded p-2 focus:ring-1 focus:ring-[#d7f941] h-24 focus:outline-none"
+                />
+              ) : (
+                <p className="text-xs text-zinc-400 leading-relaxed bg-[#0F0F12]/60 p-2.5 rounded border border-white/5/50 font-mono whitespace-pre-wrap select-all line-clamp-5">
+                  {linkedinText || item.linkedinPostContent}
+                </p>
+              )}
+            </div>
+
+            {item.linkedinError && (
+              <p className="text-[10px] text-red-400 border-l border-red-500 pl-2 mt-2 break-all">{item.linkedinError}</p>
+            )}
+
+            <div className="mt-3 pt-2 border-t border-white/5/40 flex justify-end">
+              <button
+                onClick={() => publishToLinkedIn(item.id, linkedinText || item.linkedinPostContent, collectionName)}
+                disabled={isLiLoading || liStatus === 'publishing'}
+                className="text-xs font-semibold text-white bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition cursor-pointer"
+              >
+                {isLiLoading ? (
+                  <Loader2 className="w-3 h-3 animate-spin text-white" />
+                ) : liStatus === 'published' ? (
+                  <>
+                    <RefreshCw className="w-3 h-3 text-[#d7f941]" />
+                    <span>Re-share to LinkedIn</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-3 h-3" />
+                    <span>Publish to LinkedIn</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function PublishingQueue() {
-  const [activeTab, setActiveTab] = useState<'articles' | 'pins'>('articles');
+  const [activeTab, setActiveTab] = useState<'articles' | 'pins' | 'calendar'>('articles');
   const [articles, setArticles] = useState<Article[]>([]);
   const [pins, setPins] = useState<Pin[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -79,6 +289,8 @@ export function PublishingQueue() {
   const hasWordPressSetup = integrationSettings?.wordpressUrl && integrationSettings?.wordpressUsername && integrationSettings?.wordpressPassword;
   const hasTelegramSetup = integrationSettings?.telegramToken && integrationSettings?.telegramChatId;
   const hasPinterestSetup = !!integrationSettings?.pinterestToken;
+  const hasTwitterSetup = !!integrationSettings?.twitterToken;
+  const hasLinkedInSetup = !!integrationSettings?.linkedinToken;
 
   const [pinterestBoards, setPinterestBoards] = useState<{ id: string, name: string }[]>([]);
   const [loadingBoards, setLoadingBoards] = useState(false);
@@ -243,8 +455,8 @@ export function PublishingQueue() {
 
       // Generate message block
       const finalMessage = imageUrl 
-        ? `<b>✨ OPTIFLOW PIN SENT ✨</b>\n\n<b>${text}</b>\n\n🖼️ <a href="${imageUrl}">Pin Creative Artwork</a>`
-        : `<b>✨ NEW OPTIFLOW ARTICLE PUBLISHED ✨</b>\n\n<b>${text}</b>`;
+        ? `<b>[OPTIFLOW PIN SENT]</b>\n\n<b>${text}</b>\n\n<a href="${imageUrl}">[Pin Creative Artwork]</a>`
+        : `<b>[NEW OPTIFLOW ARTICLE PUBLISHED]</b>\n\n<b>${text}</b>`;
 
       // 2. HTTP POST
       const response = await fetch('/api/publish-telegram', {
@@ -279,6 +491,114 @@ export function PublishingQueue() {
     }
   };
 
+  const generateSocialCopy = async (id: string, collectionName: 'articles' | 'pins') => {
+    const opKey = `${id}_gen_social`;
+    setOpLoading(prev => ({ ...prev, [opKey]: true }));
+    try {
+      const response = await fetch('/api/generate-social-copy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id,
+          collection: collectionName,
+          userId: auth.currentUser?.uid
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to generate social media copy");
+      }
+    } catch (err) {
+      console.error("Social generation error:", err);
+    } finally {
+      setOpLoading(prev => ({ ...prev, [opKey]: false }));
+    }
+  };
+
+  const publishToTwitter = async (id: string, text: string, collectionName: 'articles' | 'pins') => {
+    const opKey = `${id}_twitter`;
+    setOpLoading(prev => ({ ...prev, [opKey]: true }));
+    try {
+      const docRef = doc(db, collectionName, id);
+      await setDoc(docRef, { 
+        twitterStatus: 'publishing',
+        twitterError: null 
+      }, { merge: true });
+
+      const response = await fetch('/api/publish-twitter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id,
+          text,
+          collection: collectionName,
+          userId: auth.currentUser?.uid
+        })
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to publish to Twitter/X");
+      }
+
+      await setDoc(docRef, { 
+        twitterStatus: 'published',
+        twitterUrl: result.link 
+      }, { merge: true });
+
+    } catch (err: any) {
+      console.error(err);
+      await setDoc(doc(db, collectionName, id), { 
+        twitterStatus: 'error',
+        twitterError: err.message 
+      }, { merge: true });
+    } finally {
+      setOpLoading(prev => ({ ...prev, [opKey]: false }));
+    }
+  };
+
+  const publishToLinkedIn = async (id: string, text: string, collectionName: 'articles' | 'pins') => {
+    const opKey = `${id}_linkedin`;
+    setOpLoading(prev => ({ ...prev, [opKey]: true }));
+    try {
+      const docRef = doc(db, collectionName, id);
+      await setDoc(docRef, { 
+        linkedinStatus: 'publishing',
+        linkedinError: null 
+      }, { merge: true });
+
+      const response = await fetch('/api/publish-linkedin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id,
+          text,
+          collection: collectionName,
+          userId: auth.currentUser?.uid
+        })
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to publish to LinkedIn");
+      }
+
+      await setDoc(docRef, { 
+        linkedinStatus: 'published',
+        linkedinUrl: result.link 
+      }, { merge: true });
+
+    } catch (err: any) {
+      console.error(err);
+      await setDoc(doc(db, collectionName, id), { 
+        linkedinStatus: 'error',
+        linkedinError: err.message 
+      }, { merge: true });
+    } finally {
+      setOpLoading(prev => ({ ...prev, [opKey]: false }));
+    }
+  };
+
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -288,7 +608,7 @@ export function PublishingQueue() {
         </div>
         <div className="flex items-center gap-2 self-start md:self-auto">
           <Link to="/settings" className="flex items-center gap-2 text-xs text-zinc-400 hover:text-white bg-[#1C1D21] border border-white/5 px-3 py-2 rounded-lg transition">
-            <Settings className="w-3.5 h-3.5" />
+            <Settings className="w-5 h-5 stroke-[2.8]" />
             <span>Manage Integrations</span>
           </Link>
         </div>
@@ -298,7 +618,7 @@ export function PublishingQueue() {
       {!loadingSettings && (!hasWordPressSetup || !hasTelegramSetup) && (
         <Card className="border-amber-500/20 bg-amber-500/5">
           <CardContent className="pt-4 pb-4 flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+            <AlertCircle className="w-6 h-6 text-amber-500 shrink-0 mt-0.5 stroke-[2.8]" />
             <div className="text-sm">
               <span className="font-semibold text-amber-500">Integrations Missing!</span>
               <p className="text-zinc-400 mt-1">
@@ -311,12 +631,12 @@ export function PublishingQueue() {
 
       {/* Navigation and Search controls */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 bg-[#121214] border border-white/5 p-2 rounded-xl">
-        <div className="flex bg-[#1C1D21] p-1 rounded-lg">
+        <div className="flex bg-[#1C1D21] p-1 rounded-lg flex-wrap gap-1">
           <button 
             onClick={() => setActiveTab('articles')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'articles' ? 'bg-[#25262B] text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}`}
+            className={`flex items-center gap-2.5 px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'articles' ? 'bg-[#25262B] text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}`}
           >
-            <BookOpen className="w-4 h-4" />
+            <BookOpen className="w-5.5 h-5.5 stroke-[2.8]" />
             <span>Articles</span>
             {articles.length > 0 && (
               <span className="px-1.5 py-0.5 rounded-full text-xs bg-[#25262B] border border-white/5 text-zinc-300 ml-1">
@@ -326,9 +646,9 @@ export function PublishingQueue() {
           </button>
           <button 
             onClick={() => setActiveTab('pins')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'pins' ? 'bg-[#25262B] text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}`}
+            className={`flex items-center gap-2.5 px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'pins' ? 'bg-[#25262B] text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}`}
           >
-            <ImageIcon className="w-4 h-4" />
+            <ImageIcon className="w-5.5 h-5.5 stroke-[2.8]" />
             <span>Pinterest Pins</span>
             {pins.length > 0 && (
               <span className="px-1.5 py-0.5 rounded-full text-xs bg-[#25262B] border border-white/5 text-zinc-300 ml-1">
@@ -336,10 +656,22 @@ export function PublishingQueue() {
               </span>
             )}
           </button>
+          <button 
+            onClick={() => setActiveTab('calendar')}
+            className={`flex items-center gap-2.5 px-4 py-2 rounded-md text-sm font-medium transition ${activeTab === 'calendar' ? 'bg-[#25262B] text-[#d7f941] border border-[#d7f941]/20 shadow-sm font-extrabold' : 'text-zinc-400 hover:text-zinc-200'}`}
+          >
+            <Clock className="w-5.5 h-5.5 stroke-[2.8]" />
+            <span>Content Calendar</span>
+            {(articles.filter(a => a.scheduledDate).length + pins.filter(p => p.scheduledDate).length) > 0 && (
+              <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-[#d7f941] text-black font-extrabold ml-1">
+                {articles.filter(a => a.scheduledDate).length + pins.filter(p => p.scheduledDate).length}
+              </span>
+            )}
+          </button>
         </div>
 
         <div className="relative flex-1 md:max-w-xs">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-zinc-500" />
+          <Search className="absolute left-3 top-2.5 h-5 w-5 text-zinc-500 stroke-[2.5]" />
           <input 
             type="text"
             placeholder="Search keywords or titles..."
@@ -495,7 +827,7 @@ export function PublishingQueue() {
 
                         <div className="mt-4 pt-2 border-t border-white/5/40 flex justify-end">
                           <button
-                            onClick={() => publishToTelegram(art.id, `📖 ${art.title} - ${art.keyword}`, undefined, 'articles')}
+                            onClick={() => publishToTelegram(art.id, `${art.title} - ${art.keyword}`, undefined, 'articles')}
                             disabled={!hasTelegramSetup || opLoading[tgOpKey] || tgStatus === 'publishing'}
                             className="flex items-center gap-1.5 text-xs text-white bg-[#25262B]/85 hover:bg-[#25262B] border border-white/10 disabled:opacity-50 disabled:cursor-not-allowed px-3 py-1.5 rounded-md transition"
                           >
@@ -511,13 +843,23 @@ export function PublishingQueue() {
                         </div>
                       </div>
                     </div>
+                    <SocialDistributionSection
+                      item={art}
+                      collectionName="articles"
+                      hasTwitterSetup={hasTwitterSetup}
+                      hasLinkedInSetup={hasLinkedInSetup}
+                      opLoading={opLoading}
+                      generateSocialCopy={generateSocialCopy}
+                      publishToTwitter={publishToTwitter}
+                      publishToLinkedIn={publishToLinkedIn}
+                    />
                   </CardContent>
                 </Card>
               );
             })
           )}
         </div>
-      ) : (
+      ) : activeTab === 'pins' ? (
         <div className="space-y-4">
           {filteredPins.length === 0 ? (
             <Card className="border-dashed border-2 border-white/5/60 bg-transparent text-center py-16">
@@ -608,7 +950,7 @@ export function PublishingQueue() {
 
                         <div className="mt-4 pt-2 border-t border-zinc-805 flex justify-end">
                           <button
-                            onClick={() => publishToWordPress(pin.id, `📌 Pinterest Idea: ${pin.title}`, `<center><img src="${pin.imageUrl || ''}" alt="${pin.title}" style="max-width:100%; border-radius:8px;" /><br/><h3>${pin.title}</h3><p>${pin.description}</p></center>`, 'pins')}
+                            onClick={() => publishToWordPress(pin.id, `Pinterest Idea: ${pin.title}`, `<center><img src="${pin.imageUrl || ''}" alt="${pin.title}" style="max-width:100%; border-radius:8px;" /><br/><h3>${pin.title}</h3><p>${pin.description}</p></center>`, 'pins')}
                             disabled={!hasWordPressSetup || opLoading[wpOpKey] || wpStatus === 'publishing'}
                             className="w-full flex items-center justify-center gap-1.5 text-xs text-white bg-[#25262B]/85 hover:bg-[#25262B] border border-white/10 disabled:opacity-50 disabled:cursor-not-allowed px-3 py-1.5 rounded-md transition"
                           >
@@ -775,12 +1117,40 @@ export function PublishingQueue() {
                         </div>
                       </div>
                     </div>
+                    <SocialDistributionSection
+                      item={pin}
+                      collectionName="pins"
+                      hasTwitterSetup={hasTwitterSetup}
+                      hasLinkedInSetup={hasLinkedInSetup}
+                      opLoading={opLoading}
+                      generateSocialCopy={generateSocialCopy}
+                      publishToTwitter={publishToTwitter}
+                      publishToLinkedIn={publishToLinkedIn}
+                    />
                   </CardContent>
                 </Card>
               );
             })
           )}
         </div>
+      ) : (
+        <ContentCalendarView 
+          articles={articles}
+          pins={pins}
+          hasWordPressSetup={hasWordPressSetup}
+          hasTelegramSetup={hasTelegramSetup}
+          hasPinterestSetup={hasPinterestSetup}
+          hasTwitterSetup={hasTwitterSetup}
+          hasLinkedInSetup={hasLinkedInSetup}
+          integrationSettings={integrationSettings}
+          opLoading={opLoading}
+          publishToWordPress={publishToWordPress}
+          publishToTelegram={publishToTelegram}
+          publishToPinterestDirect={publishToPinterestDirect}
+          pinterestBoards={pinterestBoards}
+          selectedBoards={selectedBoards}
+          setSelectedBoards={setSelectedBoards}
+        />
       )}
     </div>
   );

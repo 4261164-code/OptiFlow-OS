@@ -3,8 +3,29 @@ import {
   runWriterAgent, 
   runMonetizationAgent, 
   runPinterestAgent, 
-  runImageGenerationAgent 
+  runImageGenerationAgent,
+  runSEOLinkAgent
 } from "./agents";
+import { db } from "./firebaseAdmin";
+
+export async function logAgentTelemetry(userId: string, agentType: string, status: 'success' | 'warn' | 'error' | 'info' | 'started' | 'running' | 'completed' | 'failed', message: string, jobId?: string) {
+  try {
+    const logId = `log-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    await db.collection("agent_logs").doc(logId).set({
+      id: logId,
+      agentType,
+      status,
+      message,
+      jobId: jobId || "system",
+      userId: userId || "system-fallback",
+      timestamp: Date.now(),
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    });
+  } catch (err) {
+    console.error("[Telemetry] Failed to record log:", err);
+  }
+}
 
 function generateId() {
   return Array.from({ length: 20 }, () => 
@@ -55,6 +76,7 @@ export async function runPipeline(opts: PipelineOpts): Promise<{
   } = opts;
 
   console.log(`[Pipeline] Starting background pipeline agent orchestration for Job: ${jobId}, User: ${userId}`);
+  await logAgentTelemetry(userId, "System Orchestrator", "started", `Background pipeline agent orchestration initialized for job target: '${keyword}'`, jobId);
 
   // Base state definition
   let researchRaw = "{}";
@@ -66,17 +88,25 @@ export async function runPipeline(opts: PipelineOpts): Promise<{
   // STAGE 1: Research Agent (if needed)
   // ==========================================
   if (!existingArticleContent) {
+    if (jobId) await db.collection("jobs").doc(jobId).update({ status: "research", updatedAt: Date.now() });
     console.log(`[Pipeline] Stage 1: Initiating Research Agent for '${keyword}'...`);
-    researchRaw = await runResearchAgent(keyword, { country, language });
+    await logAgentTelemetry(userId, "Research Agent", "running", `Parsing SERP results and extracting competitor semantic density for keyword: '${keyword}'`, jobId);
+    
+    researchRaw = await runResearchAgent(keyword, { country, language, userId });
+    
     console.log(`[Pipeline] Stage 1 success.`);
+    await logAgentTelemetry(userId, "Research Agent", "success", `Topological silo maps & payload successfully constructed.`, jobId);
   } else {
     console.log(`[Pipeline] Ingestion mode bypasses Stage 1 Research.`);
+    await logAgentTelemetry(userId, "Research Agent", "info", `Bypassing SERP scrape. Payload ingested manually from external request.`, jobId);
   }
 
   // ==========================================
   // STAGE 2: Writer Agent & SEO Monetization
   // ==========================================
+  if (jobId) await db.collection("jobs").doc(jobId).update({ status: "writing", updatedAt: Date.now() });
   console.log(`[Pipeline] Stage 2: Drafting and Optimizing Article...`);
+  await logAgentTelemetry(userId, "Director of Content Context", "running", `Drafting structural markdown pillar with specified length constraints.`, jobId);
 
   if (existingArticleContent) {
     articleRaw = {
@@ -89,21 +119,43 @@ export async function runPipeline(opts: PipelineOpts): Promise<{
         seoLevel, 
         internalLinks, 
         externalLinks, 
-        affiliateOffers 
+        affiliateOffers,
+        userId
       });
       articleRaw.content = optimized;
     }
   } else {
     // 1. Generate core article draft via Writer
-    articleRaw = await runWriterAgent(keyword, researchRaw, { articleLength, tone, hasFaq });
-    // 2. Wrap/inject links via SEO Monetization
+    articleRaw = await runWriterAgent(keyword, researchRaw, { articleLength, tone, hasFaq, userId });
+    // 2. Wrap/inject structure via SEO Monetization
     const optimized = await runMonetizationAgent(articleRaw.content, keyword, { 
       seoLevel, 
       internalLinks, 
       externalLinks, 
-      affiliateOffers 
+      affiliateOffers,
+      userId
     });
     articleRaw.content = optimized;
+  }
+
+  // 3. Inject actual affiliate links into the article if user has active offers
+  try {
+    if (userId) {
+      const offersQuery = await db.collection("offers").where("userId", "==", userId).get();
+      const offersList: any[] = [];
+      offersQuery.forEach(doc => offersList.push({ id: doc.id, ...doc.data() }));
+      
+      if (offersList.length > 0) {
+        console.log(`[Pipeline] Running SEO Link Agent with ${offersList.length} offers...`);
+        await logAgentTelemetry(userId, "Affiliate Matchmaker", "running", `Analyzing ${offersList.length} conversion triggers from dynamic collection to inject. `, jobId);
+        
+        const finalContent = await runSEOLinkAgent(articleRaw.content, offersList, userId);
+        articleRaw.content = finalContent;
+        await logAgentTelemetry(userId, "Affiliate Matchmaker", "success", `Successfully matched and injected relevant outbound conversion nodes.`, jobId);
+      }
+    }
+  } catch (err) {
+    console.log(`[Pipeline] SEO Link Agent step failed, skipping link injection...`, err);
   }
 
   console.log(`[Pipeline] Stage 2 success. Generated article '${articleId}'.`);
@@ -112,8 +164,11 @@ export async function runPipeline(opts: PipelineOpts): Promise<{
   // STAGE 3: Pinterest & Image Generation
   // ==========================================
   if (numPins > 0) {
+    if (jobId) await db.collection("jobs").doc(jobId).update({ status: "pinterest", updatedAt: Date.now() });
     console.log(`[Pipeline] Stage 3: Structuring Pinterest Pins with concept matches...`);
-    const pinterestRaw = await runPinterestAgent(articleRaw.content, numPins);
+    await logAgentTelemetry(userId, "Pinterest Swarm Engine", "running", `Extrapolating engaging hook triggers from article syntax to seed ${numPins} pin schemas.`, jobId);
+    
+    const pinterestRaw = await runPinterestAgent(articleRaw.content, numPins, userId);
     
     try {
       const parsed = JSON.parse(pinterestRaw);
@@ -121,17 +176,20 @@ export async function runPipeline(opts: PipelineOpts): Promise<{
         pins = parsed.pins;
       }
     } catch (err) {
-      console.warn(`[Pipeline Notice] Stage 3 pin json parse failed. Recovering raw text gracefully.`);
+      console.log(`[Pipeline Notice] Stage 3 pin json parse failed. Recovering raw text gracefully.`);
     }
 
     // Assign IDs and generate design images sequentially
     if (pins.length > 0) {
       console.log(`[Pipeline] Generating accompanying design images sequentially via Image Agent...`);
+      await logAgentTelemetry(userId, "Pinterest Swarm Engine", "success", `JSON concept schema constructed. Yielding to Image Agent.`, jobId);
+      await logAgentTelemetry(userId, "Image Generation Node", "running", `Rendering background asset grids through Gemini AI Vision.`, jobId);
+      
       for (const pin of pins) {
         pin.id = generateId();
         if (pin.concept) {
           try {
-            const imageUrl = await runImageGenerationAgent(pin.concept);
+            const imageUrl = await runImageGenerationAgent(pin.concept, userId);
             if (imageUrl) {
               pin.imageUrl = imageUrl;
             }
@@ -144,6 +202,7 @@ export async function runPipeline(opts: PipelineOpts): Promise<{
   }
 
   console.log(`[Pipeline] Full pipeline agents completed successfully!`);
+  await logAgentTelemetry(userId, "System Orchestrator", "completed", `Full multi-agent pipeline routine closed successfully without exception. Output pushed to collection.`, jobId);
 
   return {
     researchResult: researchRaw,

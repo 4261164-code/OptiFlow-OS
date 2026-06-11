@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Input, Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from './ui';
-import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle, AlertTriangle, Trash2 } from 'lucide-react';
 import { db, auth } from '../lib/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, query, where, getDocs, deleteDoc } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/errorHandler';
 
 export function SettingsPage() {
@@ -10,6 +10,47 @@ export function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [healthStatus, setHealthStatus] = useState<any>(null);
   
+  const [purging, setPurging] = useState(false);
+  const [purgeSuccess, setPurgeSuccess] = useState<string | null>(null);
+  const [purgeError, setPurgeError] = useState<string | null>(null);
+  const [showPurgeConfirm, setShowPurgeConfirm] = useState(false);
+  const [confirmText, setConfirmText] = useState('');
+
+  const handlePurgeAllData = async () => {
+    if (!auth.currentUser) return;
+    if (confirmText.toUpperCase() !== 'PURGE') {
+      setPurgeError("Verification signature does not match. Please enter 'PURGE' to verify.");
+      return;
+    }
+
+    setPurging(true);
+    setPurgeSuccess(null);
+    setPurgeError(null);
+
+    try {
+      const uid = auth.currentUser.uid;
+      const collectionsToPurge = ['articles', 'pins', 'jobs', 'offers'];
+      let deletedCount = 0;
+
+      for (const colName of collectionsToPurge) {
+        const q = query(collection(db, colName), where('userId', '==', uid));
+        const querySnapshot = await getDocs(q);
+        const deletePromises = querySnapshot.docs.map(docSnap => deleteDoc(docSnap.ref));
+        await Promise.all(deletePromises);
+        deletedCount += querySnapshot.size;
+      }
+
+      setPurgeSuccess(`Structural wipeout complete. Restored baseline system parameters and cleaned ${deletedCount} analytics records.`);
+      setConfirmText('');
+      setShowPurgeConfirm(false);
+    } catch (err: any) {
+      console.error("Purge failure:", err);
+      setPurgeError(err.message || "Failed to finalize database purge.");
+    } finally {
+      setPurging(false);
+    }
+  };
+
   const [settings, setSettings] = useState({
     geminiApiKey: '',
     wordpressUrl: '',
@@ -19,6 +60,8 @@ export function SettingsPage() {
     pinterestToken: '',
     telegramToken: '',
     telegramChatId: '',
+    twitterToken: '',
+    linkedinToken: '',
     analyticsId: ''
   });
 
@@ -41,6 +84,35 @@ export function SettingsPage() {
     };
     loadSettings();
   }, []);
+
+  const [testingLinkedin, setTestingLinkedin] = useState(false);
+  const [linkedinTestResult, setLinkedinTestResult] = useState<{ success: boolean; name?: string; urn?: string; error?: string; notice?: string } | null>(null);
+
+  const testLinkedInConnection = async () => {
+    if (!auth.currentUser) return;
+    setTestingLinkedin(true);
+    setLinkedinTestResult(null);
+    try {
+      // Auto-save active configuration settings to Firestore so server uses latest input
+      await setDoc(doc(db, 'settings', auth.currentUser.uid), settings);
+
+      const response = await fetch('/api/test-linkedin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: auth.currentUser.uid })
+      });
+
+      const data = await response.json();
+      setLinkedinTestResult(data);
+    } catch (err: any) {
+      setLinkedinTestResult({
+        success: false,
+        error: err.message || "Network request failed while testing connection."
+      });
+    } finally {
+      setTestingLinkedin(false);
+    }
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -105,8 +177,8 @@ export function SettingsPage() {
                 <CardTitle>System Health Check</CardTitle>
                 <CardDescription>Verify connections to Firebase, Gemini, and Storage.</CardDescription>
               </div>
-              <Button variant="secondary" onClick={handleHealthCheck} disabled={healthStatus === 'loading'}>
-                {healthStatus === 'loading' ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+               <Button variant="secondary" onClick={handleHealthCheck} disabled={healthStatus === 'loading'}>
+                {healthStatus === 'loading' ? <Loader2 className="w-5 h-5 mr-2 animate-spin stroke-[2.8]" /> : null}
                 Run Health Check
               </Button>
             </div>
@@ -115,12 +187,12 @@ export function SettingsPage() {
             <CardContent>
               <div className="bg-[#1C1D21] rounded-lg p-4 border border-white/5 space-y-3">
                 {healthStatus.status === 'error' ? (
-                   <div className="text-red-400 flex items-center"><XCircle className="w-5 h-5 mr-2" /> Error: {healthStatus.error}</div>
+                   <div className="text-red-400 flex items-center"><XCircle className="w-5.5 h-5.5 mr-2 stroke-[2.8]" /> Error: {healthStatus.error}</div>
                 ) : (
                    <div className="grid grid-cols-2 gap-4 text-sm">
                       <div className="flex items-center justify-between p-2 bg-[#25262B]/50 rounded">
                          <span className="text-zinc-400">Firebase Auth</span>
-                         {auth.currentUser ? <CheckCircle2 className="w-4 h-4 text-[#d7f941]" /> : <XCircle className="w-4 h-4 text-red-500" />}
+                         {auth.currentUser ? <CheckCircle2 className="w-5 h-5 text-[#d7f941] stroke-[2.8]" /> : <XCircle className="w-5 h-5 text-red-500 stroke-[2.8]" />}
                       </div>
                       <div className="flex items-center justify-between p-2 bg-[#25262B]/50 rounded">
                          <span className="text-zinc-400">Firestore DB</span>
@@ -185,23 +257,6 @@ export function SettingsPage() {
                 <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Application Password</label>
                 <Input type="password" value={settings.wordpressPassword} onChange={e => setSettings({...settings, wordpressPassword: e.target.value})} placeholder="xxxx xxxx xxxx xxxx" />
               </div>
-              <div className="flex items-start space-x-3 pt-2">
-                <input
-                  type="checkbox"
-                  id="wordpressSandboxMode"
-                  checked={settings.wordpressSandboxMode || false}
-                  onChange={e => setSettings({...settings, wordpressSandboxMode: e.target.checked})}
-                  className="mt-1 h-4 w-4 rounded border-white/10 bg-[#25262B] text-[#d7f941] focus:ring-[#d7f941]"
-                />
-                <div className="space-y-1">
-                  <label htmlFor="wordpressSandboxMode" className="text-sm font-semibold text-white cursor-pointer select-none">
-                    Enable Sandbox Simulation Mode
-                  </label>
-                  <p className="text-xs text-zinc-400">
-                    If enabled or if host is unreachable, the system automatically simulates successful publishing so your pipelines and workflows don't fail.
-                  </p>
-                </div>
-              </div>
             </CardContent>
           </Card>
 
@@ -213,7 +268,67 @@ export function SettingsPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Pinterest Access Token</label>
-                <Input type="password" value={settings.pinterestToken} onChange={e => setSettings({...settings, pinterestToken: e.target.value})} placeholder="pina_..." />
+                <Input type="password" value={settings.pinterestToken || ''} onChange={e => setSettings({...settings, pinterestToken: e.target.value})} placeholder="pina_..." />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">X (Twitter) Developer Token / Bearer</label>
+                  <Input type="password" value={settings.twitterToken || ''} onChange={e => setSettings({...settings, twitterToken: e.target.value})} placeholder="X API Bearer token..." />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">LinkedIn Access Token</label>
+                  <Input type="password" value={settings.linkedinToken || ''} onChange={e => setSettings({...settings, linkedinToken: e.target.value})} placeholder="LinkedIn UGC access token..." />
+                  
+                  <div className="pt-1 flex items-center justify-between gap-2 flex-wrap">
+                    <span className="text-[10px] text-zinc-400 leading-normal">Requires <code className="bg-white/5 px-1 py-0.5 rounded text-[9px]">w_member_social</code> or UGC post credentials.</span>
+                    <button
+                      type="button"
+                      onClick={testLinkedInConnection}
+                      disabled={testingLinkedin || !settings.linkedinToken}
+                      className="text-[10px] font-bold uppercase tracking-wider text-[#d7f941] bg-white/5 border border-[#d7f941]/20 hover:bg-[#d7f941]/5 disabled:opacity-50 px-2.5 py-1 rounded transition cursor-pointer flex items-center gap-1.5"
+                    >
+                      {testingLinkedin ? (
+                        <>
+                          <Loader2 className="w-3 h-3 animate-spin text-[#d7f941]" />
+                          Testing Authenticator...
+                        </>
+                      ) : (
+                        "Test API Connection"
+                      )}
+                    </button>
+                  </div>
+
+                  {linkedinTestResult && (
+                    <div className={`mt-2 p-2 rounded text-xs leading-relaxed border ${
+                      linkedinTestResult.success 
+                        ? 'bg-green-500/5 border-green-500/20 text-green-300' 
+                        : 'bg-red-500/5 border-red-500/20 text-red-300'
+                    }`}>
+                      {linkedinTestResult.success ? (
+                        <div className="space-y-1">
+                          <p className="font-bold flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-green-400 inline" />
+                            <span>Authentication Successful!</span>
+                          </p>
+                          <p className="text-[10px] text-zinc-300 break-all">
+                            Connected: <strong className="text-white">{linkedinTestResult.name}</strong> <span className="text-zinc-500">({linkedinTestResult.urn})</span>
+                          </p>
+                          {linkedinTestResult.notice && (
+                            <p className="text-[9px] text-[#d7f941] font-medium italic">{linkedinTestResult.notice}</p>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="space-y-1">
+                          <p className="font-bold flex items-center gap-1">
+                            <XCircle className="w-3.5 h-3.5 text-red-400 inline" />
+                            <span>Authentication Rejected</span>
+                          </p>
+                          <p className="text-[10px] text-zinc-300 break-all">{linkedinTestResult.error}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Telegram Bot Token</label>
@@ -236,6 +351,98 @@ export function SettingsPage() {
             </CardFooter>
           </Card>
         </form>
+
+        {/* PREMIUM ACCOUNT RESET & PURGE DANGER ZONE */}
+        <Card className="border border-rose-500/20 bg-rose-500/[0.01] overflow-hidden rounded-[32px]">
+          <CardHeader className="border-b border-rose-500/10 bg-rose-500/5 py-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-400 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <CardTitle className="text-white text-lg font-bold">Danger Zone // System Restitution</CardTitle>
+                <CardDescription className="text-rose-400/70 text-xs">Irreversible core data purge and statistics rollback.</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6.5 space-y-6">
+            <p className="text-xs text-zinc-400 leading-relaxed font-sans">
+              Purges all generated content assets (Campaign blueprints, articles, Pinterest visual designs, background executions, matched offers) associated with your user session. System analytics dashboard and activity grids will reset to zero database records.
+            </p>
+
+            {purgeSuccess && (
+              <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-2xl p-4 text-xs font-mono">
+                {purgeSuccess}
+              </div>
+            )}
+
+            {purgeError && (
+              <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-2xl p-4 text-xs font-mono">
+                {purgeError}
+              </div>
+            )}
+
+            {showPurgeConfirm ? (
+              <div className="bg-zinc-950/65 border border-white/5 rounded-2xl p-5 space-y-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] uppercase font-mono tracking-widest text-[#6B6E7B] font-bold">
+                    Action Verification Signature
+                  </label>
+                  <p className="text-[11px] text-zinc-500">
+                    To authorize a complete data wipeout, please type exactly <strong className="text-white select-all">PURGE</strong> below:
+                  </p>
+                </div>
+                <Input
+                  type="text"
+                  value={confirmText}
+                  onChange={(e) => setConfirmText(e.target.value)}
+                  placeholder="Type PURGE to verify"
+                  className="font-mono text-xs uppercase"
+                />
+                <div className="flex items-center gap-3 pt-1">
+                  <Button
+                    onClick={handlePurgeAllData}
+                    disabled={purging || confirmText.toUpperCase() !== 'PURGE'}
+                    className="bg-red-600 hover:bg-red-500 text-white font-bold text-xs px-5 py-4.5 rounded-2xl flex items-center gap-2 font-mono"
+                  >
+                    {purging ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-white" />
+                        PURGING CORE DATABASES...
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="w-4 h-4" />
+                        CONFIRM STRUCTURAL WIPEOUT
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setShowPurgeConfirm(false);
+                      setConfirmText('');
+                      setPurgeError(null);
+                    }}
+                    className="text-zinc-400 hover:text-white text-xs px-4"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <Button
+                  onClick={() => setShowPurgeConfirm(true)}
+                  className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 font-bold text-xs tracking-wide px-6 py-4 rounded-2xl transition duration-200"
+                >
+                  <Trash2 className="w-4 h-4 mr-2 text-rose-400" />
+                  Wipe Database Records & Statistics
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

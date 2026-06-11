@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button, Input, Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui';
 import { db, auth } from '../lib/firebase';
 import { collection, doc, setDoc, onSnapshot } from 'firebase/firestore';
+import { addNotification } from '../lib/notifications';
 import { Loader2, ArrowRight, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { CampaignIcon, ArticlesIcon, AgentsIcon } from './CustomIcons';
@@ -62,33 +63,6 @@ export function CampaignBuilder() {
 
     setActiveJobId(jobId);
 
-    // Initialize progress step simulation loop
-    let currentStep = 'pending';
-    const interval = setInterval(async () => {
-      let nextStep = currentStep;
-      if (currentStep === 'pending') {
-        nextStep = 'running';
-      } else if (currentStep === 'running') {
-        nextStep = 'research';
-      } else if (currentStep === 'research') {
-        nextStep = 'writing';
-      } else if (currentStep === 'writing') {
-        nextStep = 'pinterest';
-      }
-
-      if (nextStep !== currentStep) {
-        currentStep = nextStep;
-        try {
-          await setDoc(doc(db, 'jobs', jobId), {
-            status: nextStep,
-            updatedAt: Date.now()
-          }, { merge: true });
-        } catch (e) {
-          console.error("Failed to update step progress in Firestore:", e);
-        }
-      }
-    }, 6000);
-
     try {
       // 1. Create initial pending job record in Firestore (under authenticated user context)
       await setDoc(doc(db, 'jobs', jobId), {
@@ -135,7 +109,6 @@ export function CampaignBuilder() {
         body: JSON.stringify(payload)
       });
       
-      clearInterval(interval);
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Failed to generate campaign content");
 
@@ -176,10 +149,37 @@ export function CampaignBuilder() {
         updatedAt: Date.now()
       }, { merge: true });
 
+      // Trigger high-CTR Campaign Milestone alert
+      try {
+        if (userId) {
+          await addNotification(
+            userId,
+            'milestone',
+            'Campaign Content Pipeline Succeeded',
+            `Successfully compiled deep LSI research data and drafted strategic high-conversion layout for keyword: "${form.keyword}". Pinterest media sets synced and ready.`
+          );
+        }
+      } catch (notifErr) {
+        console.error("Failed to send campaign success notification:", notifErr);
+      }
+
     } catch (err: any) {
-      clearInterval(interval);
       console.error(err);
       
+      // Register error state in logs and notifications
+      try {
+        if (userId) {
+          await addNotification(
+            userId,
+            'error',
+            'Campaign Content Pipeline Failed',
+            `Generation for keyword "${form.keyword}" crashed. Reason: ${err?.message || String(err)}`
+          );
+        }
+      } catch (notifErr) {
+        console.error("Failed to send campaign error notification:", notifErr);
+      }
+
       // Attempt to register error state in local firestore record
       try {
         await setDoc(doc(db, 'jobs', jobId), {
@@ -199,7 +199,7 @@ export function CampaignBuilder() {
 
   // Tracking steps
   const steps = [
-    { id: 'pending', label: 'Campaign Queueing', description: 'Provisioning sandboxed executor engine...' },
+    { id: 'pending', label: 'Campaign Queueing', description: 'Provisioning executor engine...' },
     { id: 'running', label: 'Allocating System Agents', description: 'Spinning up active web-scraping & semantic intelligence workers...' },
     { id: 'research', label: 'Autonomous Niche Research', description: 'Searching competitor landscapes & generating contextual semantic maps...' },
     { id: 'writing', label: 'SEO Writer & Copy-Monetizer', description: 'Drafting core structural blog-post while injecting anchor affiliate loops...' },

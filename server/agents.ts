@@ -1,13 +1,35 @@
 import { GoogleGenAI } from '@google/genai';
+import { db } from "./firebaseAdmin";
 
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build',
+async function getAIClient(userId?: string): Promise<GoogleGenAI> {
+  let customKey = "";
+  if (userId && userId !== "system-fallback" && db) {
+    try {
+      const snap = await db.collection("settings").doc(userId).get();
+      if (snap.exists) {
+        customKey = snap.data()?.geminiApiKey || "";
+      }
+    } catch (e: any) {
+      if (e?.code === 7 || e?.message?.includes("PERMISSION_DENIED")) {
+        // Silently ignore permissions issues from admin SDK in preview
+      } else {
+        console.log("Could not query user settings for custom Gemini API Key:", e);
+      }
     }
   }
-});
+  const apiKey = customKey || process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("No Gemini API key available. Please configure your Google Gemini API Key in the settings page.");
+  }
+  return new GoogleGenAI({
+    apiKey: apiKey,
+    httpOptions: {
+      headers: {
+        'User-Agent': 'aistudio-build',
+      }
+    }
+  });
+}
 
 // ==========================================
 // CENTRAL CONCURRENCY LIMITER & LOAD BALANCER
@@ -52,7 +74,7 @@ export function scheduleGeminiCall<T>(task: () => Promise<T>): Promise<T> {
 // ==========================================
 // ADAPTIVE RETRY LOOP & SAFE RETRIES
 // ==========================================
-async function generateContentWithRetry(params: any, retries = 2): Promise<any> {
+async function generateContentWithRetry(params: any, retries = 5, userId?: string): Promise<any> {
   let modelToUse = params.model;
   
   // Wrap actual execution inside our queue scheduler
@@ -60,14 +82,27 @@ async function generateContentWithRetry(params: any, retries = 2): Promise<any> 
     for (let i = 0; i < retries; i++) {
       try {
         console.log(`[Gemini Request] Dispatching to ${modelToUse} (Attempt ${i + 1}/${retries})`);
-        return await ai.models.generateContent({
+        const aiClient = await getAIClient(userId);
+        const result = await aiClient.models.generateContent({
           ...params,
           model: modelToUse
         });
+        try {
+          const { logCostEvent } = await import("./services/costTracking");
+          await logCostEvent({
+            type: "ai_generation",
+            cost: 0.001,
+            model: modelToUse || "gemini-3.5-flash",
+            entityId: params.entityId || "generation",
+            userId: userId || "system-fallback",
+            description: `AI Content generation: attempt ${i + 1}`
+          });
+        } catch (e) {
+          console.error("Cost tracking log failed:", e);
+        }
+        return result;
       } catch (err: any) {
         const msg = err?.message || err?.toString() || "";
-        console.warn(`[Gemini Quota/Limit Notice] Attempt ${i + 1} with model ${modelToUse} had issues:`, msg);
-        
         const isTransient = err?.error?.code === 503 || 
                             err?.status === 503 || 
                             msg.includes("503") || 
@@ -78,16 +113,30 @@ async function generateContentWithRetry(params: any, retries = 2): Promise<any> 
                             msg.includes("429") || 
                             msg.includes("too_many_requests") || 
                             msg.includes("quota") ||
+                            msg.includes("RESOURCE_EXHAUSTED") ||
                             msg.includes("overloaded");
 
+        console.log(`[Gemini Request Notice] Attempt ${i + 1}/${retries} with ${modelToUse} returned status ${err?.status || err?.error?.code || 'unknown'}. Transient: ${isTransient}`);
+
         if (isTransient && i < retries - 1) {
-          // Immediately switch to the most high-availability fallback flash model on second try
-          if (modelToUse !== 'gemini-flash-latest') {
-            console.log(`[Fallback] Switching from ${modelToUse} to gemini-flash-latest to bypass demand spike.`);
-            modelToUse = 'gemini-flash-latest';
+          const jitter = Math.random() * 2000;
+          let backoffDelay = 4000 * (i + 1) + jitter; // default fallback delay
+          if (msg.includes("retry in")) {
+             const match = msg.match(/retry in\s+([\d\.]+)s/i);
+             if (match) {
+                backoffDelay = (parseFloat(match[1]) + 2) * 1000 + (Math.random() * 3000); // adding 2 seconds margin
+             }
+          } else if (msg.includes("429") || msg.includes("quota") || msg.includes("RESOURCE_EXHAUSTED")) {
+             backoffDelay = 15000 + (Math.random() * 5000); // 15s generic wait for rate limits
           }
-          const backoffDelay = 2000;
-          console.log(`[Retry] Backing off for ${backoffDelay}ms before retry...`);
+          
+          if (modelToUse === 'gemini-3.5-flash' && (msg.includes('503') || msg.includes('UNAVAILABLE') || msg.includes('overloaded') || msg.includes('high demand'))) {
+            console.log(`[Request Fallback] Switching model from ${modelToUse} to gemini-flash-latest due to 503.`);
+            modelToUse = 'gemini-flash-latest';
+            backoffDelay = 1000 + jitter; // Try sooner with the fallback
+          }
+
+          console.log(`[Retry] Backing off for ${Math.round(backoffDelay)}ms before retry...`);
           await new Promise(r => setTimeout(r, backoffDelay));
           continue;
         }
@@ -97,21 +146,35 @@ async function generateContentWithRetry(params: any, retries = 2): Promise<any> 
   });
 }
 
-async function createInteractionWithRetry(params: any, retries = 2): Promise<any> {
+async function createInteractionWithRetry(params: any, retries = 5, userId?: string): Promise<any> {
   let modelToUse = params.model;
   
   return scheduleGeminiCall(async () => {
     for (let i = 0; i < retries; i++) {
       try {
         console.log(`[Gemini Interaction] Dispatching to ${modelToUse} (Attempt ${i + 1}/${retries})`);
-        return await ai.interactions.create({
+        const aiClient = await getAIClient(userId);
+        const result = await aiClient.interactions.create({
           ...params,
           model: modelToUse
         });
+        try {
+          const isImage = params.response_modalities && params.response_modalities.includes('image');
+          const { logCostEvent } = await import("./services/costTracking");
+          await logCostEvent({
+            type: isImage ? "image_generation" : "ai_generation",
+            cost: isImage ? 0.03 : 0.002,
+            model: modelToUse || "gemini-model",
+            entityId: params.entityId || "interaction",
+            userId: userId || "system-fallback",
+            description: isImage ? `Image Pin generation: attempt ${i + 1}` : `Interaction generation: attempt ${i + 1}`
+          });
+        } catch (e) {
+          console.error("Cost tracking log failed:", e);
+        }
+        return result;
       } catch (err: any) {
         const msg = err?.message || err?.toString() || "";
-        console.warn(`[Interaction Quota/Limit Notice] Attempt ${i + 1} with model ${modelToUse} had issues:`, msg);
-        
         const isTransient = err?.error?.code === 503 || 
                             err?.status === 503 || 
                             msg.includes("503") || 
@@ -122,14 +185,40 @@ async function createInteractionWithRetry(params: any, retries = 2): Promise<any
                             msg.includes("429") || 
                             msg.includes("too_many_requests") || 
                             msg.includes("quota") ||
+                            msg.includes("RESOURCE_EXHAUSTED") ||
                             msg.includes("overloaded");
 
+        console.log(`[Interaction Notice] Attempt ${i + 1}/${retries} with ${modelToUse} returned status ${err?.status || err?.error?.code || 'unknown'}. Transient: ${isTransient}`);
+
         if (isTransient && i < retries - 1) {
-          if (modelToUse !== 'gemini-2.5-flash') {
-            console.log(`[Interaction Fallback] Switching model from ${modelToUse} to gemini-2.5-flash.`);
-            modelToUse = 'gemini-2.5-flash';
+          const jitter = Math.random() * 2000;
+          let backoffDelay = 4000 * (i + 1) + jitter; // default fallback delay
+          if (msg.includes("retry in")) {
+             const match = msg.match(/retry in\s+([\d\.]+)s/i);
+             if (match) {
+                backoffDelay = (parseFloat(match[1]) + 2) * 1000 + (Math.random() * 3000);
+             }
+          } else if (msg.includes("429") || msg.includes("quota") || msg.includes("RESOURCE_EXHAUSTED")) {
+             backoffDelay = 15000 + (Math.random() * 5000);
           }
-          await new Promise(r => setTimeout(r, 2000));
+
+          if (params.response_modalities && params.response_modalities.includes('image')) {
+             // For image models, do not fallback to text model, just wait
+             console.log(`[Retry] Backing off for image model ${Math.round(backoffDelay)}ms before retry...`);
+             await new Promise(r => setTimeout(r, backoffDelay));
+             continue;
+          }
+          
+          if (modelToUse === 'gemini-3.5-flash' && (msg.includes('503') || msg.includes('UNAVAILABLE') || msg.includes('overloaded') || msg.includes('high demand'))) {
+            console.log(`[Interaction Fallback] Switching model from ${modelToUse} to gemini-flash-latest due to 503.`);
+            modelToUse = 'gemini-flash-latest';
+            backoffDelay = 1000 + jitter; // Try sooner with the fallback
+          } else if (modelToUse !== 'gemini-3.5-flash' && !msg.includes('429') && !msg.includes('quota') && !msg.includes('RESOURCE_EXHAUSTED') && modelToUse !== 'gemini-flash-latest') {
+            console.log(`[Interaction Fallback] Switching model from ${modelToUse} to gemini-3.5-flash.`);
+            modelToUse = 'gemini-3.5-flash';
+          }
+          console.log(`[Retry] Backing off for ${Math.round(backoffDelay)}ms before retry...`);
+          await new Promise(r => setTimeout(r, backoffDelay));
           continue;
         }
         throw err;
@@ -142,7 +231,7 @@ async function createInteractionWithRetry(params: any, retries = 2): Promise<any
 // CORE SYSTEM AGENTS WITH ZERO-FAILURE MODE
 // ==========================================
 
-export async function runImageGenerationAgent(concept: string): Promise<string | null> {
+export async function runImageGenerationAgent(concept: string, userId?: string): Promise<string | null> {
   try {
     const interaction = await createInteractionWithRetry({
       model: 'gemini-3.1-flash-image',
@@ -154,7 +243,7 @@ export async function runImageGenerationAgent(concept: string): Promise<string |
           image_size: "1K"
         },
       },
-    });
+    }, 5, userId);
 
     for (const step of interaction.steps || []) {
       if (step.type === 'model_output') {
@@ -166,22 +255,14 @@ export async function runImageGenerationAgent(concept: string): Promise<string |
         }
       }
     }
-  } catch (err) {
-    console.info("[Image Gen Backdrop] Activating premium abstract visual backdrop fallback (curated Unsplash resolution).");
-  }
-  
-  // Return pristine abstract backdrop from curated CDN so user view is always sensational
-  const abstractVisuals = [
-    "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1618005198143-e528346d9a1c?auto=format&fit=crop&w=800&q=80"
-  ];
-  return abstractVisuals[Math.floor(Math.random() * abstractVisuals.length)];
+  } catch (err) { throw err; }
+  return null;
 }
 
 export async function runResearchAgent(keyword: string, opts: any = {}): Promise<string> {
   const country = opts.country || 'Global';
   const language = opts.language || 'English';
+  const userId = opts.userId;
 
   const prompt = `You are an SEO and affiliate marketing strategist. 
 Analyze the keyword: "${keyword}" targeting ${country} in ${language}.
@@ -197,23 +278,16 @@ Ensure output is valid JSON mapped exactly like the described fields, with no ma
 
   try {
     const response = await generateContentWithRetry({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.5-flash',
       contents: prompt,
       config: {
         responseMimeType: "application/json",
         temperature: 0.2
       }
-    });
+    }, 5, userId);
     return response.text || "{}";
   } catch (e) {
-    console.warn(`[Fallback Mode] Research Agent activated for keyword: ${keyword}`);
-    return JSON.stringify({
-      searchIntent: `High transactional & informational search intent for modern users seeking ${keyword}.`,
-      pinterestPotential: 8,
-      affiliatePotential: 9,
-      contentAngle: `Visual blueprints, step-by-step guides, and conversion optimization solutions targeting ${keyword}.`,
-      priority: "High"
-    });
+    throw e;
   }
 }
 
@@ -221,20 +295,26 @@ export async function runWriterAgent(keyword: string, researchData: string, opts
   const articleLength = opts.articleLength || 1500;
   const tone = opts.tone || 'Professional';
   const hasFaq = opts.hasFaq !== false;
+  const userId = opts.userId;
 
-  const prompt = `You are an expert SEO blog writer.
+  const prompt = `You are an expert SEO blog writer and technical content strategist.
 Keyword: "${keyword}"
 Research Context: ${researchData}
 
-Write a comprehensive, engaging ${articleLength}+ word SEO article.
+Write a comprehensive, highly engaging ${articleLength}+ word SEO article.
 Tone: ${tone}
-Include:
-- Eye-catching Title
-- Introduction
-- Benefits/Features
-- Top Sites / Examples
-${hasFaq ? '- FAQs' : ''}
-- Conclusion
+
+Strict Content & SEO Guidelines:
+1. Deep SEO & Topic Linking: Naturally weave in semantically related keywords (LSI), secondary long-tail phrases, and structured topical clusters.
+2. Structure: Use proper H1, H2, and H3 header tags for semantic structure.
+3. Content Breakdown:
+   - Eye-catching Title (H1 optimized)
+   - SEO-optimized Introduction with a clear emotional hook
+   - Core Value / Strategy / Benefits
+   - Top Sites / Examples / Case Studies
+   ${hasFaq ? '- FAQs (Use concise, direct answers perfect for Featured Snippets)' : ''}
+   - Clear and Actionable Conclusion
+4. Monetization Setup: Write sentences that naturally lead into product or software recommendations.
 
 Return valid JSON with the following structure:
 {
@@ -244,65 +324,18 @@ Return valid JSON with the following structure:
 
   try {
     const response = await generateContentWithRetry({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.5-flash',
       contents: prompt,
       config: {
         responseMimeType: "application/json",
         temperature: 0.7
       }
-    });
+    }, 5, userId);
 
     const data = JSON.parse(response.text || "{}");
     return { title: data.title || "Untitled", content: data.content || "" };
   } catch (e) {
-    console.warn(`[Fallback Mode] Writer Agent activated for: ${keyword}`);
-    const displayKeyword = keyword.charAt(0).toUpperCase() + keyword.slice(1);
-    const mockContent = `# The Ultimate Guide to ${displayKeyword}
-
-Are you looking to unlock massive organic reach using **${keyword}**? If so, you are in the perfect niche. In this ultimate strategic guide, we break down top-performing conversion routes, LSI integration frameworks, and visual templates to build passive cash flows.
-
----
-
-## Why ${displayKeyword} Matters Today
-
-To understand the core potential of ${keyword}, we have to focus on how consumers digest informational topics. Standard social channels lack long-form indexing, whereas SEO search queries retain traffic capability for months or even years.
-
-### Key Strategic Benefits
-
-1. **Compounding Compound Clicks**: Once indexed, high-quality reviews rank organically for continuous conversion.
-2. **Pre-Qualified Buyers**: Users searching for specific queries possess high purchase intent compared to casual scrollers.
-3. **Automated Monetization Loops**: Seamless user pathways direct traffic effortlessly into high CPA and revenue-producing affiliate setups.
-
----
-
-## Step-by-Step Implementation Map
-
-Creating standard value-driven blog content requires matching user intent with structural, highly authoritative answers.
-
-1. **Keyword Analysis**: Map out LSI terms matching user queries directly.
-2. **Aesthetic Layout Drafting**: Center core call-to-actions (CTAs) above the fold, wrapped in beautiful visual accents.
-3. **Internal & External Linking**: Pair high-reputation resources with internal contextual pages.
-
-${hasFaq ? `---
-
-## Frequently Asked Questions
-
-* **How quickly will this strategy begin ranking?**
-  SEO index times vary, but structured articles generally see solid organic velocity within 14 to 35 days of deployment.
-  
-* **Can beginners implement these systems?**
-  Absolutely. Using modern automation and optimized content skeletons simplifies manual setup burdens, granting immediate operational parity.` : ''}
-
----
-
-## Final Thoughts & Strategic Action
-
-Success within the modern digital workspace belongs to builders who pair high-value, long-form content with focused conversion hooks. Plan your calendar, inject active links, and deploy today!`;
-
-    return {
-      title: `The Ultimate Strategy Guide to ${displayKeyword}`,
-      content: mockContent
-    };
+    throw e;
   }
 }
 
@@ -311,6 +344,7 @@ export async function runMonetizationAgent(articleContent: string, keyword: stri
   const internalLinks = opts.internalLinks || false;
   const externalLinks = opts.externalLinks || false;
   const affiliateOffers = opts.affiliateOffers || '';
+  const userId = opts.userId;
 
   const prompt = `You are a monetization and SEO expert.
 Review the following article written for the keyword: "${keyword}".
@@ -329,20 +363,17 @@ ${articleContent.substring(0, 10000)}
 
   try {
     const response = await generateContentWithRetry({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.5-flash',
       contents: prompt,
       config: {
         temperature: 0.7
       }
-    });
+    }, 5, userId);
     return response.text ? response.text.replace(/```markdown\n/g, '').replace(/```/g, '').trim() : articleContent;
-  } catch (e) {
-    console.warn("[Fallback Mode] Monetization Agent failed. Returning original content intact.");
-    return articleContent;
-  }
+  } catch (e) { throw e; }
 }
 
-export async function runPinterestAgent(articleContent: string, numPins: number = 3): Promise<any> {
+export async function runPinterestAgent(articleContent: string, numPins: number = 3, userId?: string): Promise<any> {
   const prompt = `Read this article and generate Pinterest pins for it.
 Article:
 ${articleContent.substring(0, 3000)}
@@ -357,26 +388,18 @@ Return valid JSON with the following structure:
 
   try {
     const response = await generateContentWithRetry({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.5-flash',
       contents: prompt,
       config: {
         responseMimeType: "application/json",
         temperature: 0.8
       }
-    });
+    }, 5, userId);
     return response.text || "{}";
-  } catch (e) {
-    console.warn("[Fallback Mode] Pinterest Agent activated.");
-    const dummyPins = Array.from({ length: numPins }, (_, i) => ({
-      title: `The Ultimate Strategy Guide #${i + 1}`,
-      description: `Unlock step-by-step conversion secrets and viral social blueprints. Direct traffic loops to high-ticket partnerships today! #marketing #seo #growth`,
-      concept: `A modern sleek flatlay graphic with soft warm drop shadows, featuring charts, data graphs, and an elegant productivity workspace workspace background.`
-    }));
-    return JSON.stringify({ pins: dummyPins });
-  }
+  } catch (e) { throw e; }
 }
 
-export async function runAffiliateMatchAgent(keyword: string): Promise<string> {
+export async function runAffiliateMatchAgent(keyword: string, userId?: string): Promise<string> {
   const prompt = `You are a high-ticket affiliate partnership matching broker.
 Analyze the following keyword space and find the absolute best affiliate programs, networks, and offers to monetize it:
 Keyword: "${keyword}"
@@ -408,40 +431,14 @@ Return a valid JSON object strictly inside the format:
         responseMimeType: "application/json",
         temperature: 0.6
       }
-    });
+    }, 5, userId);
     return response.text || "{}";
   } catch (e) {
-    console.warn(`[Fallback Mode] Affiliate Match Agent fallback activated for: ${keyword}`);
-    return JSON.stringify({
-      keyword: keyword,
-      niche: "SaaS & Visual Content Automation",
-      recommendedStrategy: "Deploy comparison tables, side-by-side workflow comparisons, and focus on direct free-trial incentive signups.",
-      programs: [
-        {
-          name: "Canva Pro Creator",
-          network: "Impact Radius",
-          payout: "Up to $36 per referral",
-          difficulty: "Easy",
-          epcEstimate: "$2.50+",
-          pitch: "An absolute essential tool for generating viral pin designs and professional graphic mockups at scale.",
-          signUpUrl: "https://www.google.com/search?q=canva+affiliate+program"
-        },
-        {
-          name: "Tailwind Scheduler",
-          network: "ShareASale",
-          payout: "15% lifetime recurring commission",
-          difficulty: "Medium",
-          epcEstimate: "$1.80+",
-          pitch: "The leading visual pin scheduling and smart-loop deployment engine for social traffic.",
-          signUpUrl: "https://www.google.com/search?q=tailwind+app+affiliate+program"
-        }
-      ],
-      lsiKeywords: [`${keyword} tips`, "viral social reach", "automated pin calendar", "high CPA platforms"]
-    });
+    throw e;
   }
 }
 
-export async function runTrafficEngineAgent(keyword: string): Promise<string> {
+export async function runTrafficEngineAgent(keyword: string, userId?: string): Promise<string> {
   const prompt = `You are a viral Pinterest traffic strategist and LSI SEO planner.
 Analyze the target keyword: "${keyword}" and design a viral pinning and LSI layout plan.
 
@@ -471,31 +468,14 @@ Return a valid JSON object strictly inside the format:
         responseMimeType: "application/json",
         temperature: 0.7
       }
-    });
+    }, 5, userId);
     return response.text || "{}";
   } catch (e) {
-    console.warn(`[Fallback Mode] Traffic Engine Agent fallback activated for: ${keyword}`);
-    return JSON.stringify({
-      keyword: keyword,
-      trafficPotential: "High",
-      monthlySearchVolume: "18,400+",
-      viralScore: 88,
-      bestPostingTimes: ["3:00 PM EST", "8:30 PM EST"],
-      optimumFrequency: "2 custom visual pins daily",
-      recommendedBoards: [
-        { name: "SaaS Passive Residual Income", estimatedViews: "320k/mo" },
-        { name: "Viral Modern Pinterest Growth Guides", estimatedViews: "180k/mo" }
-      ],
-      seoTriggers: [
-        { type: "Magnetic Title Hook", suggestion: `How to Hijack Serious Residual Income Traffic Using ${keyword}` },
-        { type: "Primary Semantic Trigger", suggestion: `${keyword} strategy, Pinterest search indexing` }
-      ],
-      backlinkStrategy: "Interconnect all active pin boards using strategic anchor posts. Embed pin widgets inside relevant articles to trigger immediate double-indexing."
-    });
+    throw e;
   }
 }
 
-export async function runSEOLinkAgent(articleContent: string, offers: any[]): Promise<string> {
+export async function runSEOLinkAgent(articleContent: string, offers: any[], userId?: string): Promise<string> {
   const offersList = JSON.stringify(offers, null, 2);
   const prompt = `You are an elite SEO and monetization agent (SEOLinkAgent).
 You have been given a blog post written in Markdown and a JSON list of available offers (with brand, keyword/topic triggers, affiliate URLs, and visual suggestions).
@@ -526,31 +506,354 @@ ${articleContent}`;
       config: {
         temperature: 0.5
       }
-    });
+    }, 5, userId);
 
     return response.text ? response.text.replace(/```markdown\n/g, '').replace(/```/g, '').trim() : articleContent;
-  } catch (e) {
-    console.warn("[Fallback Mode] SEOLinkAgent failed. Applying elegant offline structural offer injections.");
-    
-    let content = articleContent;
-    if (offers && offers.length > 0) {
-      const callout = `\n\n***\n\n### 💡 Recommended Tools & Partner Programs\n\nWe have partnered with leading innovators in the industry to accelerate your progress:\n\n` + 
-        offers.slice(0, 3).map((offer: any) => {
-          const brand = offer.brand || offer.name || "Exclusive Program";
-          const desc = offer.description || offer.pitch || "Approved high-ticket product matching the keyword content perfectly.";
-          const link = offer.link || offer.signUpUrl || "#";
-          const anchor = offer.anchor || `Access ${brand}`;
-          return `- **[${anchor}](${link})**: ${desc}`;
-        }).join("\n") + "\n\n***\n";
-      
-      if (content.includes("## FAQ") || content.includes("### FAQ")) {
-        content = content.replace("## FAQ", `${callout}\n\n## FAQ`);
-      } else if (content.includes("## Conclusion") || content.includes("### Conclusion")) {
-        content = content.replace("## Conclusion", `${callout}\n\n## Conclusion`);
-      } else {
-        content = content + callout;
+  } catch (e) { throw e; }
+}
+
+export async function runSocialCopyAgent(title: string, keyword: string, articleContent?: string, userId?: string): Promise<{ twitterPost: string, linkedinPost: string }> {
+  const snippet = articleContent ? articleContent.substring(0, 1500) : "";
+  const prompt = `You are an elite viral copywriter specializing in Twitter/X and LinkedIn distribution.
+Review the following article reference:
+Title: "${title}"
+Primary Keyword: "${keyword}"
+Content Snippet:
+${snippet}
+
+Generate:
+1. A highly engaging Twitter/X post. It should start with an attention-grabbing hook, have 2-3 concise bulletin points or lines, include 2-3 relevant hashtags, and a call-to-action to read the full article (include placeholder "[URL]"). Keep it under 280 characters.
+2. A professional yet highly compelling LinkedIn post. It should have a structured, conversational storytelling tone, spaced lines for high readability, 3 relevant action points, 3-5 tags, and a call-to-action to check out the details (include placeholder "[LINK]").
+
+Return ONLY a rich JSON object conforming to this schema (no markdown wrapping, no metadata, no other text):
+{
+  "twitterPost": "Twitter copy here...",
+  "linkedinPost": "LinkedIn copy here..."
+}
+`;
+
+  try {
+    const response = await generateContentWithRetry({
+      model: 'gemini-3.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        temperature: 0.8
       }
+    }, 5, userId);
+
+    const data = JSON.parse(response.text || "{}");
+    return {
+      twitterPost: data.twitterPost || `🚀 Just published a new deep-dive on "${title}"! Master the core strategies for #${keyword.replace(/\s+/g, '')}. Read the full analysis here: [URL] 📈`,
+      linkedinPost: data.linkedinPost || `🎯 I'm excited to share our latest article: "${title}"!\n\nIf you are looking to scale in the ${keyword} space, we've broken down the key blueprints you need to know.\n\nKey Takeaways:\n📌 Strategy and planning\n📌 High-ticket asset optimizations\n📌 Real-time conversions\n\n👇 Read the complete guide here:\n[LINK]\n\n#${keyword.replace(/\s+/g, '')} #affiliatemarketing #seo #businessscale`
+    };
+  } catch (e) { throw e; }
+}
+
+export async function runSEOClusterAgent(pillarTopic: string, userId?: string): Promise<any[]> {
+  const prompt = `You are a world-class SEO strategist and topological link architect.
+Your mission is to construct a highly optimized SEO Blog Topic Cluster for the target Pillar Topic: "${pillarTopic}".
+
+Generate a cluster of exactly 5 highly related keywords/subtopics that construct a pristine search intent siloing structure around "${pillarTopic}".
+For each keyword, you must provide:
+1. "keyword": The optimized search query/phrase.
+2. "intent": The search intent (e.g. Informational, Commercial, Transactional).
+3. "difficulty": Estimated SEO difficulty score (integer from 15 to 85).
+4. "cpc": Average cost per click in USD (e.g., "$2.45" or "$11.80").
+5. "outline": A quick, elegant 3-bullet core structure of what the subtopic article should teach.
+6. "rationale": Strategic rationale of how this links back to the main topic.
+
+Return ONLY a JSON array containing these 5 subtopics (conform to the schema perfectly, no markdown enclosing wrapping):
+[
+  {
+    "keyword": "...",
+    "intent": "...",
+    "difficulty": 45,
+    "cpc": "$3.50",
+    "outline": ["...", "...", "..."],
+    "rationale": "..."
+  }
+]
+`;
+
+  try {
+    const response = await generateContentWithRetry({
+      model: 'gemini-3.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        temperature: 0.7
+      }
+    }, 5, userId);
+
+    return JSON.parse(response.text || "[]");
+  } catch (e) { throw e; }
+}
+
+export async function runReportDigestAgent(documentText: string, docType: string, userId?: string): Promise<any> {
+  const prompt = `You are the Executive Intelligence & Strategic Optimization Agent for AffiliateOS.
+You are given a document (Type: \${docType}) which contains weekly report analytics, system optimization criteria, strategy plans, or custom documents.
+Analyze the following document text and provide a highly detailed, professional, realistic analysis and actionable strategic recommendations.
+
+Document Text:
+"""
+\${documentText}
+"""
+
+You must generate your response in strict JSON format. The response must contain:
+1. "overview": A professional high-fidelity summary of findings (2-3 sentences).
+2. "kpis": A list of key performance metrics identified or suggested based on the text (such as CTR, Conversions, Estimated Revenue growth, Bounce reduction). Include: "label", "value", "change" (e.g. "+12.4%"), "trend" ("up" | "down" | "neutral").
+3. "swot": An object with arrays of items for "strengths", "weaknesses", "opportunities", "threats".
+4. "optimizations": An array of actionable optimization tasks. Each optimization task should have:
+   - "title": Title of optimization.
+   - "agent": The suggested subsystem agent to deploy (e.g., "SEO Pillar Architect", "Pinterest Creative Agent", "Traffic Engine", "Affiliate Matchmaker").
+   - "impact": "High" | "Medium" | "Low".
+   - "effort": "Easy" | "Moderate" | "Complex".
+   - "description": Concrete step-by-step recommendation.
+   - "suggestedAction": A specific, quick action value (e.g. a specific keyword or affiliate tactic, like "Scale 'modern outdoor gear' content hub").
+5. "outlook": A general business growth score forecast (0-100).
+
+Conform strictly to this format so the UI can construct gorgeous, premium interactive visual cards. Return ONLY JSON, without any markdown formatting wrappers or wrapping quotes.
+`;
+
+  try {
+    const response = await generateContentWithRetry({
+      model: 'gemini-3.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        temperature: 0.7
+      }
+    }, 5, userId);
+
+    return JSON.parse(response.text || "{}");
+  } catch (e) { throw e; }
+}
+
+export async function runExecutiveSummaryAgent(recentActivitiesJson: string, userId?: string): Promise<any> {
+  const prompt = `You are the Lead Digital Strategist & Portfolio Auditor for AffiliateOS, an autonomous marketing engine.
+Below is a raw dump of recent activity events, notification records, system jobs, or metric reports in JSON format:
+"""
+${recentActivitiesJson}
+"""
+
+Analyze these events and generate a highly intelligent, cohesive, professional, human-sounding natural language executive summary of campaign health and urgent operational tasks.
+Do not sound mechanical or list file paths. Address the user directly as a senior digital marketer.
+
+Your response must be in strict JSON format containing:
+1. "healthScore": A calculated overall portfolio health score from 0 to 100 representing the state of recent jobs/sync pipelines.
+2. "statusState": A status string categorized as: "stellar" (excellent, no errors), "operational" (working fine but minimal activities), "warning" (some issues/failures exist), or "critical" (multiple current job failures or active system blockages).
+3. "summary": A narrative, professional executive analysis paragraph (4-5 direct, impactful sentences). Comment on recent campaign achievements (e.g., cluster compilation, Pinterest sets), analyze active failures if any (e.g., remote gateway errors), and highlight opportunities for expansion or immediate attention.
+4. "urgentTasks": An array of 2-3 highly operational, context-driven urgent tasks to address current roadblocks or scale current wins. Each task must have:
+   - "id": a short unique string id (e.g. "task-1")
+   - "title": Action-oriented title (e.g., "Resolve Pinterest Sync Timeout")
+   - "description": Practical instructions detailing exactly what to do.
+   - "priority": "high" | "medium" | "low"
+   - "category": "connection" | "seo" | "creative" | "general"
+5. "milestonesReached": An array of 1-3 visual milestone strings highlighting successful campaign logs or traffic indicators.
+
+Ensure the final output is parsed strictly into this JSON structure, with no wrapper code blocks or conversational prefixes. Use "gemini-3.5-flash" to compose the content.`;
+
+  try {
+    const response = await generateContentWithRetry({
+      model: 'gemini-3.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        temperature: 0.6
+      }
+    }, 5, userId);
+
+    return JSON.parse(response.text || "{}");
+  } catch (e) { throw e; }
+}
+
+export async function runCustomPinAgent(
+  concept: string,
+  title?: string,
+  description?: string,
+  userId?: string
+): Promise<{ title: string; description: string; concept: string; imageUrl: string }> {
+  let finalTitle = title || "";
+  let finalDescription = description || "";
+
+  // If title or description are not provided, let's auto-generate them using Gemini!
+  if (!finalTitle || !finalDescription) {
+    const prompt = `You are a viral Pinterest growth-hacker and SEO expert.
+A user wants to create a high-quality Pinterest pin based on the style/theme: "${concept}".
+Generate a viral, high-CTR click-incentivized Pin Title (max 60 chars) and an SEO-optimized Pinterest Description (max 300 chars, containing 3-4 natural high-volume viral hashtags matches).
+
+Return ONLY a JSON object conforming to this structure:
+{
+  "title": "A catchy high-CTR title",
+  "description": "An engaging description optimizing for search keywords with a CTA to read more! #marketing #trends"
+}
+Do not include any markdown block wrappers around the JSON.`;
+
+    try {
+      const gRes = await generateContentWithRetry({
+        model: 'gemini-3.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          temperature: 0.8
+        }
+      }, 5, userId);
+      
+      const parsedText = JSON.parse(gRes.text || "{}");
+      if (parsedText.title) finalTitle = finalTitle || parsedText.title;
+      if (parsedText.description) finalDescription = finalDescription || parsedText.description;
+    } catch(e) { throw e; }
+  }
+
+  // Synthesize image using Google's high-quality image generation agent (gemini-3.1-flash-image)
+  let imageUrl = "";
+  try {
+    const genUrl = await runImageGenerationAgent(concept, userId);
+    if (genUrl) {
+      imageUrl = genUrl;
     }
-    return content;
+  } catch(err) { throw err; }
+  if (!imageUrl) throw new Error("Image Generation Failed.");
+  return {
+    title: finalTitle,
+    description: finalDescription,
+    concept: concept,
+    imageUrl: imageUrl
+  };
+}
+
+export async function runDeepKeywordExplorerAgent(
+  keyword: string,
+  country: string = "United States",
+  language: string = "English",
+  userId?: string
+): Promise<any> {
+  const prompt = `You are a world-class SEO specialist, affiliate marketing director, and programmatic search planner.
+Analyze the target keyword or phrase: "${keyword}" for the country "${country}" and language "${language}".
+
+Provide a comprehensive research analysis report in standard JSON format containing these exact properties (no more, no less):
+{
+  "keyword": "${keyword}",
+  "volume": "Estimated monthly search volume (e.g. 15,400)",
+  "difficulty": "Numeric score 0-100 representing SEO difficulty (e.g. 48)",
+  "cpc": "Estimated cost-per-click in USD (e.g. $2.45)",
+  "globalTrend": "One of: 'up', 'down', 'stable'",
+  "searchIntent": "One of: 'informational', 'commercial', 'transactional', 'navigational'",
+  "intentAnalysis": "A 1-2 sentence breakdown of user behavioral search psychology.",
+  "priority": "One of: 'High', 'Medium', 'Low'",
+  "metrics": {
+    "pinterestPotential": "Number 1-10",
+    "seoPotential": "Number 1-10",
+    "affiliateFit": "Number 1-10"
+  },
+  "semanticClusters": [
+    {
+      "subtopic": "Related subtopic keyword segment",
+      "keywords": ["LSI keyword 1", "LSI keyword 2", "LSI keyword 3"],
+      "difficulty": "Numeric difficulty 0-100",
+      "intent": "Intent type",
+      "monetizationHook": "Specific monetization strategy angle"
+    }
+  ],
+  "suggestedSponsors": [
+    {
+      "niche": "Brand/program name recommended for affiliate partnerships",
+      "payoutModel": "e.g. 15% CPS or $250 CPA",
+      "hookAngle": "Copy angle to pitch this offer to readers",
+      "estimatedCpa": "CPA value context"
+    }
+  ],
+  "pinterestCreativeConcepts": [
+    {
+      "conceptTitle": "Catchy high-CTR title matching active interest",
+      "visualPalette": "Styling suggestions and colors",
+      "layoutDescription": "Composition advice for the 9:16 graphic canvas",
+      "seoTags": ["hashtag1", "hashtag2", "hashtag3"]
+    }
+  ],
+  "competitors": [
+    {
+      "domain": "Domain of keyword competitor ranking here (e.g. competitor-blog.com)",
+      "organicTraffic": "Estimated monthly search traffic from this keyword segment (e.g. 15.5K searches/mo)",
+      "domainAuthority": 52,
+      "commonKeywords": [
+        { "keyword": "High intensity keyword phrase", "position": 2, "volume": "4,200", "kd": 35 }
+      ],
+      "contentClusters": [
+        { "clusterName": "Subtopic cluster category name", "performanceScore": 8.7, "pagesCount": 14, "primaryIntent": "Commercial" }
+      ],
+      "seoStrategy": "High fidelity sentence describing how they capture search equity for this segment."
+    }
+  ],
+  "contentOutline": {
+    "pillarTitle": "SEO optimized H1 title for an affiliate post",
+    "structuredSections": [
+      { "heading": "Heading title (e.g. H2 or H3)", "detail": "What points to cover fully in this segment", "focusKeyword": "Specific phrase to weave into copy" }
+    ]
   }
 }
+
+You must return ONLY the raw valid JSON payload. Do NOT wrap it in backticks, \`\`\`json markdown blocks, or prepend/append any conversational notes. Parse as strict JSON.`;
+
+  try {
+    const rawRes = await generateContentWithRetry({
+      model: 'gemini-3.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        temperature: 0.3
+      }
+    }, 5, userId);
+
+    const data = JSON.parse(rawRes.text || "{}");
+    return data;
+  } catch (e) {
+    throw e;
+  }
+}
+
+export async function runCompetitorAuditAgent(
+  keyword: string,
+  competitorDomain: string,
+  userId?: string
+): Promise<any> {
+  const prompt = `You are a world-class SEO strategist and technical rank tracking expert.
+Audit the competitor domain: "${competitorDomain}" for the target keyword cluster: "${keyword}".
+
+Provide a comprehensive technical audit report in standard JSON format containing these properties (no more, no less):
+{
+  "domain": "${competitorDomain}",
+  "organicTraffic": "Estimated monthly search traffic from this keyword segment (e.g. 18,200 visitors/mo)",
+  "domainAuthority": 62,
+  "commonKeywords": [
+    { "keyword": "Specific ranking keyword belonging to ${keyword} cluster", "position": 3, "volume": "2,400", "kd": 45 }
+  ],
+  "contentClusters": [
+    { "clusterName": "Subtopic content category name focused on by this domain", "performanceScore": 9.1, "pagesCount": 14, "primaryIntent": "Transactional" }
+  ],
+  "seoStrategy": "High-fidelity summary of how this specific domain structures content clusters, their UX optimization, internal linking, and content authority hacks."
+}
+
+You must return ONLY the raw valid JSON payload. Do NOT wrap it in backticks, \`\`\`json markdown blocks, or prepend/append any conversational notes. Parse as strict JSON.`;
+
+  try {
+    const rawRes = await generateContentWithRetry({
+      model: 'gemini-3.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        temperature: 0.3
+      }
+    }, 5, userId);
+
+    const data = JSON.parse(rawRes.text || "{}");
+    return data;
+  } catch (e) {
+    throw e;
+  }
+}
+
+
+
+

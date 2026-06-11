@@ -8,6 +8,11 @@ service cloud.firestore {
 
     function isSignedIn() { return request.auth != null; }
     function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
 
     function isValidJob(data) {
       return data.keys().hasAll(['keyword', 'status', 'userId', 'createdAt', 'updatedAt'])
@@ -21,7 +26,7 @@ service cloud.firestore {
     function isValidArticle(data) {
       return data.keys().hasAll(['title', 'content', 'keyword', 'jobId', 'userId', 'createdAt', 'updatedAt'])
         && data.title is string && data.title.size() <= 2000
-        && data.content is string && data.content.size() <= 500000
+        && data.content is string && data.content.size() <= 1000000
         && data.keyword is string && data.keyword.size() <= 5000
         && data.jobId is string
         && data.userId == request.auth.uid
@@ -34,7 +39,6 @@ service cloud.firestore {
         && data.title is string && data.title.size() <= 2000
         && data.description is string && data.description.size() <= 10000
         && data.concept is string && data.concept.size() <= 10000
-        && (!data.keys().hasAny(['imageUrl']) || data.imageUrl == null || (data.imageUrl is string && data.imageUrl.size() <= 2000000))
         && data.articleId is string
         && data.jobId is string
         && data.userId == request.auth.uid
@@ -47,59 +51,215 @@ service cloud.firestore {
         && data.brand is string && data.brand.size() <= 500
         && data.keyword is string && data.keyword.size() <= 500
         && data.link is string && data.link.size() <= 5000
-        && (!data.keys().hasAny(['anchor']) || data.anchor == null || (data.anchor is string && data.anchor.size() <= 1000))
-        && (!data.keys().hasAny(['description']) || data.description == null || (data.description is string && data.description.size() <= 10000))
         && data.userId == request.auth.uid
         && data.createdAt is number
         && data.updatedAt is number;
     }
 
+    function isValidNotification(data) {
+      return data.keys().hasAll(['title', 'message', 'type', 'read', 'userId', 'createdAt', 'updatedAt'])
+        && data.title is string && data.title.size() <= 1000
+        && data.message is string && data.message.size() <= 4000
+        && data.type in ["milestone", "traffic", "error", "info"]
+        && data.read is bool
+        && data.userId == request.auth.uid
+        && data.createdAt is number
+        && data.updatedAt is number;
+    }
+
+    function isValidTopicCluster(data) {
+      return data.keys().hasAll(['title', 'keyword', 'status', 'userId', 'createdAt', 'updatedAt'])
+        && data.title is string && data.title.size() <= 1000
+        && data.keyword is string && data.keyword.size() <= 1000
+        && data.status in ["planning", "generating", "linking", "completed", "error"]
+        && data.userId == request.auth.uid
+        && data.createdAt is number
+        && data.updatedAt is number;
+    }
+
+    function isValidClusterNode(data) {
+      return data.keys().hasAll(['clusterId', 'keyword', 'title', 'searchIntent', 'status', 'userId', 'isPillar', 'createdAt'])
+        && data.clusterId is string
+        && data.keyword is string && data.keyword.size() <= 1000
+        && data.title is string && data.title.size() <= 1000
+        && data.searchIntent is string
+        && data.status in ["pending", "generating", "completed", "error"]
+        && data.userId == request.auth.uid
+        && data.isPillar is bool
+        && data.createdAt is number;
+    }
+
+    function isValidRevenueMetric(data) {
+      return data.keys().hasAll(['userId', 'keyword', 'clicks', 'conversions', 'revenue', 'timestamp', 'createdAt', 'roi', 'date'])
+        && data.userId == request.auth.uid
+        && data.keyword is string
+        && data.clicks is number
+        && data.conversions is number
+        && data.revenue is number
+        && data.roi is number
+        && data.date is string
+        && data.timestamp is number
+        && data.createdAt is number;
+    }
+
+    function isValidAgentLog(data) {
+      return data.keys().hasAll(['agentType', 'status', 'message', 'userId', 'timestamp', 'createdAt'])
+        && data.agentType is string
+        && data.status is string
+        && data.message is string && data.message.size() <= 10000
+        && data.userId == request.auth.uid
+        && data.timestamp is number
+        && data.createdAt is number;
+    }
+
+    function isValidAutomationLog(data) {
+      return data.keys().hasAll(['keyword', 'status', 'userId', 'createdAt', 'updatedAt'])
+        && data.keyword is string && data.keyword.size() <= 2000
+        && data.status is string && data.status.size() <= 100
+        && data.userId == request.auth.uid
+        && data.createdAt is number
+        && data.updatedAt is number;
+    }
+
+    function isValidKeyword(data) {
+      return data.keys().hasAll(['keyword', 'payloadJson', 'createdAt', 'userId', 'isTracked', 'updatedAt'])
+        && data.keyword is string && data.keyword.size() <= 2000
+        && data.payloadJson is string && data.payloadJson.size() <= 1000000
+        && data.userId == request.auth.uid
+        && data.createdAt is number
+        && data.updatedAt is number
+        && data.isTracked is bool;
+    }
+
     match /jobs/{jobId} {
-      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
       allow create: if isSignedIn() && isValidJob(incoming());
-      allow update: if isSignedIn() 
-        && resource.data.userId == request.auth.uid 
-        && isValidJob(incoming())
-        && incoming().userId == resource.data.userId
-        && incoming().createdAt == resource.data.createdAt;
-      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && isValidJob(incoming());
     }
 
     match /articles/{articleId} {
-      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
       allow create: if isSignedIn() && isValidArticle(incoming());
-      allow update: if isSignedIn() 
-        && resource.data.userId == request.auth.uid 
-        && isValidArticle(incoming())
-        && incoming().userId == resource.data.userId
-        && incoming().createdAt == resource.data.createdAt;
-      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && isValidArticle(incoming());
     }
 
     match /pins/{pinId} {
-      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
       allow create: if isSignedIn() && isValidPin(incoming());
-      allow update: if isSignedIn() 
-        && resource.data.userId == request.auth.uid 
-        && isValidPin(incoming())
-        && incoming().userId == resource.data.userId
-        && incoming().createdAt == resource.data.createdAt;
-      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && isValidPin(incoming());
     }
 
     match /offers/{offerId} {
-      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
       allow create: if isSignedIn() && isValidOffer(incoming());
-      allow update: if isSignedIn() 
-        && resource.data.userId == request.auth.uid 
-        && isValidOffer(incoming())
-        && incoming().userId == resource.data.userId
-        && incoming().createdAt == resource.data.createdAt;
-      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && isValidOffer(incoming());
+    }
+
+    match /notifications/{notificationId} {
+      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidNotification(incoming());
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && isValidNotification(incoming());
+    }
+
+    match /topic_clusters/{clusterId} {
+      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidTopicCluster(incoming());
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && isValidTopicCluster(incoming());
+    }
+
+    match /cluster_nodes/{nodeId} {
+      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidClusterNode(incoming());
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && isValidClusterNode(incoming());
+    }
+
+    match /revenue_metrics/{metricId} {
+      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidRevenueMetric(incoming());
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && isValidRevenueMetric(incoming());
+    }
+
+    match /agent_logs/{logId} {
+      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidAgentLog(incoming());
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && isValidAgentLog(incoming());
     }
 
     match /settings/{userId} {
-      allow read, write: if isSignedIn() && (request.auth.uid == userId || userId == request.auth.uid + '_test');
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /affiliate_clicks/{clickId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /affiliate_conversions/{conversionId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /revenue_events/{eventId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /profit_metrics/{metricId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /system_health_metrics/{metricId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /cluster_metrics/{metricId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /article_metrics/{metricId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /offer_metrics/{metricId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /daily_metrics/{metricId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /automationLogs/{logId} {
+      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidAutomationLog(incoming());
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && isValidAutomationLog(incoming());
+    }
+
+    match /keywords/{keywordId} {
+      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidKeyword(incoming());
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && isValidKeyword(incoming());
+    }
+
+    match /pending_click_events/{eventId} {
+      allow read, write: if false;
+    }
+
+    match /unreconciled_conversions/{conversionId} {
+      allow read, write: if false;
+    }
+
+    match /click_errors/{errorId} {
+      allow read, write: if false;
+    }
+
+    match /cost_events/{eventId} {
+      allow read, write: if false;
     }
   }
 }

@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  affiliate-os-web:
+    build:
+      context: .
+      target: runner
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    env_file:
+      - .env
+    restart: unless-stopped
+    depends_on:
+      - firestore-emulator
+
+  firestore-emulator:
+    image: mtlynch/firestore-emulator-docker
+    environment:
+      - FIRESTORE_PROJECT_ID=affiliate-os-local
+    ports:
+      - "8080:8080"

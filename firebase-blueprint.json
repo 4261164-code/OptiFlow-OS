@@ -6,7 +6,7 @@
       "type": "object",
       "properties": {
         "keyword": { "type": "string" },
-        "status": { "type": "string", "enum": ["pending", "research", "writing", "pinterest", "monetization", "completed", "error"] },
+        "status": { "type": "string", "enum": ["pending", "running", "research", "writing", "pinterest", "monetization", "completed", "error"] },
         "userId": { "type": "string" },
         "researchResult": { "type": "string" },
         "articleId": { "type": "string" },
@@ -52,16 +52,168 @@
       "description": "Monetization and affiliate offer reference for link insertion",
       "type": "object",
       "properties": {
-        "brand": { "type": "string", "description": "e.g., Canva, Nike" },
-        "keyword": { "type": "string", "description": "LSI or target keyword trigger" },
-        "link": { "type": "string", "description": "Affiliate URL or internal guide link" },
-        "anchor": { "type": "string", "description": "Optional custom anchor text" },
+        "brand": { "type": "string" },
+        "keyword": { "type": "string" },
+        "link": { "type": "string" },
+        "anchor": { "type": "string" },
         "description": { "type": "string" },
         "userId": { "type": "string" },
         "createdAt": { "type": "number" },
         "updatedAt": { "type": "number" }
       },
       "required": ["brand", "keyword", "link", "userId", "createdAt", "updatedAt"]
+    },
+    "Notification": {
+      "title": "App Notification",
+      "description": "System or pipeline action notification",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string", "enum": ["milestone", "traffic", "error", "info"] },
+        "read": { "type": "boolean" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["title", "message", "type", "read", "userId", "createdAt", "updatedAt"]
+    },
+    "TopicCluster": {
+      "title": "Topic Cluster",
+      "description": "Programmatic SEO topic cluster container",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "keyword": { "type": "string" },
+        "status": { "type": "string", "enum": ["planning", "generating", "linking", "completed", "error"] },
+        "totalNodes": { "type": "number" },
+        "completedNodes": { "type": "number" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["title", "keyword", "status", "userId", "createdAt", "updatedAt"]
+    },
+    "ClusterNode": {
+      "title": "Cluster Node",
+      "description": "An individual article node within a topic cluster",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "clusterId": { "type": "string" },
+        "keyword": { "type": "string" },
+        "title": { "type": "string" },
+        "searchIntent": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "generating", "completed", "error"] },
+        "articleId": { "type": "string" },
+        "userId": { "type": "string" },
+        "isPillar": { "type": "boolean" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["clusterId", "keyword", "title", "searchIntent", "status", "userId", "isPillar", "createdAt"]
+    },
+    "RevenueMetric": {
+      "title": "Revenue Metric",
+      "description": "Financial and traffic performance metrics for a keyword",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "keyword": { "type": "string" },
+        "clicks": { "type": "number" },
+        "conversions": { "type": "number" },
+        "revenue": { "type": "number" },
+        "epc": { "type": "number" },
+        "ctr": { "type": "number" },
+        "timestamp": { "type": "number" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["userId", "keyword", "clicks", "conversions", "revenue", "timestamp", "createdAt"]
+    },
+    "AgentLog": {
+      "title": "Agent Log",
+      "description": "Execution telemetry for agents",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "agentType": { "type": "string" },
+        "jobId": { "type": "string" },
+        "status": { "type": "string" },
+        "message": { "type": "string" },
+        "userId": { "type": "string" },
+        "timestamp": { "type": "number" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["agentType", "status", "message", "userId", "timestamp", "createdAt"]
+    },
+    "AffiliateNetwork": {
+      "title": "Affiliate Network",
+      "description": "Standardized definition for CPA and Revenue affiliate networks",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "apiBaseUrl": { "type": "string" },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "name", "apiBaseUrl", "active", "createdAt"]
+    },
+    "NetworkCredentials": {
+      "title": "Network Credentials",
+      "description": "Secured OAuth tokens and keys to establish network APIs authentication",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "networkId": { "type": "string" },
+        "email": { "type": "string" },
+        "apiToken": { "type": "string" },
+        "tokenExpiry": { "type": "number" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "networkId", "email", "apiToken", "tokenExpiry", "userId", "createdAt"]
+    },
+    "MaxBountyCampaign": {
+      "title": "MaxBounty Campaign",
+      "description": "Scored campaign offer retrieved from MaxBounty API",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "networkCampaignId": { "type": "number" },
+        "networkId": { "type": "string" },
+        "name": { "type": "string" },
+        "payout": { "type": "number" },
+        "conversionType": { "type": "string" },
+        "status": { "type": "string" },
+        "countries": { "type": "array", "items": { "type": "string" } },
+        "trafficTypes": { "type": "array", "items": { "type": "string" } },
+        "epc": { "type": "number" },
+        "expiresAt": { "type": "number" },
+        "createdAt": { "type": "number" },
+        "score": { "type": "number" }
+      },
+      "required": ["id", "networkCampaignId", "networkId", "name", "payout", "conversionType", "status", "epc", "createdAt"]
+    },
+    "MaxBountyTrackingLink": {
+      "title": "MaxBounty Tracking Link",
+      "description": "Active tracking link with sub-ID encoding attribution metrics",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "campaignId": { "type": "string" },
+        "affiliateLink": { "type": "string" },
+        "sub1": { "type": "string" },
+        "sub2": { "type": "string" },
+        "sub3": { "type": "string" },
+        "sub4": { "type": "string" },
+        "sub5": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "userId": { "type": "string" }
+      },
+      "required": ["id", "campaignId", "affiliateLink", "createdAt", "userId"]
     }
   },
   "firestore": {
@@ -80,6 +232,46 @@
     "offers/{offerId}": {
       "schema": { "$ref": "#/entities/Offer" },
       "description": "Affiliate and internal offers index"
+    },
+    "notifications/{notificationId}": {
+      "schema": { "$ref": "#/entities/Notification" },
+      "description": "System-wide notification alerts"
+    },
+    "topic_clusters/{clusterId}": {
+      "schema": { "$ref": "#/entities/TopicCluster" },
+      "description": "Topic clusters overview"
+    },
+    "cluster_nodes/{nodeId}": {
+      "schema": { "$ref": "#/entities/ClusterNode" },
+      "description": "Individual cluster nodes"
+    },
+    "revenue_metrics/{metricId}": {
+      "schema": { "$ref": "#/entities/RevenueMetric" },
+      "description": "Performance and revenue tracking"
+    },
+    "agent_logs/{logId}": {
+      "schema": { "$ref": "#/entities/AgentLog" },
+      "description": "Agent execution telemetry logs"
+    },
+    "affiliate_networks/{networkId}": {
+      "schema": { "$ref": "#/entities/AffiliateNetwork" },
+      "description": "Integrated affiliate ad networks"
+    },
+    "network_credentials/{credentialId}": {
+      "schema": { "$ref": "#/entities/NetworkCredentials" },
+      "description": "User API credentials for major affiliate networks"
+    },
+    "maxbounty_campaigns/{campaignId}": {
+      "schema": { "$ref": "#/entities/MaxBountyCampaign" },
+      "description": "Retrieved and scored offers from MaxBounty Network"
+    },
+    "tracking_links/{linkId}": {
+      "schema": { "$ref": "#/entities/MaxBountyTrackingLink" },
+      "description": "Pinterest and content monetization links"
+    },
+    "postback_processing_queue/{taskId}": {
+      "schema": { "type": "object" },
+      "description": "Idempotency queue for incoming webhooks"
     }
   }
 }

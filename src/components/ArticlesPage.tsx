@@ -4,9 +4,10 @@ import { collection, query, where, onSnapshot, getDocs, updateDoc, doc, writeBat
 import { Article, Offer } from '../types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button } from './ui';
 import { formatDistanceToNow } from 'date-fns';
-import { ChevronDown, ChevronUp, Loader2, Link2, Sparkles, CheckCircle, AlertCircle, RefreshCw, Layers } from 'lucide-react';
+import { ChevronDown, ChevronUp, Loader2, Link2, CheckCircle, AlertCircle, RefreshCw, Layers } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { Link } from 'react-router-dom';
+import { BubblyAppleIcon } from './CustomIcons';
 
 export function ArticlesPage() {
   const [articles, setArticles] = useState<Article[]>([]);
@@ -61,7 +62,8 @@ export function ArticlesPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           articleContent: article.content,
-          offers: offers
+          offers: offers,
+          userId: auth.currentUser?.uid
         })
       });
 
@@ -162,7 +164,7 @@ export function ArticlesPage() {
         </div>
         <Button asChild size="sm" variant="outline" className="border-white/10 text-zinc-300 rounded-xl">
           <Link to="/offers" className="flex items-center gap-1.5 text-xs uppercase font-semibold tracking-wider">
-            <Link2 className="w-4 h-4" /> Edit Link triggers
+            <Link2 className="w-5 h-5 stroke-[2.8]" /> Edit Link triggers
           </Link>
         </Button>
       </div>
@@ -207,7 +209,7 @@ export function ArticlesPage() {
                     <div className="p-5 bg-white/[0.02] rounded-2xl border border-white/5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                       <div className="space-y-1">
                         <div className="flex items-center gap-1.5 text-sm font-bold text-white tracking-wide">
-                          <Sparkles className="w-4 h-4 text-[#d7f941] animate-pulse" />
+                          <BubblyAppleIcon className="w-5.5 h-5.5 text-[#d7f941] animate-pulse" />
                           <span>SEOLinkAgent Monetizer</span>
                         </div>
                         <p className="text-xs text-zinc-400 max-w-xl">
@@ -218,7 +220,7 @@ export function ArticlesPage() {
                       <div className="flex items-center gap-2 flex-wrap">
                         {isSuccess ? (
                           <div className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#d7f941]/10 text-[#d7f941] border border-[#d7f941]/20 text-xs font-bold uppercase tracking-wider">
-                            <CheckCircle className="w-4 h-4" />
+                            <CheckCircle className="w-5 h-5 stroke-[2.8]" />
                             Optimized!
                           </div>
                         ) : (
@@ -228,7 +230,7 @@ export function ArticlesPage() {
                             onClick={() => handleRunSEOLinkAgent(article)}
                             disabled={isOptimizing || isSeeding}
                           >
-                            {isOptimizing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
+                            {isOptimizing ? <Loader2 className="w-5 h-5 mr-2 animate-spin stroke-[2.8]" /> : <BubblyAppleIcon className="w-5 h-5 mr-2" />}
                             Run SEOLinkAgent
                           </Button>
                         )}
@@ -239,7 +241,7 @@ export function ArticlesPage() {
                     {hasError && (
                       <div className="p-4 bg-amber-500/10 border border-amber-500/20 text-amber-300 rounded-lg text-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-fade-in">
                         <div className="flex items-start gap-2.5">
-                          <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                          <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5 stroke-[2.8]" />
                           <span>{errorStatus.message}</span>
                         </div>
                         {errorStatus.message.includes("No offers found") && (
@@ -251,7 +253,7 @@ export function ArticlesPage() {
                               onClick={() => seedStandardOffers(article)}
                               disabled={isSeeding}
                             >
-                              {isSeeding ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <RefreshCw className="w-3 h-3 mr-1" />}
+                              {isSeeding ? <Loader2 className="w-4 h-4 mr-1 animate-spin stroke-[2.8]" /> : <RefreshCw className="w-4 h-4 mr-1 stroke-[2.8]" />}
                               Seeding & Run
                             </Button>
                             <Button 

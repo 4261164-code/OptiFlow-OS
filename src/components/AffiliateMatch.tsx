@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button, Input } from './ui';
 import { db, auth } from '../lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
-import { Sparkles, Loader2, DollarSign, Search, Award, Shield, CheckCircle2, ChevronRight, Calculator, FileText } from 'lucide-react';
+import { Loader2, DollarSign, Search, Award, Shield, CheckCircle2, ChevronRight, Calculator, FileText } from 'lucide-react';
+import { BubblyAppleIcon } from './CustomIcons';
 
 interface Program {
   name: string;
@@ -111,7 +112,10 @@ export function AffiliateMatch() {
       const resp = await fetch('/api/affiliate-match', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ keyword: keywordToRun })
+        body: JSON.stringify({ 
+          keyword: keywordToRun,
+          userId: auth.currentUser?.uid
+        })
       });
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error || "Failed to fetch matches");
@@ -197,7 +201,7 @@ export function AffiliateMatch() {
                   </>
                 ) : (
                   <>
-                    <Sparkles className="w-4 h-4 mr-2 text-[#bce122]" />
+                    <BubblyAppleIcon className="w-5 h-5 mr-1 text-[#bce122]" />
                     Query AI Matchmaker
                   </>
                 )}
