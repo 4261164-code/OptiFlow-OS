@@ -1,12 +1,13 @@
 import { collection, onSnapshot, query, where, Timestamp } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 
-export function subscribeToClicks(callback: (total: number, last30: number, prior30: number) => void) {
+export function subscribeToClicks(userId: string, callback: (total: number, last30: number, prior30: number) => void) {
     const fromDate = new Date();
     fromDate.setDate(fromDate.getDate() - 60);
 
     const q = query(
         collection(db, 'affiliate_clicks'),
+        where('userId', '==', userId),
         where('timestamp', '>=', fromDate)
     );
 

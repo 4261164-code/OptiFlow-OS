@@ -14,7 +14,7 @@ import {
   Image as ImageIcon,
   Send,
   Sparkles,
-  Zap,
+  Activity,
   Layers,
   ExternalLink,
   Loader2,

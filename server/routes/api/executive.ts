@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { db } from "../../firebaseAdmin";
+import { runCEOSoul, generateCEOSpeech } from "../../agents";
 
 export const executiveApiRouter = Router();
 
@@ -9,6 +10,124 @@ const authGuard = async (req: any, res: any, next: any) => {
     if (!token) return res.status(401).json({ error: "Unauthorized" });
     next();
 };
+
+// --- CEO Soul & Voice ---
+
+executiveApiRouter.post("/soul/chat", authGuard, async (req, res) => {
+    try {
+        const { message, history, userId } = req.body;
+        const result = await runCEOSoul(message, history || [], userId);
+        res.json(result);
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+executiveApiRouter.post("/soul/tts", authGuard, async (req, res) => {
+    try {
+        const { text, voice, userId } = req.body;
+        const audio = await generateCEOSpeech(text, voice || 'Kore', userId);
+        if (!audio) return res.status(500).json({ error: "Failed to generate speech" });
+        res.json({ audio });
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// --- Strategic Memory and Targets ---
+
+executiveApiRouter.get("/memory", authGuard, async (req, res) => {
+    try {
+        const snap = await db.collection("strategic_memory")
+            .orderBy("createdAt", "desc")
+            .limit(50)
+            .get();
+        const results = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        res.json(results);
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+executiveApiRouter.post("/memory", authGuard, async (req, res) => {
+    try {
+        const { topic, insight, reliability, sourceAgent, userId } = req.body;
+        const entry = {
+            topic,
+            insight,
+            reliability: reliability || 0.8,
+            sourceAgent: sourceAgent || "Manual Entry",
+            userId: userId || "system",
+            createdAt: Date.now()
+        };
+        const ref = await db.collection("strategic_memory").add(entry);
+        res.json({ id: ref.id, ...entry });
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+executiveApiRouter.get("/targets", authGuard, async (req, res) => {
+    try {
+        const snap = await db.collection("ceo_targets")
+            .orderBy("updatedAt", "desc")
+            .get();
+        const results = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        res.json(results);
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+executiveApiRouter.post("/targets", authGuard, async (req, res) => {
+    try {
+        const { title, description, priority, metrics, userId } = req.body;
+        const target = {
+            title,
+            description,
+            status: "active",
+            priority: priority || "medium",
+            metrics: metrics || [],
+            userId: userId || "system",
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+        };
+        const ref = await db.collection("ceo_targets").add(target);
+        res.json({ id: ref.id, ...target });
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+executiveApiRouter.patch("/targets/:id", authGuard, async (req, res) => {
+    try {
+        const { status, metrics, priority } = req.body;
+        const update: any = { updatedAt: Date.now() };
+        if (status) update.status = status;
+        if (metrics) update.metrics = metrics;
+        if (priority) update.priority = priority;
+        
+        await db.collection("ceo_targets").doc(req.params.id).update(update);
+        res.json({ success: true });
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+executiveApiRouter.get("/nodes", authGuard, async (req, res) => {
+    try {
+        // Mock organization state for UI visualization
+        const nodes = [
+            { id: '1', name: 'SEO Agent 01', role: 'Content Generator', type: 'agent', status: 'online', efficiency: 0.94, lastActive: Date.now() },
+            { id: '2', name: 'Traffic Engine', role: 'Link Management', type: 'agent', status: 'online', efficiency: 0.88, lastActive: Date.now() - 5000 },
+            { id: '3', name: 'Monetization AI', role: 'Offer Matching', type: 'agent', status: 'online', efficiency: 0.99, lastActive: Date.now() - 120000 },
+            { id: '4', name: 'Image Studio', role: 'Visual Asset Creation', type: 'agent', status: 'offline', efficiency: 0.0, lastActive: Date.now() - 3600000 },
+        ];
+        res.json(nodes);
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
 
 executiveApiRouter.get("/charts", authGuard, async (req, res) => {
     try {

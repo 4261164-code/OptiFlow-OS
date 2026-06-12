@@ -2,16 +2,17 @@ import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { KPICards } from '../../components/executive/KPICards';
 import { Rankings } from '../../components/executive/Rankings';
 import { useExecutiveMetrics } from '../../hooks/executive/useExecutiveMetrics';
-import { Moon, Sun, Clock, WifiOff, BarChart3, Settings2, Globe } from 'lucide-react';
+import { Moon, Sun, Clock, WifiOff, BarChart3, Settings2, Globe, Shield } from 'lucide-react';
 import { ErrorBoundary } from '../../components/executive/ErrorBoundary';
 import { OpsBoard } from '../../components/executive/OperationsBoard';
 import { MaxBountyPanel } from '../../components/executive/MaxBountyPanel';
+import { CommandCenter } from '../../components/executive/CommandCenter';
 
 const Charts = lazy(() => import('../../components/executive/Charts').then(m => ({ default: m.Charts })));
 
 export default function ExecutiveDashboard() {
     const { status } = useExecutiveMetrics();
-    const [activeTab, setActiveTab] = useState<'analytics' | 'operations' | 'maxbounty'>('analytics');
+    const [activeTab, setActiveTab] = useState<'analytics' | 'operations' | 'maxbounty' | 'command'>('command');
     const [darkMode, setDarkMode] = useState(() => {
         return localStorage.getItem('theme') === 'dark' || 
                (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -43,7 +44,7 @@ export default function ExecutiveDashboard() {
                 
                 <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 dark:border-zinc-900 pb-6">
                     <div>
-                        <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">Executive Dashboard</h1>
+                        <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">CEO Command Center</h1>
                         
                         <div className="flex items-center mt-2 space-x-4">
                             {status === 'offline' ? (
@@ -70,6 +71,17 @@ export default function ExecutiveDashboard() {
                     <div className="flex items-center space-x-4">
                         {/* Tab Switcher */}
                         <div className="flex bg-zinc-100 dark:bg-zinc-900 p-1 rounded-lg border border-zinc-200 dark:border-zinc-850">
+                            <button
+                                onClick={() => setActiveTab('command')}
+                                className={`inline-flex items-center px-4 py-2 text-xs font-semibold rounded-md transition-all duration-200 cursor-pointer ${
+                                    activeTab === 'command'
+                                        ? 'bg-white dark:bg-[#111] text-[#d7f941] dark:text-[#d7f941] shadow-sm'
+                                        : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
+                                }`}
+                            >
+                                <Shield className="w-3.5 h-3.5 mr-1.5" />
+                                CEO Command Center
+                            </button>
                             <button
                                 onClick={() => setActiveTab('analytics')}
                                 className={`inline-flex items-center px-4 py-2 text-xs font-semibold rounded-md transition-all duration-200 cursor-pointer ${
@@ -115,7 +127,11 @@ export default function ExecutiveDashboard() {
                 </header>
 
                 <main className="space-y-8">
-                    {activeTab === 'analytics' ? (
+                    {activeTab === 'command' ? (
+                        <ErrorBoundary>
+                            <CommandCenter />
+                        </ErrorBoundary>
+                    ) : activeTab === 'analytics' ? (
                         <>
                             <KPICards />
                             <ErrorBoundary>

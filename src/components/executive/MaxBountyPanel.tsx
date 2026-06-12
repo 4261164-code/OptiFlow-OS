@@ -330,7 +330,7 @@ export function MaxBountyPanel() {
               <label className="block text-xs font-bold text-zinc-500 uppercase mb-1">MaxBounty Email Address</label>
               <input 
                 type="email" 
-                value={email}
+                value={email || ''}
                 onChange={e => setEmail(e.target.value)}
                 placeholder="affiliate@domain.com"
                 className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs rounded-lg px-3 py-2.5 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-gray-900 dark:text-gray-100"
@@ -341,7 +341,7 @@ export function MaxBountyPanel() {
               <label className="block text-xs font-bold text-zinc-500 uppercase mb-1">API Key / Sign-In Password</label>
               <input 
                 type="password" 
-                value={password}
+                value={password || ''}
                 onChange={e => setPassword(e.target.value)}
                 placeholder="•••••••"
                 className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs rounded-lg px-3 py-2.5 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-gray-900 dark:text-gray-100"
@@ -607,7 +607,7 @@ export function MaxBountyPanel() {
                 </label>
                 <input 
                   type="text" 
-                  value={sub1}
+                  value={sub1 || ''}
                   onChange={e => setSub1(e.target.value)}
                   className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 outline-none text-gray-900 dark:text-gray-100"
                   placeholder="e.g. pinterest"
@@ -620,7 +620,7 @@ export function MaxBountyPanel() {
                 </label>
                 <input 
                   type="text" 
-                  value={sub2}
+                  value={sub2 || ''}
                   onChange={e => setSub2(e.target.value)}
                   className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 outline-none text-gray-900 dark:text-gray-100"
                   placeholder="e.g. finance-board"
@@ -633,7 +633,7 @@ export function MaxBountyPanel() {
                 </label>
                 <input 
                   type="text" 
-                  value={sub3}
+                  value={sub3 || ''}
                   onChange={e => setSub3(e.target.value)}
                   className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 outline-none text-gray-900 dark:text-gray-100"
                   placeholder="e.g. pin-2388"
@@ -646,7 +646,7 @@ export function MaxBountyPanel() {
                 </label>
                 <input 
                   type="text" 
-                  value={sub4}
+                  value={sub4 || ''}
                   onChange={e => setSub4(e.target.value)}
                   className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 outline-none text-gray-900 dark:text-gray-100"
                   placeholder="e.g. finance-opt"
@@ -704,7 +704,7 @@ export function MaxBountyPanel() {
                       <label className="block text-[10px] uppercase font-bold text-zinc-500 mb-0.5">Mock Transaction ID</label>
                       <input 
                         type="text" 
-                        value={simTxId} 
+                        value={simTxId || ''} 
                         onChange={e => setSimTxId(e.target.value)}
                         className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-2.5 py-1.5 outline-none font-mono text-[11px] text-gray-900 dark:text-gray-100"
                         required
@@ -715,7 +715,7 @@ export function MaxBountyPanel() {
                       <input 
                         type="number" 
                         step="0.01"
-                        value={simPayout} 
+                        value={simPayout ?? 0} 
                         onChange={e => setSimPayout(Number(e.target.value))}
                         className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-2.5 py-1.5 outline-none font-mono text-[11px] text-gray-900 dark:text-gray-100"
                         required
@@ -725,7 +725,7 @@ export function MaxBountyPanel() {
                       <label className="block text-[10px] uppercase font-bold text-zinc-500 mb-0.5">Linked Click Key</label>
                       <input 
                         type="text" 
-                        value={simSub2} 
+                        value={simSub2 || ''} 
                         onChange={e => setSimSub2(e.target.value)}
                         className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-2.5 py-1.5 outline-none font-mono text-[11px] text-gray-900 dark:text-gray-100"
                         placeholder="Automatic click ID"

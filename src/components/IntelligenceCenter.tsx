@@ -6,7 +6,7 @@ import {
   TrendingUp, 
   ArrowRight, 
   Cpu, 
-  Zap, 
+  Activity, 
   FileCheck, 
   RefreshCw, 
   ChevronRight, 
@@ -219,7 +219,7 @@ Matched Bounties with CTR limits:
             {[
               { id: 'weekly-report', label: 'Weekly Analytics', icon: TrendingUp },
               { id: 'seo-plan', label: 'SEO & PDF Plans', icon: Layers },
-              { id: 'sponsorships', label: 'Sponsorship CSV', icon: Zap },
+              { id: 'sponsorships', label: 'Sponsorship CSV', icon: Activity },
               { id: 'custom', label: 'Custom Intel', icon: Sparkles }
             ].map((tab) => (
               <button

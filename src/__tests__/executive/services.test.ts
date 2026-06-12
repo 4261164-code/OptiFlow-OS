@@ -42,7 +42,7 @@ describe("Executive Services", () => {
         });
 
         const cb = vi.fn();
-        subscribeToRevenueEvents(cb);
+        subscribeToRevenueEvents("test-user", cb);
 
         expect(cb).toHaveBeenCalledWith(0, 0, 0, 0, 0, 0); // Zeros
     });
@@ -63,7 +63,7 @@ describe("Executive Services", () => {
         });
 
         const cb = vi.fn();
-        subscribeToRevenueEvents(cb);
+        subscribeToRevenueEvents("test-user", cb);
 
         // total: 150
         // net: 130

@@ -21,7 +21,8 @@ import {
   Play, 
   RefreshCw, 
   ShieldCheck, 
-  AlertCircle 
+  AlertCircle,
+  ChevronDown
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { BrandingHexIcon } from './CustomIcons';
@@ -67,18 +68,50 @@ export function AgentManagement() {
     }
   }, [logs]);
 
-  const agents = [
-    { name: "Research Agent", icon: Search, role: "Intent & LSI Semantic Analyst", speed: "1.2s", isCore: true },
-    { name: "SEO Agent", icon: BrandingHexIcon, role: "Topological Map Silos Builder", speed: "1.8s", isCore: true },
-    { name: "Writer Agent", icon: Edit3, role: "Affiliate Narrative Copywriting Engine", speed: "2.4s", isCore: true },
-    { name: "Pinterest Agent", icon: ImageIcon, role: "Pinterest Media Creative Composer", speed: "1.5s", isCore: false },
-    { name: "Image Agent", icon: ImageIcon, role: "Concept Graphic Art Illustrator", speed: "3.1s", isCore: false },
-    { name: "Publishing Agent", icon: Send, role: "WordPress & Telegram Deployer Node", speed: "1.0s", isCore: true },
-    { name: "Analytics Agent", icon: BarChart, role: "Enterprise Revenue Traffic Auditor", speed: "2.0s", isCore: false },
-    { name: "Affiliate Matchmaker", icon: DollarSign, role: "Dynamic Link Ingestion Scrubber", speed: "0.8s", isCore: true },
-    { name: "Traffic Scheduler Agent", icon: Rocket, role: "Broadcasting Chron Job Pipeline", speed: "0.5s", isCore: false },
-    { name: "Creator Syndicate Agent", icon: Users, role: "Sub-syndication Webhook Node", speed: "1.4s", isCore: false },
+  const departments = [
+    {
+      name: "Content & Creative Hub",
+      id: "content",
+      agents: [
+        { name: "Writer Agent", icon: Edit3, role: "Affiliate Narrative Copywriting Engine", speed: "2.4s", isCore: true },
+        { name: "Pinterest Agent", icon: ImageIcon, role: "Pinterest Media Creative Composer", speed: "1.5s", isCore: false },
+        { name: "Image Agent", icon: ImageIcon, role: "Concept Graphic Art Illustrator", speed: "3.1s", isCore: false },
+      ]
+    },
+    {
+      name: "Growth & SEO Lab",
+      id: "growth",
+      agents: [
+        { name: "Research Agent", icon: Search, role: "Intent & LSI Semantic Analyst", speed: "1.2s", isCore: true },
+        { name: "SEO Agent", icon: BrandingHexIcon, role: "Topological Map Silos Builder", speed: "1.8s", isCore: true },
+        { name: "Traffic Scheduler Agent", icon: Rocket, role: "Broadcasting Chron Job Pipeline", speed: "0.5s", isCore: false },
+      ]
+    },
+    {
+      name: "Sovereign Execution",
+      id: "ops",
+      agents: [
+        { name: "Publishing Agent", icon: Send, role: "WordPress & Telegram Deployer Node", speed: "1.0s", isCore: true },
+        { name: "Creator Syndicate Agent", icon: Users, role: "Sub-syndication Webhook Node", speed: "1.4s", isCore: false },
+      ]
+    },
+    {
+      name: "Intelligence & Yield",
+      id: "intelligence",
+      agents: [
+        { name: "Analytics Agent", icon: BarChart, role: "Enterprise Revenue Traffic Auditor", speed: "2.0s", isCore: false },
+        { name: "Affiliate Matchmaker", icon: DollarSign, role: "Dynamic Link Ingestion Scrubber", speed: "0.8s", isCore: true },
+      ]
+    }
   ];
+
+  const [expandedDepts, setExpandedDepts] = useState<string[]>(["content", "growth", "ops", "intelligence"]);
+
+  const toggleDept = (id: string) => {
+    setExpandedDepts(prev => 
+      prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]
+    );
+  };
 
   const handleToggleAgent = (name: string) => {
     setRunningAgents(prev => ({
@@ -130,72 +163,89 @@ export function AgentManagement() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start mt-6">
         {/* Left column: Agent list (7 cols) */}
-        <div className="lg:col-span-7 space-y-4">
+        <div className="lg:col-span-7 space-y-6">
           <div className="flex items-center justify-between border-b border-white/5 pb-2">
             <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-400 font-sans flex items-center gap-2">
               <Bot className="w-5.5 h-5.5 text-[#a8ff35] stroke-[2.8]" />
               <span>Orchestrated AI Workers</span>
             </h2>
             <span className="text-[10px] font-bold text-[#a8ff35] bg-[#a8ff35]/15 px-2 py-0.5 rounded font-mono">
-              {Object.values(runningAgents).filter(Boolean).length} / {agents.length} Online
+              {Object.values(runningAgents).filter(Boolean).length} Online
             </span>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-1">
-            {agents.map(agent => {
-              const isRunning = runningAgents[agent.name] !== false;
-              return (
-                <div 
-                  key={agent.name}
-                  className={cn(
-                    "bg-[#101115] border rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all duration-300", 
-                    isRunning ? "border-white/5" : "border-white/5 opacity-55"
-                  )}
+          <div className="space-y-4">
+            {departments.map(dept => (
+              <div key={dept.id} className="space-y-3">
+                <button 
+                  onClick={() => toggleDept(dept.id)}
+                  className="w-full flex items-center justify-between px-2 py-1.5 hover:bg-white/5 rounded-lg transition-colors group"
                 >
-                  <div className="flex items-center gap-3.5">
-                    <div className={cn(
-                      "w-10 h-10 rounded-xl flex items-center justify-center transition-colors",
-                      isRunning ? "bg-[#a8ff35]/10 text-[#a8ff35]" : "bg-zinc-900 text-zinc-600"
-                    )}>
-                      <agent.icon className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-bold text-white text-sm">{agent.name}</h3>
-                        {agent.isCore && (
-                          <span className="text-[8px] font-bold uppercase tracking-widest bg-zinc-800 text-zinc-400 px-1 py-0.5 rounded">Core</span>
-                        )}
-                      </div>
-                      <p className="text-[11px] text-zinc-500 font-medium leading-relaxed mt-0.5">{agent.role}</p>
-                    </div>
-                  </div>
+                  <span className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-500 group-hover:text-zinc-300 transition-colors">{dept.name}</span>
+                  <ChevronDown className={cn("w-4 h-4 text-zinc-600 transition-transform", expandedDepts.includes(dept.id) ? "rotate-180" : "")} />
+                </button>
 
-                  <div className="flex items-center justify-between sm:justify-end gap-6 pt-3 sm:pt-0 border-t sm:border-0 border-white/5">
-                    <div className="text-left sm:text-right text-xs">
-                      <p className="text-zinc-500 text-[10px] uppercase font-bold tracking-wider">Avg Latency</p>
-                      <p className="text-zinc-300 font-mono font-medium mt-0.5">{agent.speed}</p>
-                    </div>
+                {expandedDepts.includes(dept.id) && (
+                  <div className="grid gap-3">
+                    {dept.agents.map(agent => {
+                      const isRunning = runningAgents[agent.name] !== false;
+                      return (
+                        <div 
+                          key={agent.name}
+                          className={cn(
+                            "bg-[#101115] border rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all duration-300", 
+                            isRunning ? "border-white/5" : "border-white/5 opacity-55"
+                          )}
+                        >
+                          <div className="flex items-center gap-3.5">
+                            <div className={cn(
+                              "w-10 h-10 rounded-xl flex items-center justify-center transition-colors",
+                              isRunning ? "bg-[#a8ff35]/10 text-[#a8ff35]" : "bg-zinc-900 text-zinc-600"
+                            )}>
+                              <agent.icon className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-bold text-white text-sm">{agent.name}</h3>
+                                {agent.isCore && (
+                                  <span className="text-[8px] font-bold uppercase tracking-widest bg-zinc-800 text-zinc-400 px-1 py-0.5 rounded">Core</span>
+                                )}
+                              </div>
+                              <p className="text-[11px] text-zinc-500 font-medium leading-relaxed mt-0.5">{agent.role}</p>
+                            </div>
+                          </div>
 
-                    <div className="flex items-center gap-2">
-                      <Button
-                        onClick={() => handleToggleAgent(agent.name)}
-                        className={cn(
-                          "h-8 text-[11px] font-bold px-3.5 rounded-lg border uppercase transition-colors",
-                          isRunning 
-                            ? "bg-red-500/5 hover:bg-red-500/10 border-red-500/25 text-red-400" 
-                            : "bg-[#a8ff35]/8 hover:bg-[#a8ff35]/15 border-[#a8ff35]/20 text-[#a8ff35]"
-                        )}
-                        size="sm"
-                      >
-                        {isRunning ? "Standby" : "Activate"}
-                      </Button>
-                    </div>
+                          <div className="flex items-center justify-between sm:justify-end gap-6 pt-3 sm:pt-0 border-t sm:border-0 border-white/5">
+                            <div className="text-left sm:text-right text-xs">
+                              <p className="text-zinc-500 text-[10px] uppercase font-bold tracking-wider">Avg Latency</p>
+                              <p className="text-zinc-300 font-mono font-medium mt-0.5">{agent.speed}</p>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <Button
+                                onClick={() => handleToggleAgent(agent.name)}
+                                className={cn(
+                                  "h-8 text-[11px] font-bold px-3.5 rounded-lg border uppercase transition-colors",
+                                  isRunning 
+                                    ? "bg-red-500/5 hover:bg-red-500/10 border-red-500/25 text-red-400" 
+                                    : "bg-[#a8ff35]/8 hover:bg-[#a8ff35]/15 border-[#a8ff35]/20 text-[#a8ff35]"
+                                )}
+                                size="sm"
+                              >
+                                {isRunning ? "Standby" : "Activate"}
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                </div>
-              );
-            })}
+                )}
+              </div>
+            ))}
           </div>
         </div>
+
 
         {/* Right column: Interactive Sandbox Logs terminal (5 cols) */}
         <div className="lg:col-span-5 space-y-4">

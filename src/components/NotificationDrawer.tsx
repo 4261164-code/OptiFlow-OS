@@ -10,7 +10,6 @@ import {
   Info, 
   Bell, 
   Sparkles, 
-  Zap, 
   ExternalLink,
   Target
 } from 'lucide-react';

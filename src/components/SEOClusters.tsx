@@ -42,8 +42,14 @@ export function SEOClusters() {
   }, [activeClusterId]);
 
   useEffect(() => {
-    if (!activeClusterId) return;
-    const q = query(collection(db, 'cluster_nodes'), where('clusterId', '==', activeClusterId), orderBy('createdAt', 'asc'));
+    if (!activeClusterId || !auth.currentUser) return;
+    const uid = auth.currentUser.uid;
+    const q = query(
+      collection(db, 'cluster_nodes'), 
+      where('userId', '==', uid),
+      where('clusterId', '==', activeClusterId), 
+      orderBy('createdAt', 'asc')
+    );
     const unsub = onSnapshot(q, (snap) => {
       setActiveClusterNodes(snap.docs.map(d => d.data() as ClusterNode));
     });

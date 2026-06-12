@@ -16,6 +16,7 @@ import { ArticlesPage } from './components/ArticlesPage';
 import { OffersPage } from './components/OffersPage';
 import { PinsPage } from './components/PinsPage';
 import { SettingsPage } from './components/SettingsPage';
+import { EbookCreator } from './components/EbookCreator';
 import { PublishingQueue } from './components/PublishingQueue';
 import { Analytics } from './components/Analytics';
 import ExecutiveDashboard from './pages/executive';
@@ -27,25 +28,33 @@ import { SEOClusters } from './components/SEOClusters';
 import { IntelligenceCenter } from './components/IntelligenceCenter';
 import { KeywordExplorer } from './components/KeywordExplorer';
 import { AutomationSuite } from './components/AutomationSuite';
-import { Button } from './components/ui';
-import { Loader2, AlertCircle, ExternalLink, UserCheck, HelpCircle } from 'lucide-react';
-import { BrandingHexIcon } from './components/CustomIcons';
-
-import { LandingPage } from './components/LandingPage';
 import { NotificationProvider } from './components/NotificationContext';
 import { NotificationToast } from './components/NotificationToast';
 import { NotificationDrawer } from './components/NotificationDrawer';
+import { LandingPage } from './components/LandingPage';
+import { ProductionLoading } from './components/executive/ProductionLoading';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
   const [guestLoading, setGuestLoading] = useState(false);
+  const [showProductionBoot, setShowProductionBoot] = useState(false);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      setLoading(false);
+      if (u) {
+        setShowProductionBoot(true);
+        setTimeout(() => {
+          setUser(u);
+          setLoading(false);
+          // Keep boot screen for at least 6 seconds for effect
+          setTimeout(() => setShowProductionBoot(false), 7500);
+        }, 100);
+      } else {
+        setUser(null);
+        setLoading(false);
+      }
     });
     return unsub;
   }, []);
@@ -81,12 +90,10 @@ export default function App() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#09090B] text-zinc-200">
-        <Loader2 className="h-8 w-8 animate-spin text-zinc-500" />
-      </div>
-    );
+  if (loading) return null;
+
+  if (showProductionBoot) {
+    return <ProductionLoading />;
   }
 
   if (!user) {
@@ -108,6 +115,7 @@ export default function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/new" element={<CampaignBuilder />} />
             <Route path="/articles" element={<ArticlesPage />} />
+            <Route path="/ebooks" element={<EbookCreator />} />
             <Route path="/offers" element={<OffersPage />} />
             <Route path="/pins" element={<PinsPage />} />
             <Route path="/publishing" element={<PublishingQueue />} />

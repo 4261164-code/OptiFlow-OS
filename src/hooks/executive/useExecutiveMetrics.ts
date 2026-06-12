@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { auth } from '../../lib/firebase';
 import { subscribeToRevenueEvents } from '../../services/executive/revenueService';
 import { subscribeToClicks } from '../../services/executive/clickService';
 import { subscribeToConversions } from '../../services/executive/conversionService';
@@ -30,9 +31,11 @@ export function useExecutiveMetrics() {
     });
 
     useEffect(() => {
+        if (!auth.currentUser) return;
+        const uid = auth.currentUser.uid;
         let isSetup = true;
 
-        const unsubRev = subscribeToRevenueEvents((total, net, last30Total, last30Net, prior30Total, prior30Net) => {
+        const unsubRev = subscribeToRevenueEvents(uid, (total, net, last30Total, last30Net, prior30Total, prior30Net) => {
             if (!isSetup) return;
             setMetrics(m => ({
                 ...m,
@@ -46,7 +49,7 @@ export function useExecutiveMetrics() {
             setLoaded(l => ({ ...l, revenue: true }));
         });
 
-        const unsubClicks = subscribeToClicks((total, last30, prior30) => {
+        const unsubClicks = subscribeToClicks(uid, (total, last30, prior30) => {
             if (!isSetup) return;
             setMetrics(m => ({
                 ...m,
@@ -57,7 +60,7 @@ export function useExecutiveMetrics() {
             setLoaded(l => ({ ...l, clicks: true }));
         });
 
-        const unsubConversions = subscribeToConversions((total, last30, prior30) => {
+        const unsubConversions = subscribeToConversions(uid, (total, last30, prior30) => {
             if (!isSetup) return;
             setMetrics(m => ({
                 ...m,
@@ -82,7 +85,7 @@ export function useExecutiveMetrics() {
             window.removeEventListener('offline', onOffline);
             window.removeEventListener('online', onOnline);
         };
-    }, []);
+    }, [auth.currentUser]);
 
     useEffect(() => {
         if (loaded.revenue && loaded.clicks && loaded.conversions) {

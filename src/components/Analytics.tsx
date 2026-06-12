@@ -14,7 +14,7 @@ import {
   ArrowUpRight,
   BookOpen,
   Image as ImageIcon,
-  Zap,
+  Activity,
   Target
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
@@ -165,7 +165,7 @@ export function Analytics() {
           <CardContent>
             <div className="space-y-4">
               <div className="bg-[#a8ff35]/5 border border-[#a8ff35]/20 p-4 rounded-xl flex items-start gap-3">
-                <Zap className="w-5 h-5 text-[#a8ff35] mt-0.5 flex-shrink-0" />
+                <Activity className="w-5 h-5 text-[#a8ff35] mt-0.5 flex-shrink-0" />
                 <div>
                   <h4 className="text-xs font-bold text-[#a8ff35] uppercase mb-1">Nightly Optimization Action</h4>
                   <p className="text-[10px] text-zinc-400 leading-relaxed">

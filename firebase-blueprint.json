@@ -148,6 +148,23 @@
       },
       "required": ["agentType", "status", "message", "userId", "timestamp", "createdAt"]
     },
+    "AgentNode": {
+      "title": "Agent Node",
+      "description": "Definition and state of an autonomous agent node",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "status": { "type": "string" },
+        "personality": { "type": "string" },
+        "learnedData": { "type": "string" },
+        "efficiency": { "type": "number" },
+        "lastActive": { "type": "number" },
+        "userId": { "type": "string" }
+      },
+      "required": ["id", "name", "role", "status", "userId", "lastActive"]
+    },
     "AffiliateNetwork": {
       "title": "Affiliate Network",
       "description": "Standardized definition for CPA and Revenue affiliate networks",
@@ -252,6 +269,10 @@
     "agent_logs/{logId}": {
       "schema": { "$ref": "#/entities/AgentLog" },
       "description": "Agent execution telemetry logs"
+    },
+    "agent_nodes/{nodeId}": {
+      "schema": { "$ref": "#/entities/AgentNode" },
+      "description": "Autonomous agent nodes and persistent state"
     },
     "affiliate_networks/{networkId}": {
       "schema": { "$ref": "#/entities/AffiliateNetwork" },

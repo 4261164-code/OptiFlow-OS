@@ -6,7 +6,7 @@ import { addNotification } from '../lib/notifications';
 import { 
   Clock, 
   Sparkles, 
-  Zap, 
+  Activity, 
   Calendar as CalendarIcon, 
   Check, 
   Trash2, 
@@ -551,7 +551,7 @@ export function ContentCalendarView({
                   </>
                 ) : (
                   <>
-                    <Zap className="w-4 h-4 text-black fill-current" />
+                    <Activity className="w-4 h-4 text-black fill-current" />
                     <span>⚡ Auto-Schedule All Backlog</span>
                   </>
                 )}

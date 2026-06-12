@@ -18,7 +18,7 @@ export async function generateClusterNodes(keyword: string, targetCount = 20, in
   ]`;
   
   const response = await ai.models.generateContent({
-    model: 'gemini-3.5-flash',
+    model: 'gemini-flash-latest',
     contents: prompt,
   });
   

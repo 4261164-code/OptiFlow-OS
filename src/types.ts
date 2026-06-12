@@ -168,6 +168,44 @@ export interface Offer {
 
 export type NotificationType = 'milestone' | 'traffic' | 'error' | 'info';
 
+export interface StrategicMemory {
+  id: string;
+  topic: string;
+  insight: string;
+  reliability: number; // 0-1 score
+  sourceAgent?: string;
+  userId: string;
+  createdAt: number;
+}
+
+export interface CEOTarget {
+  id: string;
+  title: string;
+  description: string;
+  status: 'active' | 'reached' | 'abandoned' | 'pivoted';
+  priority: 'low' | 'medium' | 'high' | 'critical';
+  metrics: {
+    label: string;
+    current: number;
+    target: number;
+    unit: string;
+  }[];
+  userId: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface OrganizationNode {
+  id: string;
+  name: string;
+  role: string;
+  type: 'agent' | 'human' | 'system';
+  status: 'online' | 'offline' | 'busy' | 'terminated';
+  efficiency: number;
+  lastActive: number;
+  userId: string;
+}
+
 export interface SavedKeyword {
   id: string;
   keyword: string;

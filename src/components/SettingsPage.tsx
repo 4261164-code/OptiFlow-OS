@@ -29,7 +29,7 @@ export function SettingsPage() {
 
     try {
       const uid = auth.currentUser.uid;
-      const collectionsToPurge = ['articles', 'pins', 'jobs', 'offers'];
+      const collectionsToPurge = ['articles', 'pins', 'jobs', 'offers', 'ebooks', 'agent_logs', 'automationLogs', 'topic_clusters', 'article_metrics'];
       let deletedCount = 0;
 
       for (const colName of collectionsToPurge) {
@@ -53,6 +53,10 @@ export function SettingsPage() {
 
   const [settings, setSettings] = useState({
     geminiApiKey: '',
+    openaiApiKey: '',
+    nvidiaApiKey: '',
+    midjourneyApiKey: '',
+    midjourneyEndpoint: '',
     wordpressUrl: '',
     wordpressUsername: '',
     wordpressPassword: '',
@@ -133,6 +137,7 @@ export function SettingsPage() {
     try {
       // 1. Check Gemini via backend
       const response = await fetch('/api/health');
+      if (!response.ok) throw new Error("Backend health endpoint unreachable");
       const data = await response.json();
       
       // 2. Client Side Firestore Write Check
@@ -143,7 +148,8 @@ export function SettingsPage() {
           await setDoc(testRef, { test: true });
           dbStatus = "Writable";
         } catch (e: any) {
-          dbStatus = "Failed: " + e.message;
+          dbStatus = "Degraded (Permission Denied)";
+          console.warn("Firestore write check failed:", e);
         }
       } else {
         dbStatus = "Must be logged in to test";
@@ -154,7 +160,10 @@ export function SettingsPage() {
          checks: {
             ...data.checks,
             database: dbStatus,
-            storage: 'Reachable' // Defaulting to reachable as storage rules often match auth
+            openai: settings.openaiApiKey ? "Key Provided" : "Not configured",
+            nvidia: settings.nvidiaApiKey ? "Key Provided" : "Not configured",
+            midjourney: settings.midjourneyApiKey ? "Key Provided" : "Not configured",
+            storage: 'Reachable' 
          }
       });
     } catch (err: any) {
@@ -202,14 +211,26 @@ export function SettingsPage() {
                       </div>
                       <div className="flex items-center justify-between p-2 bg-[#25262B]/50 rounded">
                          <span className="text-zinc-400">Gemini API</span>
-                         <span className={healthStatus.checks?.gemini === 'Connected' ? 'text-[#d7f941]' : 'text-red-500'}>
+                         <span className={healthStatus.checks?.gemini === 'Connected' ? 'text-[#d7f941]' : 'text-rose-400'}>
                            {healthStatus.checks?.gemini}
                          </span>
                       </div>
                       <div className="flex items-center justify-between p-2 bg-[#25262B]/50 rounded">
-                         <span className="text-zinc-400">Cloud Storage</span>
-                         <span className={healthStatus.checks?.storage === 'Reachable' ? 'text-[#d7f941]' : 'text-zinc-500'}>
-                           {healthStatus.checks?.storage}
+                         <span className="text-zinc-400">OpenAI Fallback</span>
+                         <span className={healthStatus.checks?.openai === 'Key Provided' ? 'text-[#d7f941]' : 'text-zinc-500'}>
+                           {healthStatus.checks?.openai}
+                         </span>
+                      </div>
+                      <div className="flex items-center justify-between p-2 bg-[#25262B]/50 rounded">
+                         <span className="text-zinc-400">NVIDIA NIM</span>
+                         <span className={healthStatus.checks?.nvidia === 'Key Provided' ? 'text-[#d7f941]' : 'text-zinc-500'}>
+                           {healthStatus.checks?.nvidia}
+                         </span>
+                      </div>
+                      <div className="flex items-center justify-between p-2 bg-[#25262B]/50 rounded">
+                         <span className="text-zinc-400">Midjourney</span>
+                         <span className={healthStatus.checks?.midjourney === 'Key Provided' ? 'text-[#d7f941]' : 'text-zinc-500'}>
+                           {healthStatus.checks?.midjourney}
                          </span>
                       </div>
                    </div>
@@ -226,15 +247,61 @@ export function SettingsPage() {
               <CardDescription>Required for content factory generation.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Google Gemini API Key (Optional Override)*</label>
-                <Input 
-                  type="password" 
-                  value={settings.geminiApiKey} 
-                  onChange={e => setSettings({...settings, geminiApiKey: e.target.value})} 
-                  placeholder="AI Studio key falls back to environment by default" 
-                />
-                <p className="text-[10px] text-zinc-500">* The system uses the global server environment key if left blank.</p>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Google Gemini API Key (Optional Override)*</label>
+                  <Input 
+                    type="password" 
+                    value={settings.geminiApiKey} 
+                    onChange={e => setSettings({...settings, geminiApiKey: e.target.value})} 
+                    placeholder="AI Studio key falls back to environment by default" 
+                  />
+                  <p className="text-[10px] text-zinc-500">* The system uses the global server environment key if left blank.</p>
+                </div>
+                
+                <div className="space-y-2 pt-2 border-t border-white/5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">OpenAI API Key (Optional)</label>
+                  <Input 
+                    type="password" 
+                    value={settings.openaiApiKey || ''} 
+                    onChange={e => setSettings({...settings, openaiApiKey: e.target.value})} 
+                    placeholder="sk-..." 
+                  />
+                  <p className="text-[10px] text-zinc-500">Enables GPT-4o for complex reasoning and eBook creation fallback.</p>
+                </div>
+
+                <div className="space-y-2 pt-2 border-t border-white/5">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">NVIDIA NIM API Key</label>
+                  <Input 
+                    type="password" 
+                    value={settings.nvidiaApiKey || ''} 
+                    onChange={e => setSettings({...settings, nvidiaApiKey: e.target.value})} 
+                    placeholder="nvapi-..." 
+                  />
+                  <p className="text-[10px] text-zinc-500">Used for High-Scale Llama-3.1 405B inference and fallbacks.</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-white/5">
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Midjourney API Key</label>
+                    <Input 
+                      type="password" 
+                      value={settings.midjourneyApiKey || ''} 
+                      onChange={e => setSettings({...settings, midjourneyApiKey: e.target.value})} 
+                      placeholder="API Key for MJ wrapper" 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">MJ API Endpoint</label>
+                    <Input 
+                      type="url" 
+                      value={settings.midjourneyEndpoint || ''} 
+                      onChange={e => setSettings({...settings, midjourneyEndpoint: e.target.value})} 
+                      placeholder="https://api.imagineapi.dev/v1/..." 
+                    />
+                  </div>
+                  <p className="text-[10px] text-zinc-500 md:col-span-2">Required for custom Midjourney generation. Supports standard imagineapi/goapi bridges.</p>
+                </div>
               </div>
             </CardContent>
           </Card>

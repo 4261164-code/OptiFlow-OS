@@ -20,7 +20,7 @@ import {
   Workflow,
   MousePointerClick,
   MonitorCheck,
-  Zap,
+  Activity,
   Globe,
   Award,
   X
@@ -202,7 +202,7 @@ export function CreatorShowcase() {
               onClick={() => setActiveTab(activeTab === 'work' ? 'none' : 'work')}
               className={`px-4.5 py-2 rounded-full text-xs font-bold transition duration-300 flex items-center gap-1.5 pointer cursor-pointer border ${activeTab === 'work' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-zinc-900 border-white/5 text-zinc-300 hover:text-white'}`}
             >
-              <Zap className="w-3.5 h-3.5" />
+              <Activity className="w-3.5 h-3.5" />
               <span>See my work</span>
             </button>
             <button 

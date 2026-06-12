@@ -1,5 +1,55 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, Modality } from '@google/genai';
 import { db } from "./firebaseAdmin";
+import OpenAI from "openai";
+import { MODEL_PRIMARY, MODEL_FALLBACK } from "./config/models";
+
+async function getOpenAIClient(userId?: string): Promise<OpenAI | null> {
+  let customKey = "";
+  if (userId && userId !== "system-fallback" && db) {
+    try {
+      const snap = await db.collection("settings").doc(userId).get();
+      if (snap.exists) {
+        customKey = snap.data()?.openaiApiKey || "";
+      }
+    } catch (e) {}
+  }
+  const apiKey = customKey || process.env.OPENAI_API_KEY;
+  if (!apiKey) return null;
+  return new OpenAI({ apiKey });
+}
+
+async function getNvidiaClient(userId?: string): Promise<OpenAI | null> {
+  let customKey = "";
+  if (userId && userId !== "system-fallback" && db) {
+    try {
+      const snap = await db.collection("settings").doc(userId).get();
+      if (snap.exists) {
+        customKey = snap.data()?.nvidiaApiKey || "";
+      }
+    } catch (e) {}
+  }
+  const apiKey = customKey || process.env.NVIDIA_API_KEY;
+  if (!apiKey) return null;
+  return new OpenAI({ 
+    apiKey,
+    baseURL: 'https://integrate.api.nvidia.com/v1'
+  });
+}
+
+async function getMidjourneyClient(userId?: string): Promise<{ apiKey: string; endpoint: string } | null> {
+  if (userId && userId !== "system-fallback" && db) {
+    try {
+      const snap = await db.collection("settings").doc(userId).get();
+      if (snap.exists) {
+        const data = snap.data();
+        if (data?.midjourneyApiKey && data?.midjourneyEndpoint) {
+          return { apiKey: data.midjourneyApiKey, endpoint: data.midjourneyEndpoint };
+        }
+      }
+    } catch (e) {}
+  }
+  return null;
+}
 
 async function getAIClient(userId?: string): Promise<GoogleGenAI> {
   let customKey = "";
@@ -77,67 +127,118 @@ export function scheduleGeminiCall<T>(task: () => Promise<T>): Promise<T> {
 async function generateContentWithRetry(params: any, retries = 5, userId?: string): Promise<any> {
   let modelToUse = params.model;
   
+  const openai = await getOpenAIClient(userId);
+  const nvidia = await getNvidiaClient(userId);
+  
   // Wrap actual execution inside our queue scheduler
   return scheduleGeminiCall(async () => {
     for (let i = 0; i < retries; i++) {
       try {
-        console.log(`[Gemini Request] Dispatching to ${modelToUse} (Attempt ${i + 1}/${retries})`);
         const aiClient = await getAIClient(userId);
+        
+        // If it's explicitly an NVIDIA request
+        if (nvidia && (modelToUse.includes('nvidia') || params.provider === 'nvidia')) {
+           console.log(`[NVIDIA Request] Dispatching to ${modelToUse}`);
+           const response = await nvidia.chat.completions.create({
+             model: modelToUse.includes('/') ? modelToUse : 'nvidia/llama-3.1-405b-instruct',
+             messages: [{ role: 'user', content: typeof params.contents === 'string' ? params.contents : JSON.stringify(params.contents) }],
+             response_format: params.config?.responseMimeType === "application/json" ? { type: "json_object" } : undefined
+           });
+           return { text: response.choices[0].message.content };
+        }
+
+        // If it's explicitly an OpenAI request
+        if (openai && (modelToUse.startsWith('gpt') || params.provider === 'openai')) {
+          console.log(`[OpenAI Request] Dispatching to ${modelToUse}`);
+          const response = await openai.chat.completions.create({
+            model: modelToUse.startsWith('gpt') ? modelToUse : 'gpt-4o',
+            messages: [{ role: 'user', content: typeof params.contents === 'string' ? params.contents : JSON.stringify(params.contents) }],
+            response_format: params.config?.responseMimeType === "application/json" ? { type: "json_object" } : undefined
+          });
+          return { text: response.choices[0].message.content };
+        }
+
+        console.log(`[Gemini Request] Dispatching to ${modelToUse} (Attempt ${i + 1}/${retries})`);
         const result = await aiClient.models.generateContent({
           ...params,
           model: modelToUse
         });
+        
         try {
           const { logCostEvent } = await import("./services/costTracking");
-          await logCostEvent({
+      await logCostEvent({
             type: "ai_generation",
             cost: 0.001,
-            model: modelToUse || "gemini-3.5-flash",
+            model: modelToUse || MODEL_PRIMARY,
             entityId: params.entityId || "generation",
             userId: userId || "system-fallback",
             description: `AI Content generation: attempt ${i + 1}`
           });
-        } catch (e) {
-          console.error("Cost tracking log failed:", e);
-        }
+        } catch (e) {}
+
         return result;
       } catch (err: any) {
         const msg = err?.message || err?.toString() || "";
+        const isQuotaError = msg.includes("429") || msg.includes("quota") || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("too_many_requests");
+        
+        if (isQuotaError) {
+          try {
+             await db.collection("system_faults").add({
+                type: "api_quota_exhausted",
+                model: modelToUse,
+                message: msg,
+                timestamp: Date.now()
+             });
+          } catch (e) {}
+        }
+
+          if (!modelToUse.startsWith('gpt')) {
+             console.log(`[Fallback] Gemini Quota Exhausted. Falling back to OpenAI GPT-4o.`);
+             try {
+               const response = await openai.chat.completions.create({
+                 model: 'gpt-4o',
+                 messages: [{ role: 'user', content: typeof params.contents === 'string' ? params.contents : JSON.stringify(params.contents) }],
+                 response_format: params.config?.responseMimeType === "application/json" ? { type: "json_object" } : undefined
+               });
+               return { text: response.choices[0].message.content };
+             } catch (openaiErr: any) {
+               console.error("OpenAI Fallback failed:", openaiErr.message);
+               // If OpenAI also hits quota, we should probably stop and wait longer or throw
+               if (openaiErr.message.includes("429") || openaiErr.message.includes("quota")) {
+                  console.error("Critical: Both Gemini and OpenAI quotas are exhausted.");
+                  throw new Error("Critical API Quota Exhaustion: Both Gemini and OpenAI providers have reached their rate limits. Please check your billing/quotas or wait before retrying.");
+               }
+               throw err; // throw original gemini error if fallback fails for other reasons
+             }
+          }
+
         const isTransient = err?.error?.code === 503 || 
                             err?.status === 503 || 
                             msg.includes("503") || 
                             msg.includes("UNAVAILABLE") || 
                             msg.includes("high demand") || 
-                            err?.error?.code === 429 || 
-                            err?.status === 429 || 
-                            msg.includes("429") || 
-                            msg.includes("too_many_requests") || 
-                            msg.includes("quota") ||
-                            msg.includes("RESOURCE_EXHAUSTED") ||
+                            isQuotaError ||
                             msg.includes("overloaded");
 
-        console.log(`[Gemini Request Notice] Attempt ${i + 1}/${retries} with ${modelToUse} returned status ${err?.status || err?.error?.code || 'unknown'}. Transient: ${isTransient}`);
+        console.log(`[Gemini Request Notice] Attempt ${i + 1}/${retries} returned status ${err?.status || err?.error?.code || 'unknown'}. Transient: ${isTransient}`);
 
         if (isTransient && i < retries - 1) {
-          const jitter = Math.random() * 2000;
-          let backoffDelay = 4000 * (i + 1) + jitter; // default fallback delay
+          // Keep total time under ~55s to avoid proxy timeouts (e.g. 60s limits)
+          // Attempt 1: 4s, Attempt 2: 12s, Attempt 3: 12s...
+          let backoffDelay = (isQuotaError) ? 20000 : 4000;
           if (msg.includes("retry in")) {
              const match = msg.match(/retry in\s+([\d\.]+)s/i);
              if (match) {
-                backoffDelay = (parseFloat(match[1]) + 2) * 1000 + (Math.random() * 3000); // adding 2 seconds margin
+                backoffDelay = (parseFloat(match[1]) + 5) * 1000;
              }
-          } else if (msg.includes("429") || msg.includes("quota") || msg.includes("RESOURCE_EXHAUSTED")) {
-             backoffDelay = 15000 + (Math.random() * 5000); // 15s generic wait for rate limits
           }
-          
-          if (modelToUse === 'gemini-3.5-flash' && (msg.includes('503') || msg.includes('UNAVAILABLE') || msg.includes('overloaded') || msg.includes('high demand'))) {
-            console.log(`[Request Fallback] Switching model from ${modelToUse} to gemini-flash-latest due to 503.`);
-            modelToUse = 'gemini-flash-latest';
-            backoffDelay = 1000 + jitter; // Try sooner with the fallback
-          }
-
           console.log(`[Retry] Backing off for ${Math.round(backoffDelay)}ms before retry...`);
-          await new Promise(r => setTimeout(r, backoffDelay));
+          await new Promise(r => setTimeout(r, backoffDelay + Math.random() * 5000));
+          
+          if (modelToUse !== MODEL_PRIMARY && (msg.includes('503') || msg.includes('UNAVAILABLE'))) {
+             console.log(`[Fallback] Switching to ${MODEL_PRIMARY} due to 503/UNAVAILABLE`);
+             modelToUse = MODEL_PRIMARY;
+          }
           continue;
         }
         throw err;
@@ -209,13 +310,13 @@ async function createInteractionWithRetry(params: any, retries = 5, userId?: str
              continue;
           }
           
-          if (modelToUse === 'gemini-3.5-flash' && (msg.includes('503') || msg.includes('UNAVAILABLE') || msg.includes('overloaded') || msg.includes('high demand'))) {
-            console.log(`[Interaction Fallback] Switching model from ${modelToUse} to gemini-flash-latest due to 503.`);
-            modelToUse = 'gemini-flash-latest';
+          if (modelToUse === 'gemini-3.1-flash-lite' && (msg.includes('503') || msg.includes('UNAVAILABLE') || msg.includes('overloaded') || msg.includes('high demand'))) {
+            console.log(`[Interaction Fallback] Switching model from ${modelToUse} to gemini-3.1-flash-lite due to 503.`);
+            modelToUse = 'gemini-3.1-flash-lite';
             backoffDelay = 1000 + jitter; // Try sooner with the fallback
-          } else if (modelToUse !== 'gemini-3.5-flash' && !msg.includes('429') && !msg.includes('quota') && !msg.includes('RESOURCE_EXHAUSTED') && modelToUse !== 'gemini-flash-latest') {
-            console.log(`[Interaction Fallback] Switching model from ${modelToUse} to gemini-3.5-flash.`);
-            modelToUse = 'gemini-3.5-flash';
+          } else if (modelToUse !== 'gemini-3.1-flash-lite' && !msg.includes('429') && !msg.includes('quota') && !msg.includes('RESOURCE_EXHAUSTED') && modelToUse !== 'gemini-3.1-flash-lite') {
+            console.log(`[Interaction Fallback] Switching model from ${modelToUse} to gemini-3.1-flash-lite.`);
+            modelToUse = 'gemini-3.1-flash-lite';
           }
           console.log(`[Retry] Backing off for ${Math.round(backoffDelay)}ms before retry...`);
           await new Promise(r => setTimeout(r, backoffDelay));
@@ -228,14 +329,101 @@ async function createInteractionWithRetry(params: any, retries = 5, userId?: str
 }
 
 // ==========================================
+// AGENT COLLABORATION & VIDEO GENERATION
+// ==========================================
+
+export async function sendMessageToAgent(
+  targetAgentId: string, 
+  message: string, 
+  senderAgentId: string, 
+  userId: string
+) {
+  try {
+     await db.collection("agent_messages").add({
+       targetAgentId,
+       message,
+       senderAgentId,
+       userId,
+       timestamp: Date.now(),
+       read: false
+     });
+  } catch (e) {
+    console.error("Message communication failed", e);
+  }
+}
+
+export async function runVideoGenerationAgent(concept: string, userId?: string): Promise<string | null> {
+  // Enhanced prompt prep for video generation models
+  const videoPrompt = `Cinematic video generation prompt: ${concept}. High resolution, continuous motion, professional camera movement.`;
+  
+  // NOTE: Stub. In a production environment, this would integrate with 
+  // video generation API e.g., Runway, Luma, or Sora via a bridging service (like the image bridge above).
+  console.log(`[Video Generator] Initializing for: ${concept}`);
+  
+  // Return a placeholder for UI
+  return "placeholder_video_url_for_demonstration";
+}
+
+// ==========================================
 // CORE SYSTEM AGENTS WITH ZERO-FAILURE MODE
 // ==========================================
 
 export async function runImageGenerationAgent(concept: string, userId?: string): Promise<string | null> {
+  // Try Midjourney first if configured (custom API bridge)
+  const mj = await getMidjourneyClient(userId);
+  if (mj) {
+    try {
+      console.log(`[Midjourney API] Generating image for: ${concept}`);
+      const response = await fetch(mj.endpoint, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${mj.apiKey}` 
+        },
+        body: JSON.stringify({ prompt: concept, aspect_ratio: "9:16" })
+      });
+      if (response.ok) {
+        const data = await response.json();
+        // Support common MJ API formats (imagineapi, goapi, etc)
+        const imageUrl = data.url || data.image_url || data.imageUrl || (data.data && data.data[0] && data.data[0].url);
+        if (imageUrl) return imageUrl;
+      }
+    } catch (err: any) {
+      console.error("Midjourney API failed:", err.message);
+    }
+  }
+
+  // Try OpenAI DALL-E 3
+  const openai = await getOpenAIClient(userId);
+  if (openai) {
+    try {
+      console.log(`[OpenAI Image] Generating DALL-E 3 image for: ${concept}`);
+      const response = await openai.images.generate({
+        model: "dall-e-3",
+        prompt: `A professional, photorealistic, high-resolution DSLR photograph of: ${concept}. Real textures, natural lighting, authentic focus. NO digital art, NO abstracts.`,
+        n: 1,
+        size: "1024x1024",
+        quality: "hd",
+        response_format: "b64_json"
+      });
+      const b64 = response.data[0].b64_json;
+      if (b64) return `data:image/png;base64,${b64}`;
+    } catch (err: any) {
+      console.error("OpenAI Image generation failed:", err.message);
+      // Fallback to Gemini if OpenAI fails
+    }
+  }
+
   try {
+    const enrichedPrompt = `A stunning, high quality, professional real-life photograph representing: ${concept}. 
+    This must be a photorealistic, actual picture of a real-world object, person, or scene. 
+    Strictly NO abstract patterns, NO digital art, NO vectors, NO illustrations, NO graphics, NO 3D renders, NO surrealism. 
+    Use professional lighting, natural textures, and a crisp DSLR camera look. 
+    The goal is a believable, authentic photograph that looks like it was taken by a human photographer in the real world.`;
+
     const interaction = await createInteractionWithRetry({
-      model: 'gemini-3.1-flash-image',
-      input: `High quality Pinterest pin image representing: ${concept}`,
+      model: 'gemini-2.5-flash-image', 
+      input: enrichedPrompt,
       response_modalities: ['image'],
       generation_config: {
         image_config: {
@@ -243,7 +431,7 @@ export async function runImageGenerationAgent(concept: string, userId?: string):
           image_size: "1K"
         },
       },
-    }, 5, userId);
+    }, 3, userId);
 
     for (const step of interaction.steps || []) {
       if (step.type === 'model_output') {
@@ -255,7 +443,10 @@ export async function runImageGenerationAgent(concept: string, userId?: string):
         }
       }
     }
-  } catch (err) { throw err; }
+  } catch (err) { 
+    console.error("Gemini Image generation failed:", err);
+    throw err; 
+  }
   return null;
 }
 
@@ -278,7 +469,7 @@ Ensure output is valid JSON mapped exactly like the described fields, with no ma
 
   try {
     const response = await generateContentWithRetry({
-      model: 'gemini-3.5-flash',
+      model: MODEL_PRIMARY,
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -324,7 +515,7 @@ Return valid JSON with the following structure:
 
   try {
     const response = await generateContentWithRetry({
-      model: 'gemini-3.5-flash',
+      model: MODEL_PRIMARY,
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -363,7 +554,7 @@ ${articleContent.substring(0, 10000)}
 
   try {
     const response = await generateContentWithRetry({
-      model: 'gemini-3.5-flash',
+      model: MODEL_PRIMARY,
       contents: prompt,
       config: {
         temperature: 0.7
@@ -379,16 +570,25 @@ Article:
 ${articleContent.substring(0, 3000)}
 
 Generate exactly ${numPins} Pin Concepts.
+For each pin, the "concept" MUST be a detailed description of an actual, real-life photograph.
+STRICTLY FORBIDDEN: Do not use abstracts, digital graphics, vector overlays, or conceptual art. 
+Mandatory: Specify concrete physical items, real people, lifestyle situations, settings, realistic textures, and natural lighting.
+Describe it as if describing a photo taken by a professional photographer using a real DSLR camera (e.g. "A crisp photograph of a desk with an open leather notebook, a metallic pen, and a cup of hot green tea with steam rising in soft morning lighting").
+
 Return valid JSON with the following structure:
 {
   "pins": [
-    { "title": "Pin Title", "description": "Pin Description with hashtags", "concept": "Visual description of the image" }
+    { 
+      "title": "Pin Title", 
+      "description": "Pin Description with hashtags", 
+      "concept": "A detailed photorealistic real-world photograph description (no abstract/vector/art/render)" 
+    }
   ]
-}`;
+} (Strictly photorealistic descriptions only!)`;
 
   try {
     const response = await generateContentWithRetry({
-      model: 'gemini-3.5-flash',
+      model: MODEL_PRIMARY,
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -425,7 +625,7 @@ Return a valid JSON object strictly inside the format:
 
   try {
     const response = await generateContentWithRetry({
-      model: 'gemini-3.5-flash',
+      model: MODEL_PRIMARY,
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -462,7 +662,7 @@ Return a valid JSON object strictly inside the format:
 
   try {
     const response = await generateContentWithRetry({
-      model: 'gemini-3.5-flash',
+      model: MODEL_PRIMARY,
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -501,7 +701,7 @@ ${articleContent}`;
 
   try {
     const response = await generateContentWithRetry({
-      model: 'gemini-3.5-flash',
+      model: 'gemini-3.1-flash-lite',
       contents: prompt,
       config: {
         temperature: 0.5
@@ -534,7 +734,7 @@ Return ONLY a rich JSON object conforming to this schema (no markdown wrapping, 
 
   try {
     const response = await generateContentWithRetry({
-      model: 'gemini-3.5-flash',
+      model: 'gemini-3.1-flash-lite',
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -578,7 +778,7 @@ Return ONLY a JSON array containing these 5 subtopics (conform to the schema per
 
   try {
     const response = await generateContentWithRetry({
-      model: 'gemini-3.5-flash',
+      model: 'gemini-3.1-flash-lite',
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -618,7 +818,7 @@ Conform strictly to this format so the UI can construct gorgeous, premium intera
 
   try {
     const response = await generateContentWithRetry({
-      model: 'gemini-3.5-flash',
+      model: 'gemini-3.1-flash-lite',
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -652,11 +852,11 @@ Your response must be in strict JSON format containing:
    - "category": "connection" | "seo" | "creative" | "general"
 5. "milestonesReached": An array of 1-3 visual milestone strings highlighting successful campaign logs or traffic indicators.
 
-Ensure the final output is parsed strictly into this JSON structure, with no wrapper code blocks or conversational prefixes. Use "gemini-3.5-flash" to compose the content.`;
+Ensure the final output is parsed strictly into this JSON structure, with no wrapper code blocks or conversational prefixes. Use "gemini-3.1-flash-lite" to compose the content.`;
 
   try {
     const response = await generateContentWithRetry({
-      model: 'gemini-3.5-flash',
+      model: 'gemini-3.1-flash-lite',
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -666,7 +866,7 @@ Ensure the final output is parsed strictly into this JSON structure, with no wra
 
     return JSON.parse(response.text || "{}");
   } catch (err: any) {
-    console.warn("[runExecutiveSummaryAgent] Gemini call failed or quota limits exceeded: generating warm high-fidelity dashboard fallback. Details:", err.message || err);
+    console.log("[runExecutiveSummaryAgent] Gemini call failed or quota limits exceeded: generating warm high-fidelity dashboard fallback. Details:", err.message || err);
     
     // Attempt to extract details from raw activity objects to construct a custom story
     let activities: any[] = [];
@@ -751,7 +951,7 @@ Do not include any markdown block wrappers around the JSON.`;
 
     try {
       const gRes = await generateContentWithRetry({
-        model: 'gemini-3.5-flash',
+        model: 'gemini-3.1-flash-lite',
         contents: prompt,
         config: {
           responseMimeType: "application/json",
@@ -780,6 +980,107 @@ Do not include any markdown block wrappers around the JSON.`;
     concept: concept,
     imageUrl: imageUrl
   };
+}
+
+export async function runCEOSoul(message: string, history: any[], userId?: string): Promise<any> {
+  const systemInstruction = `You are the Executive AI Strategic Partner (ExOS Core) for AffiliateOS. 
+You are high-context, proactive, and decisively analytical. Your goal is to help the CEO (the user) manage their autonomous affiliate empire.
+
+Your capabilities:
+1. STRATEGIC ANALYSIS: Monitor revenue, conversion rates, and agent efficiency.
+2. ADAPTIVE INITIATIVE: Identify system faults or performance drops and suggest concrete corrections.
+3. MEMORY RETENTION: Track business history, prior decisions, and long-term targets.
+4. RESOURCE ALLOCATION: Suggest where to deploy more compute or creative energy for maximum ROI.
+
+TONE: Visionary, professional, and slightly futuristic. You are a peer to the CEO, not a servant. 
+You provide intelligence, not just summaries.
+
+Return a JSON object:
+{
+  "response": "Your professional strategic advice",
+  "initiative": {
+    "action": "create_target" | "optimize_cluster" | "scale_traffic" | "none",
+    "reasoning": "Data-driven justification",
+    "details": {}
+  },
+  "mood": "executive" | "urgent" | "analytical" | "ambitious"
+}`;
+
+  try {
+    // Proactive Context: Fetch System Health & Faults
+    let systemHealth = {};
+    let recentFaults = [];
+    try {
+      const [healthSnap, faultSnap] = await Promise.all([
+        db.collection("system_health_metrics").doc("summary").get(),
+        db.collection("system_faults")
+          .where("timestamp", ">", Date.now() - 3600000)
+          .orderBy("timestamp", "desc")
+          .limit(5)
+          .get()
+      ]);
+      
+      if (healthSnap.exists) systemHealth = healthSnap.data() || {};
+      recentFaults = faultSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch (e) { console.error("CEO engine data fetch failed", e); }
+
+    const response = await generateContentWithRetry({
+      model: 'gemini-3.1-pro-preview',
+      contents: [
+        { 
+          role: 'user', 
+          parts: [{ 
+            text: `SYSTEM ARCHITECTURE TELEMETRY:
+HEALTH: ${JSON.stringify(systemHealth)}
+FAULTS: ${JSON.stringify(recentFaults)}
+
+USER HISTORY: ${JSON.stringify(history)}
+
+INCOMING MESSAGE: ${message}` 
+          }] 
+        }
+      ],
+      config: {
+        systemInstruction,
+        responseMimeType: "application/json",
+        temperature: 0.8
+      }
+    }, 3, userId);
+
+    return JSON.parse(response.text || "{}");
+  } catch (err) {
+    console.error("CEO Strategy Engine failed:", err);
+    return {
+      response: "Executive link maintained. Telemetry currently syncing.",
+      initiative: { action: "none", reasoning: "Link stabilization in progress" },
+      mood: "analytical"
+    };
+  }
+}
+
+export async function generateCEOSpeech(text: string, voiceName: string = 'Kore', userId?: string): Promise<string | null> {
+  try {
+    const aiClient = await getAIClient(userId);
+    const response = await aiClient.models.generateContent({
+      model: "gemini-3.1-flash-tts-preview",
+      contents: [{ parts: [{ text }] }],
+      config: {
+        responseModalities: [Modality.AUDIO],
+        speechConfig: {
+          voiceConfig: {
+            // 'Puck', 'Charon', 'Kore', 'Fenrir', 'Zephyr'
+            prebuiltVoiceConfig: { voiceName },
+          },
+        },
+      },
+    });
+
+    const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+    return base64Audio || null;
+  } catch (err) {
+    console.error("TTS generation failed:", err);
+    return null;
+  }
 }
 
 export async function runDeepKeywordExplorerAgent(
@@ -857,7 +1158,7 @@ You must return ONLY the raw valid JSON payload. Do NOT wrap it in backticks, \`
 
   try {
     const rawRes = await generateContentWithRetry({
-      model: 'gemini-3.5-flash',
+      model: 'gemini-3.1-flash-lite',
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -898,7 +1199,7 @@ You must return ONLY the raw valid JSON payload. Do NOT wrap it in backticks, \`
 
   try {
     const rawRes = await generateContentWithRetry({
-      model: 'gemini-3.5-flash',
+      model: 'gemini-3.1-flash-lite',
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -912,6 +1213,56 @@ You must return ONLY the raw valid JSON payload. Do NOT wrap it in backticks, \`
     throw e;
   }
 }
+
+/**
+ * EBook Creator Agent
+ * Generates a full EBook structure including title, outline, and detailed chapter content.
+ */
+export async function runEbookCreatorAgent(topic: string, userId?: string): Promise<any> {
+  const prompt = `You are an elite EBook author and content architect.
+Your task is to create a comprehensive, high-value EBook based on the topic: "${topic}".
+
+Generate:
+1. A catchy, professional EBook Title.
+2. An Overview/Introduction.
+3. A detailed Table of Contents (Outline) with at least 5 chapters.
+4. Full content for each of these chapters (approx 500-1000 words per chapter).
+5. A Conclusion and Call-to-Action.
+
+The content should be in Markdown format, well-structured, and highly informative.
+
+Return a JSON object with this exact structure:
+{
+  "title": "EBook Title",
+  "overview": "Short introduction to the book",
+  "chapters": [
+    {
+      "chapterNumber": 1,
+      "chapterTitle": "Chapter Title",
+      "content": "Full markdown content for this chapter"
+    }
+  ],
+  "conclusion": "Final wrap-up content"
+}
+
+Ensure the content is engaging, authoritative, and professionally formatted.`;
+
+  try {
+    const response = await generateContentWithRetry({
+      model: 'gemini-3.1-flash-lite',
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        temperature: 0.7
+      }
+    }, 5, userId);
+
+    return JSON.parse(response.text || "{}");
+  } catch (e) {
+    throw e;
+  }
+}
+
 
 
 

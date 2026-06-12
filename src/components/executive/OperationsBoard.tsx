@@ -89,14 +89,24 @@ export function OpsBoard() {
   };
 
   useEffect(() => {
+    if (!auth.currentUser) return;
+    const uid = auth.currentUser.uid;
+
     // 1. Subscribe to failed jobs for immediate force-retry tracking
-    const qJobs = query(collection(db, 'jobs'), where('status', '==', 'error'));
+    const qJobs = query(
+      collection(db, 'jobs'), 
+      where('userId', '==', uid),
+      where('status', '==', 'error')
+    );
     const unsubJobs = onSnapshot(qJobs, (snap) => {
       setFailedJobs(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as OpJob)));
     });
 
     // 2. Subscribe to active clusters for pause/resume state management
-    const qClusters = query(collection(db, 'topic_clusters'));
+    const qClusters = query(
+      collection(db, 'topic_clusters'),
+      where('userId', '==', uid)
+    );
     const unsubClusters = onSnapshot(qClusters, (snap) => {
       setClusters(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as OpCluster)));
     });
@@ -133,7 +143,7 @@ export function OpsBoard() {
       unsubClusters();
       unsubProfits();
     };
-  }, []);
+  }, [auth.currentUser]);
 
   // Trigger Manual Ledger Syc
   const triggerLedgerSync = async () => {

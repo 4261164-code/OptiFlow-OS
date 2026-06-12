@@ -9,22 +9,23 @@ import { executiveApiRouter } from "./server/routes/api/executive";
 import { postbackRouter } from "./server/routes/api/postback";
 import { opsRouter } from "./server/routes/api/ops";
 import { maxbountyRouter } from "./server/routes/api/maxbounty";
-import { runResearchAgent, runWriterAgent, runMonetizationAgent, runPinterestAgent, runImageGenerationAgent, runAffiliateMatchAgent, runTrafficEngineAgent, runSEOLinkAgent, runSocialCopyAgent, runSEOClusterAgent, runReportDigestAgent, runExecutiveSummaryAgent, runCustomPinAgent, runDeepKeywordExplorerAgent, runCompetitorAuditAgent } from "./server/agents";
+import { runResearchAgent, runWriterAgent, runMonetizationAgent, runPinterestAgent, runImageGenerationAgent, runAffiliateMatchAgent, runTrafficEngineAgent, runSEOLinkAgent, runSocialCopyAgent, runSEOClusterAgent, runReportDigestAgent, runExecutiveSummaryAgent, runCustomPinAgent, runDeepKeywordExplorerAgent, runCompetitorAuditAgent, runEbookCreatorAgent } from "./server/agents";
 import { getLinkedInProfile, publishToLinkedInFeed } from "./server/linkedinService";
 
-async function hasValidGeminiKey(userId?: string): Promise<boolean> {
-  if (process.env.GEMINI_API_KEY) return true;
+async function hasValidAIKey(userId?: string): Promise<boolean> {
+  if (process.env.GEMINI_API_KEY || process.env.OPEN_API_KEY || process.env.NVIDIA_API_KEY) return true;
   if (userId) {
     try {
       const snap = await db.collection("settings").doc(userId).get();
-      if (snap.exists && snap.data()?.geminiApiKey) {
-        return true;
+      if (snap.exists) {
+        const data = snap.data();
+        if (data?.geminiApiKey || data?.openaiApiKey || data?.nvidiaApiKey || data?.midjourneyApiKey) return true;
       }
     } catch (e: any) {
       if (e?.code === 7 || e?.message?.includes("PERMISSION_DENIED")) {
          // Silently ignore
       } else {
-        console.log("Could not query user settings to verify custom Gemini Key:", e);
+        console.log("Could not query user settings to verify custom AI Keys:", e);
       }
     }
   }
@@ -43,7 +44,6 @@ async function startServer() {
   app.use("/api/webhooks", postbackRouter);
   app.use("/api/ops", opsRouter);
   app.use("/api/maxbounty", maxbountyRouter);
-  app.use("/api", maxbountyRouter); // Binds webhook at /api/postbacks/maxbounty
 
   // API constraints check
   app.get("/api/health", async (req, res) => {
@@ -55,7 +55,7 @@ async function startServer() {
         try {
           const ai = new (await import("@google/genai")).GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
           await ai.models.generateContent({
-             model: 'gemini-3.5-flash',
+             model: 'gemini-flash-latest',
              contents: 'ping',
              config: { maxOutputTokens: 1 }
           });
@@ -159,8 +159,8 @@ async function startServer() {
         existingArticleContent
       } = req.body;
 
-      if (!(await hasValidGeminiKey(userId))) {
-        return res.status(400).json({ error: "Gemini API key is not configured in settings." });
+      if (!(await hasValidAIKey(userId))) {
+        return res.status(400).json({ error: "No AI API keys configured (Gemini or OpenAI). Please check your settings." });
       }
 
       if (!keyword) {
@@ -205,8 +205,8 @@ async function startServer() {
   app.post("/api/affiliate-match", async (req, res) => {
     try {
       const { keyword, userId } = req.body;
-      if (!(await hasValidGeminiKey(userId))) {
-        return res.status(400).json({ error: "Gemini API key is not configured in settings." });
+      if (!(await hasValidAIKey(userId))) {
+        return res.status(400).json({ error: "No AI API keys configured (Gemini or OpenAI). Please check your settings." });
       }
       if (!keyword) {
         return res.status(400).json({ error: "Keyword required" });
@@ -227,8 +227,8 @@ async function startServer() {
   app.post("/api/traffic-engine", async (req, res) => {
     try {
       const { keyword, userId } = req.body;
-      if (!(await hasValidGeminiKey(userId))) {
-        return res.status(400).json({ error: "Gemini API key is not configured in settings." });
+      if (!(await hasValidAIKey(userId))) {
+        return res.status(400).json({ error: "No AI API keys configured (Gemini or OpenAI). Please check your settings." });
       }
       if (!keyword) {
         return res.status(400).json({ error: "Keyword required" });
@@ -249,8 +249,8 @@ async function startServer() {
   app.post("/api/seo-link-agent", async (req, res) => {
     try {
       const { articleContent, offers, userId } = req.body;
-      if (!(await hasValidGeminiKey(userId))) {
-        return res.status(400).json({ error: "Gemini API key is not configured in settings." });
+      if (!(await hasValidAIKey(userId))) {
+        return res.status(400).json({ error: "No AI API keys configured (Gemini or OpenAI). Please check your settings." });
       }
       if (!articleContent) {
         return res.status(400).json({ error: "Article content is required" });
@@ -615,8 +615,8 @@ async function startServer() {
       if (!documentText) {
         return res.status(400).json({ error: "Document text to digest is required" });
       }
-      if (!(await hasValidGeminiKey(userId))) {
-        return res.status(400).json({ error: "Gemini API key is not configured in settings." });
+      if (!(await hasValidAIKey(userId))) {
+        return res.status(400).json({ error: "No AI API keys configured (Gemini or OpenAI). Please check your settings." });
       }
 
       console.log(`[API] Processing Report Digest of type: \${docType || "unspecified"}`);
@@ -649,6 +649,27 @@ async function startServer() {
     }
   });
 
+  app.post("/api/regenerate-pin-image", async (req, res) => {
+    try {
+      const { concept, userId } = req.body;
+      console.log(`[API] Received regenerate-pin-image request:`, { concept, userId });
+      if (!concept) {
+        return res.status(400).json({ error: "Concept is required." });
+      }
+      if (!(await hasValidAIKey(userId))) {
+        return res.status(400).json({ error: "No AI API keys configured (Gemini or OpenAI). Please check your settings." });
+      }
+
+      console.log(`[API] Regenerating Pin Image for concept: ${concept}`);
+      const imageUrl = await runImageGenerationAgent(concept, userId);
+      console.log(`[API] Image generated successfully:`, imageUrl);
+      res.json({ success: true, imageUrl });
+    } catch (err: any) {
+      console.error("Regenerate Pin Image error:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.post("/api/generate-custom-pin", async (req, res) => {
     try {
       const { concept, title, description, userId } = req.body;
@@ -656,8 +677,8 @@ async function startServer() {
         return res.status(400).json({ error: "A visual idea or style prompt concept is required." });
       }
 
-      if (!(await hasValidGeminiKey(userId))) {
-        return res.status(400).json({ error: "Gemini API key is not configured in settings. Check your settings tab." });
+      if (!(await hasValidAIKey(userId))) {
+        return res.status(400).json({ error: "AI API keys (Gemini or OpenAI) are not configured. Check your settings tab." });
       }
 
       console.log(`[API] Creating Custom AI Generated Pin for user: ${userId || "anonymous"} based on concept: ${concept}`);
@@ -679,7 +700,7 @@ async function startServer() {
         return res.status(400).json({ error: "A keyword search query is required." });
       }
 
-      const hasKey = await hasValidGeminiKey(userId);
+      const hasKey = await hasValidAIKey(userId);
       console.log(`[API] Triggering Deep Keyword Research for "${keyword}" (Country: ${country || 'US'}, Language: ${language || 'EN'}). Key status: ${hasKey}`);
       
       const analysis = await runDeepKeywordExplorerAgent(keyword, country, language, userId);
@@ -713,6 +734,54 @@ async function startServer() {
     }
   });
 
+  app.post("/api/ebook-creator", async (req, res) => {
+    try {
+      const { topic, userId } = req.body;
+      if (!topic) {
+        return res.status(400).json({ error: "Topic is required." });
+      }
+      if (!(await hasValidAIKey(userId))) {
+        return res.status(400).json({ error: "No AI API keys configured (Gemini or OpenAI). Please check your settings." });
+      }
+
+      console.log(`[API] Triggering EBook Creation for: "${topic}"`);
+      const ebook = await runEbookCreatorAgent(topic, userId);
+      res.json({ success: true, ebook });
+    } catch (err: any) {
+      console.error("EBook Creator error:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/purge-content", async (req, res) => {
+    try {
+      const { userId, purgeType } = req.body;
+      if (!userId) {
+        return res.status(400).json({ error: "User ID required for purging." });
+      }
+
+      console.log(`[API] Purging content for user: ${userId}, type: ${purgeType || 'all'}`);
+      
+      const collectionsToPurge = [];
+      if (!purgeType || purgeType === 'articles' || purgeType === 'all') collectionsToPurge.push('articles');
+      if (!purgeType || purgeType === 'abstracts' || purgeType === 'all') collectionsToPurge.push('pins', 'images');
+      if (purgeType === 'logs' || purgeType === 'all') collectionsToPurge.push('agent_logs', 'automationLogs');
+
+      for (const col of collectionsToPurge) {
+        const snap = await db.collection(col).where("userId", "==", userId).get();
+        const batch = db.batch();
+        snap.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
+        console.log(`[Purge] Cleared ${snap.size} documents from ${col}`);
+      }
+
+      res.json({ success: true, message: `Successfully purged ${collectionsToPurge.join(', ')} for user.` });
+    } catch (err: any) {
+      console.error("Purge error:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Simulate trend API removed
 
   app.post("/api/automation/trigger", async (req, res) => {
@@ -722,8 +791,8 @@ async function startServer() {
         return res.status(400).json({ error: "User ID is required for automation context." });
       }
 
-      if (!(await hasValidGeminiKey(userId))) {
-        return res.status(400).json({ error: "Gemini API key is not configured in settings." });
+      if (!(await hasValidAIKey(userId))) {
+        return res.status(400).json({ error: "No AI API keys configured (Gemini or OpenAI). Please check your settings." });
       }
 
       // Parse keywords

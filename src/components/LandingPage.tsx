@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrandingHexIcon } from './CustomIcons';
-import { Shield, Zap, Sparkles, ChevronRight, BarChart3, TrendingUp, Layers, Bot, ExternalLink, UserCheck, AlertCircle, Loader2 } from 'lucide-react';
+import { Shield, Activity, Cpu, ChevronRight, BarChart3, TrendingUp, Layers, Bot, ExternalLink, UserCheck, AlertCircle, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface LandingPageProps {
@@ -65,7 +65,7 @@ export function LandingPage({ handleLogin, handleGuestLogin, guestLoading, authE
             className="text-center max-w-4xl mx-auto space-y-8"
           >
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-zinc-300 text-xs font-mono uppercase tracking-wider">
-              <Sparkles className="w-3.5 h-3.5 text-[#a8ff35]" />
+              <Cpu className="w-3.5 h-3.5 text-[#a8ff35]" />
               The Autonomous Affiliate Platform
             </div>
             
@@ -117,7 +117,7 @@ export function LandingPage({ handleLogin, handleGuestLogin, guestLoading, authE
               { icon: Layers, title: 'SEO Clustering', desc: 'Automatically map and generate hierarchical keyword silos for maximum site authority.' },
               { icon: Bot, title: 'Autonomous Publishing', desc: 'Direct webhook integration with WordPress. Drafts, images, and formatting handled seamlessly.' },
               { icon: BarChart3, title: 'Intel Digest', desc: 'Paste raw PDF reports or CSV matrices and have AI parse out strategic optimization blueprints.' },
-              { icon: Zap, title: 'Offer Matchmaking', desc: 'Connect with high-ticket programs. AI reads your content and slots in the highest converting offers.' },
+              { icon: Activity, title: 'Offer Matchmaking', desc: 'Connect with high-ticket programs. AI reads your content and slots in the highest converting offers.' },
               { icon: TrendingUp, title: 'Traffic Engine', desc: 'Distribution agents that re-format your pillars into social snippets and interactive modules.' },
               { icon: Shield, title: 'Secure & Sandboxed', desc: 'Runs in isolated containers. Connect your API keys entirely on the client, never stored plainly.' },
             ].map((feature, i) => (

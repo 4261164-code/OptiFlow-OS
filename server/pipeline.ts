@@ -1,12 +1,7 @@
-import { 
-  runResearchAgent, 
-  runWriterAgent, 
-  runMonetizationAgent, 
-  runPinterestAgent, 
-  runImageGenerationAgent,
-  runSEOLinkAgent
-} from "./agents";
+import { runResearchAgent, runWriterAgent, runMonetizationAgent, runPinterestAgent, runImageGenerationAgent, runSEOLinkAgent } from "./agents";
 import { db } from "./firebaseAdmin";
+import { queueImageRetry } from "./services/imageService";
+
 
 export async function logAgentTelemetry(userId: string, agentType: string, status: 'success' | 'warn' | 'error' | 'info' | 'started' | 'running' | 'completed' | 'failed', message: string, jobId?: string) {
   try {
@@ -192,9 +187,13 @@ export async function runPipeline(opts: PipelineOpts): Promise<{
             const imageUrl = await runImageGenerationAgent(pin.concept, userId);
             if (imageUrl) {
               pin.imageUrl = imageUrl;
+            } else {
+              throw new Error("No image generated");
             }
-          } catch (err) {
-            console.log(`[Pipeline Notice] Image fallback selected for pin ${pin.id} concept: ${pin.concept}`);
+          } catch (err: any) {
+            console.error(`[Pipeline Error] Image generation failed for pin ${pin.id}. Queueing retry.`, err);
+            await queueImageRetry(pin.id, pin.concept, userId);
+            pin.imageUrl = "/placeholder-image.png";
           }
         }
       }

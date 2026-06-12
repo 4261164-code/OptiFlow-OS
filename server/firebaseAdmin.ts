@@ -221,7 +221,7 @@ export const db = new Proxy({}, {
             return res.catch((err: any) => {
               if (err?.code === 7 || (err?.message && err.message.includes("PERMISSION_DENIED"))) {
                 if (!useMemoryFallback) {
-                  console.warn("[firebaseAdmin] Firestore PERMISSION_DENIED caught. Switching all future database operations to local, sandbox-friendly in-memory store.");
+                  console.log("[firebaseAdmin] Firestore PERMISSION_DENIED caught. Switching all future database operations to local, sandbox-friendly in-memory store.");
                   useMemoryFallback = true;
                 }
                 // Delegate the failed call to the memory database
@@ -234,7 +234,7 @@ export const db = new Proxy({}, {
         } catch (err: any) {
           if (err?.code === 7 || (err?.message && err.message.includes("PERMISSION_DENIED"))) {
             if (!useMemoryFallback) {
-              console.warn("[firebaseAdmin] Firestore PERMISSION_DENIED caught. Switching all future database operations to local, sandbox-friendly in-memory store.");
+              console.log("[firebaseAdmin] Firestore PERMISSION_DENIED caught. Switching all future database operations to local, sandbox-friendly in-memory store.");
               useMemoryFallback = true;
             }
             return Reflect.get(memoryDb, prop).apply(memoryDb, args);
@@ -252,7 +252,7 @@ console.log("[firebaseAdmin] Probing real Firestore connectivity...");
 realDb.listCollections().then(cols => {
   console.log(`[firebaseAdmin] Successfully connected to real Firestore. Collections visible: ${cols.length}`);
 }).catch(err => {
-  console.warn(`[firebaseAdmin] Firestore connection failed or returned permission denied. Activating seamless local database fallback. Error:`, err.message);
+  console.log(`[firebaseAdmin] Firestore connection failed or returned permission denied. Activating seamless local database fallback. Error:`, err.message);
   useMemoryFallback = true;
 });
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button, Input } from './ui';
 import { db, auth } from '../lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
-import { Loader2, Rocket, Search, Clock, ListPlus, Share2, Award, Zap, Copy, ExternalLink, CheckCircle } from 'lucide-react';
+import { Loader2, Rocket, Search, Clock, ListPlus, Share2, Award, Activity, Copy, ExternalLink, CheckCircle } from 'lucide-react';
 
 interface RecommendedBoard {
   name: string;
@@ -358,7 +358,7 @@ export function TrafficEngine() {
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center text-base">
-                    <Zap className="w-4 h-4 mr-2 text-[#bce122]" /> Targeted Collaborative Boards
+                    <Activity className="w-4 h-4 mr-2 text-[#bce122]" /> Targeted Collaborative Boards
                   </CardTitle>
                   <CardDescription>Join these Pinterest Group Boards to immediately access pre-warmed audiences in your niche.</CardDescription>
                 </CardHeader>

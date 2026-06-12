@@ -1,6 +1,8 @@
 import { db } from "../firebaseAdmin";
 import { FEATURE_FLAGS } from "./featureFlags";
 import { logLedgerEvent } from "./eventLedger";
+import { runImageGenerationAgent } from "../agents";
+
 
 // Worker execution lock
 let clickBufferRunning = false;
@@ -674,6 +676,150 @@ export async function runFailureIntelligenceWorker() {
 }
 
 /**
+ * ==========================================
+ * WORKER 6: CEO PROACTIVE SELF-HEALING WORKER
+ * ==========================================
+ */
+export async function runCEOSelfHealingWorker() {
+  try {
+    console.log("[CEO Self-Healing] Analyzing system anomalies and initiating proactive measures...");
+
+    const healthSnap = await db.collection("system_health_metrics").doc("summary").get();
+    if (!healthSnap.exists) return;
+
+    const health = healthSnap.data() || {};
+    const { pipelineFailureRate, clickFailureRate, mostFailingOffers } = health;
+
+    // RULE 1: If an offer is failing too much, mark it for "Purge and Replace"
+    if (clickFailureRate > 0.05 && mostFailingOffers && mostFailingOffers.length > 0) {
+      for (const offerId of mostFailingOffers) {
+        if (offerId === "unassigned-fallback") continue;
+        
+        console.log(`[CEO Self-Healing] Alert: Offer ${offerId} is failing above threshold. De-prioritizing...`);
+        
+        // Log the decision as a strategic initiative
+        await db.collection("strategic_memory").add({
+          topic: "Offer Stability Audit",
+          insight: `Offer ${offerId} has been identified as unstable (Failure Rate: ${(clickFailureRate * 100).toFixed(2)}%). Proactively de-prioritizing in favor of stable nodes.`,
+          reliability: 0.95,
+          userId: "system-soul",
+          createdAt: Date.now()
+        });
+
+        // Update the offer status if it exists
+        const offerSnap = await db.collection("offers").doc(offerId).get();
+        if (offerSnap.exists) {
+          await offerSnap.ref.update({ status: "evaluating_stability", updatedAt: Date.now() });
+        }
+      }
+    }
+
+    // RULE 2: Purge ancient errors (older than 7 days) to keep log collections lean
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    
+    const staleErrorsSnap = await db.collection("click_errors")
+      .where("timestamp", "<", weekAgo)
+      .limit(500)
+      .get();
+    
+    if (!staleErrorsSnap.empty) {
+      console.log(`[CEO Self-Healing] Purging ${staleErrorsSnap.size} legacy error logs...`);
+      const batch = db.batch();
+      staleErrorsSnap.forEach(doc => batch.delete(doc.ref));
+      await batch.commit();
+    }
+
+    // RULE 3: Identify ghost jobs (stuck in 'running' for > 1 hour) and terminate
+    const hourAgo = Date.now() - (60 * 60 * 1000);
+    const stuckJobsSnap = await db.collection("jobs")
+      .where("status", "==", "running")
+      .where("createdAt", "<", hourAgo)
+      .limit(50)
+      .get();
+    
+    if (!stuckJobsSnap.empty) {
+      console.log(`[CEO Self-Healing] Found ${stuckJobsSnap.size} ghost jobs. Terminating...`);
+      const batch = db.batch();
+      stuckJobsSnap.forEach(doc => {
+        batch.update(doc.ref, { 
+          status: "abandoned", 
+          error: "Ghost job detected and terminated by CEO Stabilization Worker.",
+          updatedAt: Date.now() 
+        });
+      });
+      await batch.commit();
+    }
+
+  } catch (err: any) {
+    console.error("[CEO Self-Healing] Worker failed:", err);
+  }
+}
+
+/**
+ * ==========================================
+ * WORKER 7: IMAGE RETRY QUEUE WORKER
+ * ==========================================
+ */
+export async function runImageRetryWorker() {
+  try {
+    const snap = await db.collection("image_retry_queue")
+      .where("status", "==", "PENDING")
+      .where("nextRetryAt", "<=", Date.now())
+      .limit(10)
+      .get();
+
+    for (const doc of snap.docs) {
+      const { pinId, concept, userId, attempt } = doc.data();
+      const currentAttempt = attempt || 0;
+      
+      try {
+        const imageUrl = await runImageGenerationAgent(concept, userId);
+        if (imageUrl) {
+          // Success! Update pin and clear from retry queue
+          await db.collection("pins").doc(pinId).update({ imageUrl });
+          await doc.ref.delete();
+          
+          // Decrement pending count
+          const quotaRef = db.collection("system_quotas").doc(userId || "system_global");
+          const qSnap = await quotaRef.get();
+          if (qSnap.exists) {
+            const currentPending = qSnap.data()?.pendingRegeneration || 1;
+            await quotaRef.update({ pendingRegeneration: Math.max(0, currentPending - 1) });
+          }
+          
+          console.log(`[Image Retry Worker] Successfully regenerated image for ${pinId}`);
+        } else {
+          throw new Error("No image returned");
+        }
+      } catch (err) {
+        console.error(`[Image Retry Worker] Retry failed for ${pinId}, attempt ${currentAttempt + 1}`, err);
+        
+        const nextAttempt = currentAttempt + 1;
+        const delays = [15 * 60 * 1000, 60 * 60 * 1000, 6 * 60 * 60 * 1000, 24 * 60 * 60 * 1000];
+        const nextDelay = delays[nextAttempt] || 24 * 60 * 60 * 1000;
+        
+        if (nextAttempt >= 4) {
+          // Rule 3: Mark as IMAGE_PENDING after 4 failures
+          await doc.ref.update({
+            attempt: nextAttempt,
+            status: "IMAGE_PENDING"
+          });
+          console.log(`[Image Retry Worker] Pin ${pinId} has failed 4 times. Marked as IMAGE_PENDING.`);
+        } else {
+          await doc.ref.update({
+            attempt: nextAttempt,
+            nextRetryAt: Date.now() + nextDelay
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.error("[Image Retry Worker] Error:", err);
+  }
+}
+
+/**
  * START ALL CYCLICAL SYSTEM HARDENING WORKERS
  */
 export function startSystemHardeningWorkers() {
@@ -703,4 +849,14 @@ export function startSystemHardeningWorkers() {
   setInterval(() => {
     runFailureIntelligenceWorker().catch(err => console.error("Health worker exception:", err));
   }, 25000);
+
+  // CEO Self-Healing (Task 7) - Runs every 60 seconds
+  setInterval(() => {
+    runCEOSelfHealingWorker().catch(err => console.error("Healing worker exception:", err));
+  }, 60000);
+  
+  // Image Retry Worker (Task 8) - Runs every 5 minutes
+  setInterval(() => {
+    runImageRetryWorker().catch(err => console.error("Image retry worker exception:", err));
+  }, 300000);
 }

@@ -6,7 +6,7 @@ import {
   TrendingDown,
   Activity,
   Layers, 
-  Zap, 
+  Activity, 
   Compass, 
   Loader2, 
   BookmarkCheck, 
@@ -178,7 +178,7 @@ export function KeywordExplorer() {
     });
 
     return unsubscribe;
-  }, [selectedSavedId]);
+  }, [selectedSavedId, auth.currentUser]);
 
   const handleQuickSearch = (kw: string) => {
     setKeyword(kw);
@@ -874,7 +874,7 @@ export function KeywordExplorer() {
                 {[
                   { id: 'overview', label: 'Potential Channels', icon: PieChart },
                   { id: 'semantic', label: 'Semantic Silos', icon: Layers },
-                  { id: 'sponsors', label: 'Affiliate Sponsors', icon: Zap },
+                  { id: 'sponsors', label: 'Affiliate Sponsors', icon: Activity },
                   { id: 'pinterest', label: 'Pinterest Concepts', icon: Compass },
                   { id: 'outline', label: 'Content Outline', icon: FileText },
                   { id: 'competitors', label: 'Competitor Intel', icon: Users }
@@ -938,7 +938,7 @@ export function KeywordExplorer() {
                       <div className="space-y-1.5">
                         <div className="flex justify-between items-center text-xs">
                           <span className="font-bold text-white flex items-center gap-2">
-                            <Zap className="w-3.5 h-3.5 text-amber-500" />
+                            <Activity className="w-3.5 h-3.5 text-amber-500" />
                             Affiliate Program Sponsorship Fit
                           </span>
                           <span className="font-mono text-[#a8ff35] font-bold">{researchData.metrics.affiliateFit || 9}/10</span>

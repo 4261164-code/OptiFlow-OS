@@ -112,6 +112,15 @@ service cloud.firestore {
         && data.createdAt is number;
     }
 
+    function isValidAgentNode(data) {
+      return data.keys().hasAll(['name', 'role', 'status', 'userId', 'lastActive'])
+        && data.name is string
+        && data.role is string
+        && data.status is string
+        && data.userId == request.auth.uid
+        && data.lastActive is number;
+    }
+
     function isValidAutomationLog(data) {
       return data.keys().hasAll(['keyword', 'status', 'userId', 'createdAt', 'updatedAt'])
         && data.keyword is string && data.keyword.size() <= 2000
@@ -129,6 +138,39 @@ service cloud.firestore {
         && data.createdAt is number
         && data.updatedAt is number
         && data.isTracked is bool;
+    }
+
+    function isValidStrategicMemory(data) {
+      return data.keys().hasAll(['topic', 'insight', 'reliability', 'userId', 'createdAt'])
+        && data.topic is string
+        && data.insight is string
+        && data.reliability is number
+        && data.userId == request.auth.uid
+        && data.createdAt is number;
+    }
+
+    function isValidCEOTarget(data) {
+      return data.keys().hasAll(['title', 'description', 'status', 'priority', 'metrics', 'userId', 'createdAt', 'updatedAt'])
+        && data.title is string
+        && data.description is string
+        && data.status in ["active", "reached", "abandoned", "pivoted"]
+        && data.priority in ["low", "medium", "high", "critical"]
+        && data.metrics is list
+        && data.userId == request.auth.uid
+        && data.createdAt is number
+        && data.updatedAt is number;
+    }
+
+    match /strategic_memory/{memoryId} {
+      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidStrategicMemory(incoming());
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && isValidStrategicMemory(incoming());
+    }
+
+    match /ceo_targets/{targetId} {
+      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidCEOTarget(incoming());
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && isValidCEOTarget(incoming());
     }
 
     match /jobs/{jobId} {
@@ -183,6 +225,12 @@ service cloud.firestore {
       allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
       allow create: if isSignedIn() && isValidAgentLog(incoming());
       allow update: if isSignedIn() && resource.data.userId == request.auth.uid && isValidAgentLog(incoming());
+    }
+
+    match /agent_nodes/{nodeId} {
+      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidAgentNode(incoming());
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && isValidAgentNode(incoming());
     }
 
     match /settings/{userId} {
@@ -241,9 +289,34 @@ service cloud.firestore {
     }
 
     match /keywords/{keywordId} {
-      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow read: if isSignedIn();
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
       allow create: if isSignedIn() && isValidKeyword(incoming());
       allow update: if isSignedIn() && resource.data.userId == request.auth.uid && isValidKeyword(incoming());
+    }
+
+    match /affiliate_networks/{networkId} {
+      allow read: if isSignedIn();
+      allow write: if false; // Admin-only database writes
+    }
+
+    match /network_credentials/{credentialId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow write: if false; // Admin-only database writes
+    }
+
+    match /maxbounty_campaigns/{campaignId} {
+      allow read: if isSignedIn();
+      allow write: if false; // Admin-only database writes
+    }
+
+    match /tracking_links/{linkId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow write: if false; // Admin-only database writes
+    }
+
+    match /postback_processing_queue/{taskId} {
+      allow read, write: if false; // Admin-only database writes
     }
 
     match /pending_click_events/{eventId} {

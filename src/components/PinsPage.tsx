@@ -4,7 +4,7 @@ import { collection, query, where, onSnapshot, doc, setDoc } from 'firebase/fire
 import { Pin } from '../types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button } from './ui';
 import { formatDistanceToNow } from 'date-fns';
-import { Copy, Check, Eye, ExternalLink, BookmarkCheck, TrendingUp, Image as ImageIcon, Sparkles, Wand2, Loader2, Zap } from 'lucide-react';
+import { Copy, Check, Eye, ExternalLink, BookmarkCheck, TrendingUp, Image as ImageIcon, Bot, Wand2, Loader2, Activity, RefreshCw } from 'lucide-react';
 import { PinterestIcon, CloverMascotIcon } from './CustomIcons';
 import { addNotification } from '../lib/notifications';
 
@@ -20,6 +20,7 @@ export function PinsPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
   const [genSuccess, setGenSuccess] = useState(false);
+  const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!auth.currentUser) return;
@@ -116,6 +117,40 @@ export function PinsPage() {
     }
   };
 
+  const handleRegeneratePin = async (pin: Pin) => {
+    if (!auth.currentUser || !pin.concept) return;
+    setRegeneratingId(pin.id);
+    
+    try {
+      const response = await fetch('/api/regenerate-pin-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ concept: pin.concept, userId: auth.currentUser.uid })
+      });
+
+      if (response.status === 404) {
+        throw new Error("Regeneration endpoint not found. Please contact support.");
+      }
+      
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Server error.");
+
+      if (data.imageUrl) {
+        await setDoc(doc(db, 'pins', pin.id), {
+          ...pin,
+          imageUrl: data.imageUrl,
+          updatedAt: Date.now()
+        });
+      }
+      addNotification(auth.currentUser.uid, 'milestone', 'Image Regenerated', 'Your Pin image was successfully updated with the new prompt.');
+    } catch (err: any) {
+      console.error("Failed to regenerate pin:", err);
+      addNotification(auth.currentUser.uid, 'error', 'Failed to regenerate image', err.message);
+    } finally {
+      setRegeneratingId(null);
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto space-y-8">
       {/* Page Header */}
@@ -144,7 +179,7 @@ export function PinsPage() {
           }}
           className="px-5 py-3 rounded-xl bg-[#a8ff35] text-black font-extrabold text-xs uppercase tracking-wider hover:bg-[#96e52e] hover:scale-[1.02] transition active:scale-[0.98] cursor-pointer flex items-center gap-2 shadow-lg hover:shadow-xl"
         >
-          <Sparkles className="w-4 h-4 fill-current animate-pulse text-black" />
+          <Bot className="w-4 h-4 fill-current text-black" />
           <span>{showCreator ? "Dismiss Generator" : "Wand: Create Custom AI Pin"}</span>
         </button>
       </div>
@@ -245,7 +280,7 @@ export function PinsPage() {
                   </>
                 ) : (
                   <>
-                    <Zap className="w-3.5 h-3.5 fill-current text-black" />
+                    <Activity className="w-3.5 h-3.5 fill-current text-black" />
                     <span>Synthesize Pinterest Pin</span>
                   </>
                 )}
@@ -356,15 +391,25 @@ export function PinsPage() {
                 {/* Card footer description content if rendering frame info outside */}
                 <div className="p-4 bg-[#101115] border-t border-white/5 flex items-center justify-between text-xs leading-none">
                   <span className="text-zinc-500 font-medium">Created {formatDistanceToNow(pin.createdAt, { addSuffix: true })}</span>
-                  {pin.imageUrl && (
+                  <div className="flex gap-3 items-center">
                     <button 
-                      onClick={() => copyToClipboard(pin.description, pin.id)}
-                      className="text-zinc-400 hover:text-white transition flex items-center gap-1 font-semibold"
+                      onClick={() => handleRegeneratePin(pin)}
+                      disabled={regeneratingId === pin.id}
+                      className="text-[#a8ff35] hover:text-[#96e52e] transition flex items-center gap-1 font-semibold disabled:opacity-50"
                     >
-                      <Copy className="w-3.5 h-3.5" />
-                      <span>Copy Paste Bio</span>
+                      <RefreshCw className={`w-3.5 h-3.5 ${regeneratingId === pin.id ? 'animate-spin' : ''}`} />
+                      <span>{regeneratingId === pin.id ? 'Regenerating...' : 'Regenerate'}</span>
                     </button>
-                  )}
+                    {pin.imageUrl && (
+                      <button 
+                        onClick={() => copyToClipboard(pin.description, pin.id)}
+                        className="text-zinc-400 hover:text-white transition flex items-center gap-1 font-semibold"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>Copy Paste Bio</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               </Card>
             );

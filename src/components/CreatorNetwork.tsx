@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button, Input } from './ui';
 import { db, auth } from '../lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
-import { Users, Bot, Heart, Plus, Globe, Shield, RefreshCw, Zap, Flame, UserCheck, MessageSquare } from 'lucide-react';
+import { Users, Bot, Heart, Plus, Globe, Shield, RefreshCw, Activity, Flame, UserCheck, MessageSquare } from 'lucide-react';
 import { CreatorShowcase } from './CreatorShowcase';
 
 interface FeedItem {
@@ -143,7 +143,7 @@ export function CreatorNetwork() {
             onClick={() => setTabMode('portfolios')} 
             className={`px-4 py-2.5 rounded-xl font-bold transition duration-300 flex items-center gap-2 cursor-pointer ${tabMode === 'portfolios' ? 'bg-[#a8ff35] text-black shadow-md' : 'text-zinc-400 hover:text-white'}`}
           >
-            <Zap className="w-3.5 h-3.5" />
+            <Activity className="w-3.5 h-3.5" />
             <span>Creative Portfolios</span>
           </button>
           <button 

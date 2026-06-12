@@ -1,12 +1,13 @@
 import { collection, onSnapshot, query, where, Timestamp } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 
-export function subscribeToRevenueEvents(callback: (total: number, net: number, last30Total: number, last30Net: number, prior30Total: number, prior30Net: number) => void) {
+export function subscribeToRevenueEvents(userId: string, callback: (total: number, net: number, last30Total: number, last30Net: number, prior30Total: number, prior30Net: number) => void) {
     const fromDate = new Date();
     fromDate.setDate(fromDate.getDate() - 60);
 
     const q = query(
         collection(db, 'revenue_events'),
+        where('userId', '==', userId),
         where('timestamp', '>=', fromDate)
     );
 

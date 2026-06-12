@@ -10,7 +10,7 @@ import {
   Info, 
   HelpCircle,
   ArrowUpRight,
-  Zap,
+  Activity,
   Play
 } from 'lucide-react';
 
@@ -421,7 +421,7 @@ export function CampaignHealthHeatmap({ jobs }: CampaignHealthHeatmapProps) {
                 <div>
                   <span className="text-[8px] text-zinc-500 uppercase tracking-widest block font-bold mb-1.5">Suggested Action Agent</span>
                   <div className="flex items-center gap-2 text-zinc-100">
-                    <Zap className="w-4 h-4 text-[#a8ff35] stroke-[2.5]" />
+                    <Activity className="w-4 h-4 text-[#a8ff35] stroke-[2.5]" />
                     <span className="text-xs font-bold truncate">{selectedCell.agentToDeploy}</span>
                   </div>
                   <p className="text-[10px] text-zinc-500 mt-1.5 leading-relaxed">Ready to sync keyword schemas, audit backlink hubs, or optimize API parameters.</p>

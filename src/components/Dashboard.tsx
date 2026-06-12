@@ -17,7 +17,7 @@ import {
   Filter,
   Calendar,
   Link2,
-  Zap,
+  Activity,
   BarChart3,
   RefreshCw
 } from 'lucide-react';
@@ -107,7 +107,7 @@ export function Dashboard() {
         throw new Error("Analyst returned invalid schema coordinates.");
       }
     } catch (err: any) {
-      console.warn("AI summary query error:", err);
+      console.log("AI summary query error:", err);
       setAiError(err?.message || String(err));
       setAiSummary(null);
     } finally {
@@ -115,12 +115,15 @@ export function Dashboard() {
     }
   };
 
-  // Run automatically when jobs or notifications populate
+  // Run automatically when jobs or notifications populate, but with a guard to prevent pounding
   useEffect(() => {
     if (auth.currentUser && jobs.length > 0 && !aiSummary && !aiLoading) {
-      fetchExecutiveSummary();
+      const timer = setTimeout(() => {
+        fetchExecutiveSummary();
+      }, 2000); // Wait 2s for initial burst of data to settle
+      return () => clearTimeout(timer);
     }
-  }, [auth.currentUser, jobs.length, notifications.length]);
+  }, [auth.currentUser, jobs.length > 0, !!aiSummary]); // Reduced dependencies to prevent re-triggers on every minor change
 
   useEffect(() => {
     if (!auth.currentUser) return;
@@ -166,7 +169,7 @@ export function Dashboard() {
               onClick={() => setViewMode('launcher')} 
               className="px-4 py-2 rounded-xl font-bold transition duration-300 flex items-center gap-2 bg-[#a8ff35] text-black shadow-md cursor-pointer"
             >
-              <Zap className="w-3.5 h-3.5" />
+              <Activity className="w-3.5 h-3.5" />
               <span>Agent Launcher</span>
             </button>
             <button 
@@ -196,7 +199,7 @@ export function Dashboard() {
             onClick={() => setViewMode('launcher')} 
             className="px-4 py-2 rounded-xl font-bold transition duration-300 flex items-center gap-2 text-zinc-400 hover:text-white cursor-pointer"
           >
-            <Zap className="w-3.5 h-3.5 text-zinc-500 hover:text-[#a8ff35]" />
+            <Activity className="w-3.5 h-3.5 text-zinc-500 hover:text-[#a8ff35]" />
             <span>Agent Launcher</span>
           </button>
           <button 
@@ -237,7 +240,7 @@ export function Dashboard() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-lg bg-[#a8ff35]/15 flex items-center justify-center text-[#a8ff35]">
-                  <Zap className="w-4 h-4 animate-pulse" />
+                  <Activity className="w-4 h-4 animate-pulse" />
                 </div>
                 <div>
                   <h2 className="text-xs font-extrabold text-white uppercase tracking-wider">AI Executive Portfolio Analyst</h2>
