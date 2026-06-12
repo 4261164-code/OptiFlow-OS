@@ -2,17 +2,18 @@ import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { KPICards } from '../../components/executive/KPICards';
 import { Rankings } from '../../components/executive/Rankings';
 import { useExecutiveMetrics } from '../../hooks/executive/useExecutiveMetrics';
-import { Moon, Sun, Clock, WifiOff, BarChart3, Settings2, Globe, Shield } from 'lucide-react';
+import { Moon, Sun, Clock, WifiOff, BarChart3, Settings2, Globe, Shield, Activity } from 'lucide-react';
 import { ErrorBoundary } from '../../components/executive/ErrorBoundary';
 import { OpsBoard } from '../../components/executive/OperationsBoard';
 import { MaxBountyPanel } from '../../components/executive/MaxBountyPanel';
 import { CommandCenter } from '../../components/executive/CommandCenter';
+import { DiagnosticsBoard } from '../../components/executive/DiagnosticsBoard';
 
 const Charts = lazy(() => import('../../components/executive/Charts').then(m => ({ default: m.Charts })));
 
 export default function ExecutiveDashboard() {
     const { status } = useExecutiveMetrics();
-    const [activeTab, setActiveTab] = useState<'analytics' | 'operations' | 'maxbounty' | 'command'>('command');
+    const [activeTab, setActiveTab] = useState<'analytics' | 'operations' | 'maxbounty' | 'command' | 'diagnostics'>('command');
     const [darkMode, setDarkMode] = useState(() => {
         return localStorage.getItem('theme') === 'dark' || 
                (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -115,6 +116,17 @@ export default function ExecutiveDashboard() {
                                 <Globe className="w-3.5 h-3.5 mr-1.5" />
                                 MaxBounty CPA
                             </button>
+                            <button
+                                onClick={() => setActiveTab('diagnostics')}
+                                className={`inline-flex items-center px-4 py-2 text-xs font-semibold rounded-md transition-all duration-200 cursor-pointer ${
+                                    activeTab === 'diagnostics'
+                                        ? 'bg-white dark:bg-[#111] text-[#d7f941] dark:text-[#d7f941] shadow-sm'
+                                        : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
+                                }`}
+                            >
+                                <Activity className="w-3.5 h-3.5 mr-1.5" />
+                                Systems Diagnostics
+                            </button>
                         </div>
 
                         <button 
@@ -144,6 +156,10 @@ export default function ExecutiveDashboard() {
                     ) : activeTab === 'operations' ? (
                         <ErrorBoundary>
                             <OpsBoard />
+                        </ErrorBoundary>
+                    ) : activeTab === 'diagnostics' ? (
+                        <ErrorBoundary>
+                            <DiagnosticsBoard />
                         </ErrorBoundary>
                     ) : (
                         <ErrorBoundary>

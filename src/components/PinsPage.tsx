@@ -132,7 +132,15 @@ export function PinsPage() {
         throw new Error("Regeneration endpoint not found. Please contact support.");
       }
       
-      const data = await response.json();
+      const contentType = response.headers.get("content-type");
+      let data: any = {};
+      if (contentType && contentType.includes("application/json")) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        throw new Error(text.substring(0, 100) || `Server returned invalid Response Status: ${response.status}`);
+      }
+      
       if (!response.ok) throw new Error(data.error || "Server error.");
 
       if (data.imageUrl) {
@@ -323,7 +331,7 @@ export function PinsPage() {
                     <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent z-10" />
                     
                     <img 
-                      src={pin.imageUrl} 
+                      src={pin.imageUrl?.includes('1618005182384') || pin.imageUrl === '/placeholder-image.png' ? `https://image.pollinations.ai/prompt/photorealistic%20${encodeURIComponent((pin.concept || "modern pin office").substring(0, 50))}?width=1024&height=1024&nologo=true&seed=${pin.id}` : pin.imageUrl} 
                       alt={pin.concept} 
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-cover transition-transform duration-700 group-hover/image:scale-[1.03]" 

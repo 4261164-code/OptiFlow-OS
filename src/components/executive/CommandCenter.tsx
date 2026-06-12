@@ -33,21 +33,33 @@ export function CommandCenter() {
     // Strategic Memory Subscription
     const qMemory = query(
       collection(db, 'strategic_memory'), 
-      where('userId', '==', auth.currentUser.uid),
-      orderBy('createdAt', 'desc')
+      where('userId', '==', auth.currentUser.uid)
     );
     const unsubMemory = onSnapshot(qMemory, (snap) => {
-      setMemory(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as StrategicMemory)));
+      const sorted = snap.docs
+        .map(doc => ({ id: doc.id, ...doc.data() } as StrategicMemory))
+        .sort((a, b) => b.createdAt - a.createdAt);
+      setMemory(sorted);
+    }, (error) => {
+      console.warn("Error in strategic memory subscription:", error);
     });
 
     // Targets Subscription
     const qTargets = query(
       collection(db, 'ceo_targets'), 
-      where('userId', '==', auth.currentUser.uid),
-      orderBy('priority', 'desc')
+      where('userId', '==', auth.currentUser.uid)
     );
     const unsubTargets = onSnapshot(qTargets, (snap) => {
-      setTargets(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as CEOTarget)));
+      const sorted = snap.docs
+        .map(doc => ({ id: doc.id, ...doc.data() } as CEOTarget))
+        .sort((a, b) => {
+          // Sort by critical/high/medium/low priority
+          const priorityWeight: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1 };
+          return (priorityWeight[b.priority] || 0) - (priorityWeight[a.priority] || 0);
+        });
+      setTargets(sorted);
+    }, (error) => {
+      console.warn("Error in targets subscription:", error);
     });
 
     // Organization Nodes (Agents/Systems)
@@ -72,6 +84,8 @@ export function CommandCenter() {
       } else {
         setNodes(dbNodes);
       }
+    }, (error) => {
+      console.warn("Error in nodes subscription:", error);
     });
     
     setLoading(false);

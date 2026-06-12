@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { db } from "../firebaseAdmin";
 import { processClick } from "../services/clickTracking";
+import { BanditEngine, TrafficContext } from "../services/banditEngine";
 // Using crypto inside processClick
 
 export const goRouter = Router();
@@ -9,6 +10,60 @@ const sanitizeParam = (param: any) => {
     if (typeof param !== 'string') return undefined;
     return param.trim().substring(0, 255);
 }
+
+// Smart Autonomous Routing via Contextual Multi-Armed Bandits
+goRouter.get("/smart/:userId", async (req, res) => {
+    const startTime = Date.now();
+    const userId = req.params.userId;
+    
+    try {
+        const source = sanitizeParam(req.query.source) || "unknown";
+        const userAgent = req.headers['user-agent'] || "";
+        let device = "desktop";
+        if (userAgent.toLowerCase().includes("mobile")) device = "mobile";
+        
+        const ip = req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || "";
+        const referer = req.headers['referer'];
+        
+        const currentHour = new Date().getHours();
+        let timeOfDay = "evening";
+        if (currentHour >= 5 && currentHour < 12) timeOfDay = "morning";
+        else if (currentHour >= 12 && currentHour < 17) timeOfDay = "afternoon";
+
+        const context: TrafficContext = {
+            geo: "US", // In real prod, derive from IP (e.g. MaxMind)
+            device,
+            trafficSource: source,
+            timeOfDay
+        };
+
+        // Get user's active offers to choose from
+        const userOffersSnap = await db.collection("offers").where("userId", "==", userId).limit(10).get();
+        if (userOffersSnap.empty) {
+            return res.redirect(302, "/");
+        }
+        
+        const availableOffers = userOffersSnap.docs.map(doc => doc.id);
+        
+        // Bandit RL system chooses the best offer for this specific traffic context
+        const selectedOfferId = await BanditEngine.selectOffer(userId, context, availableOffers);
+        
+        const offerSnap = await db.collection("offers").doc(selectedOfferId).get();
+        const destinationUrl = offerSnap.data()?.link || "/";
+        
+        const clickId = await processClick(selectedOfferId, undefined, source, userAgent, ip, referer, undefined);
+        
+        // Optimistically apply a negative reward (failure/click). If it converts later, postback updates with a positive reward.
+        await BanditEngine.updateReward(userId, context, selectedOfferId, 0, false);
+        
+        console.log(JSON.stringify({ event: "smart_click_redirect", clickId, selectedOfferId, latencyMs: Date.now() - startTime }));
+        return res.redirect(302, destinationUrl);
+
+    } catch (e: any) {
+        console.error("Smart routing failed:", e);
+        return res.redirect(302, "/");
+    }
+});
 
 goRouter.get("/:offerId", async (req, res) => {
     const startTime = Date.now();

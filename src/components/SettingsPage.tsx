@@ -89,33 +89,79 @@ export function SettingsPage() {
     loadSettings();
   }, []);
 
-  const [testingLinkedin, setTestingLinkedin] = useState(false);
-  const [linkedinTestResult, setLinkedinTestResult] = useState<{ success: boolean; name?: string; urn?: string; error?: string; notice?: string } | null>(null);
+  const [testingAll, setTestingAll] = useState(false);
+  const [testStates, setTestStates] = useState<Record<string, {
+    status: 'idle' | 'testing' | 'success' | 'failed';
+    message?: string;
+    details?: string;
+    error?: string;
+  }>>({});
 
-  const testLinkedInConnection = async () => {
+  const integrationsList = [
+    { id: 'gemini', name: 'Google Gemini', category: 'Core AI Platform', desc: 'Runs core intelligence, pipelines, agent reasoning, and self-improving CEO decisions.' },
+    { id: 'openai', name: 'OpenAI (GPT-4o)', category: 'Reasoning Fallback', desc: 'Drives eBook chapter compilers and advanced content synthetics.' },
+    { id: 'nvidia', name: 'NVIDIA NIM Catalog', category: 'Computing Clusters', desc: 'Validates Llama-3.1 405B routing fallbacks and bulk content pipelines.' },
+    { id: 'midjourney', name: 'Midjourney Engine', category: 'Creative Graphic Agency', desc: 'Generates pin vectors, article header concepts, and layout mockups.' },
+    { id: 'wordpress', name: 'WordPress Blog Connector', category: 'Auto-Publishing', desc: 'Saves Phase 2 XML-RPC credentials for auto-publishing draft campaigns.' },
+    { id: 'pinterest', name: 'Pinterest Business', category: 'Social Distribution', desc: 'Exchanges authorized PIN syndication hooks to sync boards.' },
+    { id: 'telegram', name: 'Telegram Broadcast', category: 'Social Alerts', desc: 'Fires instant lead alerts and live post notifications to channels.' },
+    { id: 'linkedin', name: 'LinkedIn UGC Feed', category: 'Social Distribution', desc: 'Broadcasts executive summaries and marketing copies to feeds.' }
+  ];
+
+  const testSingleIntegration = async (integrationId: string) => {
     if (!auth.currentUser) return;
-    setTestingLinkedin(true);
-    setLinkedinTestResult(null);
+    setTestStates(prev => ({
+      ...prev,
+      [integrationId]: { status: 'testing' }
+    }));
+
     try {
-      // Auto-save active configuration settings to Firestore so server uses latest input
+      // First, auto-save settings to capture any live field inputs
       await setDoc(doc(db, 'settings', auth.currentUser.uid), settings);
 
-      const response = await fetch('/api/test-linkedin', {
+      const response = await fetch('/api/test-integration', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: auth.currentUser.uid })
+        body: JSON.stringify({ integrationId, userId: auth.currentUser.uid })
       });
-
       const data = await response.json();
-      setLinkedinTestResult(data);
+      if (response.ok && data.success) {
+        setTestStates(prev => ({
+          ...prev,
+          [integrationId]: {
+            status: 'success',
+            message: data.message,
+            details: data.details
+          }
+        }));
+      } else {
+        setTestStates(prev => ({
+          ...prev,
+          [integrationId]: {
+            status: 'failed',
+            error: data.error || "Handshake rejected by endpoint."
+          }
+        }));
+      }
     } catch (err: any) {
-      setLinkedinTestResult({
-        success: false,
-        error: err.message || "Network request failed while testing connection."
-      });
-    } finally {
-      setTestingLinkedin(false);
+      setTestStates(prev => ({
+        ...prev,
+        [integrationId]: {
+          status: 'failed',
+          error: err.message || "Network request failed."
+        }
+      }));
     }
+  };
+
+  const testAllIntegrations = async () => {
+    setTestingAll(true);
+    for (const item of integrationsList) {
+      await testSingleIntegration(item.id);
+      // Brief, pleasant staggering delay
+      await new Promise(r => setTimeout(r, 450));
+    }
+    setTestingAll(false);
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -132,45 +178,6 @@ export function SettingsPage() {
     setSaving(false);
   };
 
-  const handleHealthCheck = async () => {
-    setHealthStatus('loading');
-    try {
-      // 1. Check Gemini via backend
-      const response = await fetch('/api/health');
-      if (!response.ok) throw new Error("Backend health endpoint unreachable");
-      const data = await response.json();
-      
-      // 2. Client Side Firestore Write Check
-      let dbStatus = "Checking...";
-      if (auth.currentUser) {
-        try {
-          const testRef = doc(db, 'settings', auth.currentUser.uid + '_test');
-          await setDoc(testRef, { test: true });
-          dbStatus = "Writable";
-        } catch (e: any) {
-          dbStatus = "Degraded (Permission Denied)";
-          console.warn("Firestore write check failed:", e);
-        }
-      } else {
-        dbStatus = "Must be logged in to test";
-      }
-
-      setHealthStatus({
-         status: 'success',
-         checks: {
-            ...data.checks,
-            database: dbStatus,
-            openai: settings.openaiApiKey ? "Key Provided" : "Not configured",
-            nvidia: settings.nvidiaApiKey ? "Key Provided" : "Not configured",
-            midjourney: settings.midjourneyApiKey ? "Key Provided" : "Not configured",
-            storage: 'Reachable' 
-         }
-      });
-    } catch (err: any) {
-      setHealthStatus({ status: 'error', error: err.message });
-    }
-  };
-
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <div>
@@ -181,63 +188,90 @@ export function SettingsPage() {
       <div className="grid gap-6 md:grid-cols-2">
         <Card className="md:col-span-2">
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-4">
               <div>
-                <CardTitle>System Health Check</CardTitle>
-                <CardDescription>Verify connections to Firebase, Gemini, and Storage.</CardDescription>
+                <CardTitle>Integrations & AI API Diagnostics Matrix</CardTitle>
+                <CardDescription>Run live real-time handshake validation checks across all configured generative providers and distribution channels.</CardDescription>
               </div>
-               <Button variant="secondary" onClick={handleHealthCheck} disabled={healthStatus === 'loading'}>
-                {healthStatus === 'loading' ? <Loader2 className="w-5 h-5 mr-2 animate-spin stroke-[2.8]" /> : null}
-                Run Health Check
+              <Button type="button" variant="secondary" onClick={testAllIntegrations} disabled={testingAll}>
+                {testingAll ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin stroke-[2.8]" />
+                    Sequencing All Handshakes...
+                  </>
+                ) : (
+                  "Test All Connection Nodes"
+                )}
               </Button>
             </div>
           </CardHeader>
-          {healthStatus && healthStatus !== 'loading' && (
-            <CardContent>
-              <div className="bg-[#1C1D21] rounded-lg p-4 border border-white/5 space-y-3">
-                {healthStatus.status === 'error' ? (
-                   <div className="text-red-400 flex items-center"><XCircle className="w-5.5 h-5.5 mr-2 stroke-[2.8]" /> Error: {healthStatus.error}</div>
-                ) : (
-                   <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div className="flex items-center justify-between p-2 bg-[#25262B]/50 rounded">
-                         <span className="text-zinc-400">Firebase Auth</span>
-                         {auth.currentUser ? <CheckCircle2 className="w-5 h-5 text-[#d7f941] stroke-[2.8]" /> : <XCircle className="w-5 h-5 text-red-500 stroke-[2.8]" />}
+          <CardContent>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-2">
+              {integrationsList.map((item) => {
+                const state = testStates[item.id] || { status: 'idle' };
+                return (
+                  <div key={item.id} className="bg-[#1C1D21] border border-white/5 rounded-2xl p-5 flex flex-col justify-between space-y-4 hover:border-white/10 transition-all duration-200">
+                    <div className="space-y-1.5 animate-fade-in">
+                      <div className="flex items-center justify-between gap-2">
+                        <h4 className="text-sm font-bold text-white font-sans">{item.name}</h4>
+                        <span className="text-[9px] bg-white/5 px-2 py-0.5 rounded-full text-zinc-400 font-mono tracking-wide uppercase">
+                          {item.category}
+                        </span>
                       </div>
-                      <div className="flex items-center justify-between p-2 bg-[#25262B]/50 rounded">
-                         <span className="text-zinc-400">Firestore DB</span>
-                         <span className={healthStatus.checks?.database === 'Writable' ? 'text-[#d7f941]' : 'text-red-500'}>
-                           {healthStatus.checks?.database}
-                         </span>
-                      </div>
-                      <div className="flex items-center justify-between p-2 bg-[#25262B]/50 rounded">
-                         <span className="text-zinc-400">Gemini API</span>
-                         <span className={healthStatus.checks?.gemini === 'Connected' ? 'text-[#d7f941]' : 'text-rose-400'}>
-                           {healthStatus.checks?.gemini}
-                         </span>
-                      </div>
-                      <div className="flex items-center justify-between p-2 bg-[#25262B]/50 rounded">
-                         <span className="text-zinc-400">OpenAI Fallback</span>
-                         <span className={healthStatus.checks?.openai === 'Key Provided' ? 'text-[#d7f941]' : 'text-zinc-500'}>
-                           {healthStatus.checks?.openai}
-                         </span>
-                      </div>
-                      <div className="flex items-center justify-between p-2 bg-[#25262B]/50 rounded">
-                         <span className="text-zinc-400">NVIDIA NIM</span>
-                         <span className={healthStatus.checks?.nvidia === 'Key Provided' ? 'text-[#d7f941]' : 'text-zinc-500'}>
-                           {healthStatus.checks?.nvidia}
-                         </span>
-                      </div>
-                      <div className="flex items-center justify-between p-2 bg-[#25262B]/50 rounded">
-                         <span className="text-zinc-400">Midjourney</span>
-                         <span className={healthStatus.checks?.midjourney === 'Key Provided' ? 'text-[#d7f941]' : 'text-zinc-500'}>
-                           {healthStatus.checks?.midjourney}
-                         </span>
-                      </div>
-                   </div>
-                )}
-              </div>
-            </CardContent>
-          )}
+                      <p className="text-xs text-zinc-400 leading-relaxed min-h-[36px]">
+                        {item.desc}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col space-y-2.5">
+                      {state.status === 'success' && (
+                        <div className="bg-emerald-500/5 border border-emerald-500/15 text-emerald-400 px-3 py-2 rounded-xl text-xs leading-normal font-sans">
+                          <span className="font-bold text-emerald-300 block mb-0.5">✓ Operational & Authenticated</span>
+                          <span className="text-[10px] text-zinc-400 break-words block">{state.details || state.message}</span>
+                        </div>
+                      )}
+                      {state.status === 'failed' && (
+                        <div className="bg-rose-500/5 border border-rose-500/15 text-rose-400 px-3 py-2 rounded-xl text-xs leading-normal font-sans">
+                          <span className="font-bold text-rose-300 block mb-0.5">❌ Handshake Rejected</span>
+                          <span className="text-[10px] text-zinc-400 break-words block">{state.error}</span>
+                        </div>
+                      )}
+
+                      <Button
+                        type="button"
+                        onClick={() => testSingleIntegration(item.id)}
+                        disabled={state.status === 'testing' || testingAll}
+                        className={`w-full py-3.5 text-xs font-bold font-mono tracking-widest uppercase transition-all duration-300 rounded-xl relative overflow-hidden ${
+                          state.status === 'success'
+                            ? 'bg-emerald-500 hover:bg-emerald-600 shadow-[0_0_15px_rgba(16,185,129,0.35)] text-white border-none'
+                            : state.status === 'failed'
+                            ? 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 font-semibold'
+                            : state.status === 'testing'
+                            ? 'bg-zinc-800 text-zinc-400 border border-white/5 cursor-not-allowed'
+                            : 'bg-[#25262B] hover:bg-[#2D2E35] text-zinc-200 hover:text-white border border-white/5 font-semibold'
+                        }`}
+                      >
+                        {state.status === 'testing' ? (
+                          <span className="flex items-center justify-center gap-1.5">
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            Establishing...
+                          </span>
+                        ) : state.status === 'success' ? (
+                          <span className="flex items-center justify-center gap-1 font-sans tracking-wide">
+                            Connected & Active ✓
+                          </span>
+                        ) : state.status === 'failed' ? (
+                          "Handshake Failed - Retry"
+                        ) : (
+                          "Ping Connection"
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
         </Card>
 
         <form onSubmit={handleSave} className="md:col-span-2 contents">
@@ -346,55 +380,9 @@ export function SettingsPage() {
                   <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">LinkedIn Access Token</label>
                   <Input type="password" value={settings.linkedinToken || ''} onChange={e => setSettings({...settings, linkedinToken: e.target.value})} placeholder="LinkedIn UGC access token..." />
                   
-                  <div className="pt-1 flex items-center justify-between gap-2 flex-wrap">
-                    <span className="text-[10px] text-zinc-400 leading-normal">Requires <code className="bg-white/5 px-1 py-0.5 rounded text-[9px]">w_member_social</code> or UGC post credentials.</span>
-                    <button
-                      type="button"
-                      onClick={testLinkedInConnection}
-                      disabled={testingLinkedin || !settings.linkedinToken}
-                      className="text-[10px] font-bold uppercase tracking-wider text-[#d7f941] bg-white/5 border border-[#d7f941]/20 hover:bg-[#d7f941]/5 disabled:opacity-50 px-2.5 py-1 rounded transition cursor-pointer flex items-center gap-1.5"
-                    >
-                      {testingLinkedin ? (
-                        <>
-                          <Loader2 className="w-3 h-3 animate-spin text-[#d7f941]" />
-                          Testing Authenticator...
-                        </>
-                      ) : (
-                        "Test API Connection"
-                      )}
-                    </button>
+                  <div className="pt-1">
+                    <span className="text-[10px] text-zinc-400 leading-normal">Requires <code className="bg-white/5 px-1 py-0.5 rounded text-[9px]">w_member_social</code> or UGC post credentials. Test connectivity using the diagnostic master grid at the top of the settings page.</span>
                   </div>
-
-                  {linkedinTestResult && (
-                    <div className={`mt-2 p-2 rounded text-xs leading-relaxed border ${
-                      linkedinTestResult.success 
-                        ? 'bg-green-500/5 border-green-500/20 text-green-300' 
-                        : 'bg-red-500/5 border-red-500/20 text-red-300'
-                    }`}>
-                      {linkedinTestResult.success ? (
-                        <div className="space-y-1">
-                          <p className="font-bold flex items-center gap-1">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-green-400 inline" />
-                            <span>Authentication Successful!</span>
-                          </p>
-                          <p className="text-[10px] text-zinc-300 break-all">
-                            Connected: <strong className="text-white">{linkedinTestResult.name}</strong> <span className="text-zinc-500">({linkedinTestResult.urn})</span>
-                          </p>
-                          {linkedinTestResult.notice && (
-                            <p className="text-[9px] text-[#d7f941] font-medium italic">{linkedinTestResult.notice}</p>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="space-y-1">
-                          <p className="font-bold flex items-center gap-1">
-                            <XCircle className="w-3.5 h-3.5 text-red-400 inline" />
-                            <span>Authentication Rejected</span>
-                          </p>
-                          <p className="text-[10px] text-zinc-300 break-all">{linkedinTestResult.error}</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
               </div>
               <div className="space-y-2">

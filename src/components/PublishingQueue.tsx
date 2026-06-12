@@ -884,7 +884,7 @@ export function PublishingQueue() {
                         {pin.imageUrl && (
                           <div className="relative w-16 h-28 md:w-20 md:h-36 bg-[#1C1D21] border border-white/5 rounded-md overflow-hidden shrink-0">
                             <img 
-                              src={pin.imageUrl} 
+                              src={pin.imageUrl?.includes('1618005182384') || pin.imageUrl === '/placeholder-image.png' ? `https://image.pollinations.ai/prompt/photorealistic%20${encodeURIComponent((pin.concept || pin.title || "modern").substring(0, 50))}?width=512&height=512&nologo=true&seed=${pin.id}` : pin.imageUrl} 
                               alt={pin.title} 
                               referrerPolicy="no-referrer"
                               className="object-cover w-full h-full" 
@@ -950,7 +950,10 @@ export function PublishingQueue() {
 
                         <div className="mt-4 pt-2 border-t border-zinc-805 flex justify-end">
                           <button
-                            onClick={() => publishToWordPress(pin.id, `Pinterest Idea: ${pin.title}`, `<center><img src="${pin.imageUrl || ''}" alt="${pin.title}" style="max-width:100%; border-radius:8px;" /><br/><h3>${pin.title}</h3><p>${pin.description}</p></center>`, 'pins')}
+                            onClick={() => {
+                              const resolvedImage = pin.imageUrl?.includes('1618005182384') || pin.imageUrl === '/placeholder-image.png' ? `https://image.pollinations.ai/prompt/photorealistic%20${encodeURIComponent((pin.concept || pin.title || "modern").substring(0, 50))}?width=512&height=512&nologo=true&seed=${pin.id}` : pin.imageUrl;
+                              publishToWordPress(pin.id, `Pinterest Idea: ${pin.title}`, `<center><img src="${resolvedImage || ''}" alt="${pin.title}" style="max-width:100%; border-radius:8px;" /><br/><h3>${pin.title}</h3><p>${pin.description}</p></center>`, 'pins')
+                            }}
                             disabled={!hasWordPressSetup || opLoading[wpOpKey] || wpStatus === 'publishing'}
                             className="w-full flex items-center justify-center gap-1.5 text-xs text-white bg-[#25262B]/85 hover:bg-[#25262B] border border-white/10 disabled:opacity-50 disabled:cursor-not-allowed px-3 py-1.5 rounded-md transition"
                           >

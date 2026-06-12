@@ -10,7 +10,6 @@ import {
   Info, 
   HelpCircle,
   ArrowUpRight,
-  Activity,
   Play
 } from 'lucide-react';
 

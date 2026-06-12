@@ -91,9 +91,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     const path = 'notifications';
     const q = query(
       collection(db, path),
-      where('userId', '==', userId),
-      orderBy('createdAt', 'desc'),
-      limit(50)
+      where('userId', '==', userId)
     );
 
     const unsubscribeSnapshot = onSnapshot(
@@ -114,9 +112,13 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
           });
         });
 
+        // Sort descending by createdAt and limit to 50
+        list.sort((a, b) => b.createdAt - a.createdAt);
+        const top50 = list.slice(0, 50);
+
         // Detect new notifications to trigger sound and toast
         if (!isInitialLoad.current) {
-          const newItems = list.filter(item => item.createdAt > latestNotificationTime.current);
+          const newItems = top50.filter(item => item.createdAt > latestNotificationTime.current);
           if (newItems.length > 0) {
             // Trigger sound & set toast alert
             playNotificationChime();
@@ -126,11 +128,11 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
           isInitialLoad.current = false;
         }
 
-        if (list.length > 0) {
-          latestNotificationTime.current = Math.max(...list.map(n => n.createdAt), latestNotificationTime.current);
+        if (top50.length > 0) {
+          latestNotificationTime.current = Math.max(...top50.map(n => n.createdAt), latestNotificationTime.current);
         }
 
-        setNotifications(list);
+        setNotifications(top50);
       },
       (error) => {
         handleFirestoreError(error, OperationType.LIST, path);

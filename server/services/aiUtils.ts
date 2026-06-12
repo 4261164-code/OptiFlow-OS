@@ -2,10 +2,6 @@ import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import { MODEL_PRIMARY, MODEL_FALLBACK } from "../config/models";
 import { db } from "../firebaseAdmin";
 
-import { GoogleGenAI } from "@google/genai";
-import { MODEL_PRIMARY, MODEL_FALLBACK } from "../config/models";
-import { db } from "../firebaseAdmin";
-
 export async function robustGenerateContent(params: any, userId?: string): Promise<any> {
     const aiClient = new GoogleGenAI({
         apiKey: process.env.GEMINI_API_KEY,

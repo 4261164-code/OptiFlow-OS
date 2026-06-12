@@ -48,14 +48,17 @@ export function AgentManagement() {
 
     const qLogs = query(
       collection(db, 'agent_logs'), 
-      where('userId', '==', uid),
-      orderBy('timestamp', 'asc'),
-      limit(100)
+      where('userId', '==', uid)
     );
 
     const unsubLogs = onSnapshot(qLogs, (snap) => {
-      const activeLogs = snap.docs.map(d => ({ id: d.id, ...d.data() } as AgentLog));
+      const activeLogs = snap.docs
+        .map(d => ({ id: d.id, ...d.data() } as AgentLog))
+        .sort((a, b) => a.timestamp - b.timestamp)
+        .slice(-100); // Take the last 100 entries for the console terminal
       setLogs(activeLogs);
+    }, (error) => {
+      console.warn("Error subscribing to agent logs:", error);
     });
 
     return () => unsubLogs();

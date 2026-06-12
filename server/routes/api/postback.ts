@@ -2,6 +2,7 @@ import express from "express";
 import crypto from "crypto";
 import { db } from "../../firebaseAdmin";
 import { logLedgerEvent } from "../../services/eventLedger";
+import { BanditEngine } from "../../services/banditEngine";
 
 export const postbackRouter = express.Router();
 
@@ -55,6 +56,22 @@ postbackRouter.post("/postback", async (req, res) => {
             const pinId = clickData.pinId || "none";
             const source = clickData.source || "direct";
             const matchedOfferId = clickData.offerId || activeOfferId;
+            const device = clickData.userAgent?.toLowerCase().includes("mobile") ? "mobile" : "desktop";
+            
+            const currentHour = new Date(clickData.timestamp || Date.now()).getHours();
+            let timeOfDay = "evening";
+            if (currentHour >= 5 && currentHour < 12) timeOfDay = "morning";
+            else if (currentHour >= 12 && currentHour < 17) timeOfDay = "afternoon";
+
+            const context = {
+                geo: "US", // Placeholder for actual IP derivation
+                device,
+                trafficSource: source,
+                timeOfDay
+            };
+
+            // Update contextual bandit engine with real conversion success + revenue
+            await BanditEngine.updateReward(userId, context, matchedOfferId, activeAmount, true);
 
             // Log appending to ledger
             await logLedgerEvent({

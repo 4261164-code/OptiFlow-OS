@@ -28,14 +28,18 @@ export function SEOClusters() {
   useEffect(() => {
     if (!auth.currentUser) return;
     const uid = auth.currentUser.uid;
-    const q = query(collection(db, 'topic_clusters'), where('userId', '==', uid), orderBy('createdAt', 'desc'));
+    const q = query(collection(db, 'topic_clusters'), where('userId', '==', uid));
     
     const unsub = onSnapshot(q, (snap) => {
-      const dbClusters = snap.docs.map(d => d.data() as TopicCluster);
+      const dbClusters = snap.docs
+        .map(d => d.data() as TopicCluster)
+        .sort((a, b) => b.createdAt - a.createdAt);
       setClusters(dbClusters);
       if (dbClusters.length > 0 && !activeClusterId) {
         setActiveClusterId(dbClusters[0].id);
       }
+    }, (error) => {
+      console.warn("Error subscribing to topic clusters:", error);
     });
 
     return () => unsub();
@@ -47,11 +51,15 @@ export function SEOClusters() {
     const q = query(
       collection(db, 'cluster_nodes'), 
       where('userId', '==', uid),
-      where('clusterId', '==', activeClusterId), 
-      orderBy('createdAt', 'asc')
+      where('clusterId', '==', activeClusterId)
     );
     const unsub = onSnapshot(q, (snap) => {
-      setActiveClusterNodes(snap.docs.map(d => d.data() as ClusterNode));
+      const nodes = snap.docs
+        .map(d => d.data() as ClusterNode)
+        .sort((a, b) => a.createdAt - b.createdAt);
+      setActiveClusterNodes(nodes);
+    }, (error) => {
+      console.warn("Error subscribing to cluster nodes:", error);
     });
     return () => unsub();
   }, [activeClusterId]);

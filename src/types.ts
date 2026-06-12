@@ -204,6 +204,8 @@ export interface OrganizationNode {
   efficiency: number;
   lastActive: number;
   userId: string;
+  personality?: string;
+  learnedData?: string;
 }
 
 export interface SavedKeyword {

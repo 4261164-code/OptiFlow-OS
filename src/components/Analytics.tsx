@@ -14,7 +14,6 @@ import {
   ArrowUpRight,
   BookOpen,
   Image as ImageIcon,
-  Activity,
   Target
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';

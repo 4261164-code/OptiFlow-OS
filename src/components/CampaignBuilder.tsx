@@ -109,7 +109,15 @@ export function CampaignBuilder() {
         body: JSON.stringify(payload)
       });
       
-      const data = await response.json();
+      const contentType = response.headers.get("content-type");
+      let data: any = {};
+      if (contentType && contentType.includes("application/json")) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        throw new Error(text.substring(0, 100) || `Server returned invalid Response Status: ${response.status}`);
+      }
+      
       if (!response.ok) throw new Error(data.error || "Failed to generate campaign content");
 
       // 4. Save generated Article record in Firestore safely

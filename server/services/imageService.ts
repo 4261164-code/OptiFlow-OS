@@ -92,13 +92,13 @@ const primaryProvider: ImageProvider = {
   }
 };
 
-// Provider 2: Fallback Image Provider (Generates a beautifully composed, professional, premium high-res gradient base matching the concept)
+// Provider 2: Fallback Image Provider (Generates a beautifully composed, professional, premium high-res base matching the concept)
 const fallbackProvider: ImageProvider = {
   name: "FALLBACK_AI_IMAGE_PROV",
   generate: async (concept, userId) => {
-    // Return a gorgeous Unsplash aesthetic search matching the concept or a high-res styled vector block
-    const sanitizedInput = encodeURIComponent(concept.trim());
-    return `https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80&sig=${Math.floor(Math.random() * 1000)}`;
+    // Return a gorgeous realistic aesthetic image matching the concept
+    const sanitizedInput = encodeURIComponent(concept.trim().substring(0, 50));
+    return `https://image.pollinations.ai/prompt/photorealistic%20${sanitizedInput}?width=1024&height=1024&nologo=true&seed=${Math.floor(Math.random() * 1000)}`;
   }
 };
 
@@ -106,7 +106,7 @@ const fallbackProvider: ImageProvider = {
 const staticPlaceholderProvider: ImageProvider = {
   name: "STATIC_PLACEHOLDER_PROV",
   generate: async () => {
-    return "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80";
+    return "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1200&q=80"; // Real office image
   }
 };
 

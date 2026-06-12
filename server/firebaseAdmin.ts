@@ -206,44 +206,144 @@ const memoryDb = new InMemoryDatabase();
 let useMemoryFallback = false;
 
 // Proxy db to support seamless, dynamic in-memory fallback
+// Recursive proxy creator to support deep chained operations with seamless, automatic fallback
+function createSafeProxy(target: any, path: any[] = []): any {
+  if (target === null || target === undefined) return target;
+  if (typeof target !== "object" && typeof target !== "function") return target;
+
+  return new Proxy(target, {
+    get(obj, prop) {
+      // Intercept if already transitioned to fallback mode on root
+      if (useMemoryFallback) {
+        // Direct property/functional delegation can occur when continuing
+      }
+
+      // Track this step in the property access path
+      const currentPath = [...path, { prop, isFunc: false, args: [] as any[] }];
+
+      const val = Reflect.get(obj, prop);
+      if (typeof val === "function") {
+        return function(...args: any[]) {
+          // Record function usage
+          if (currentPath.length > 0) {
+            currentPath[currentPath.length - 1].isFunc = true;
+            currentPath[currentPath.length - 1].args = args;
+          }
+
+          try {
+            const res = val.apply(obj, args);
+            
+            // Intercept Promise rejections
+            if (res && typeof res.then === "function") {
+              return res.catch((err: any) => {
+                const isPermissionDenied = err?.code === 7 ||
+                  (err?.message && (err.message.includes("PERMISSION_DENIED") || err.message.includes("insufficient permissions")));
+                
+                if (isPermissionDenied) {
+                  if (!useMemoryFallback) {
+                    console.log("[firebaseAdmin] Firestore PERMISSION_DENIED caught. Switching to local in-memory store.");
+                    useMemoryFallback = true;
+                  }
+                  
+                  // Replay the full path on the memory database
+                  console.log("[firebaseAdmin] Replaying failed Firestore operation on in-memory store:", currentPath.map(p => String(p.prop)).join(" -> "));
+                  let currentMemTarget: any = memoryDb;
+                  for (const step of currentPath) {
+                    const fn = currentMemTarget[step.prop];
+                    if (step.isFunc && typeof fn === "function") {
+                      currentMemTarget = fn.apply(currentMemTarget, step.args);
+                    } else {
+                      currentMemTarget = currentMemTarget[step.prop];
+                    }
+                  }
+                  return currentMemTarget;
+                }
+                throw err;
+              });
+            }
+            
+            // Do not proxy plain objects returned by data() or other data-extractors
+            if (prop === "data" && res && typeof res === "object") {
+              return res;
+            }
+
+            return createSafeProxy(res, currentPath);
+          } catch (err: any) {
+            const isPermissionDenied = err?.code === 7 ||
+              (err?.message && (err.message.includes("PERMISSION_DENIED") || err.message.includes("insufficient permissions")));
+            
+            if (isPermissionDenied) {
+              if (!useMemoryFallback) {
+                console.log("[firebaseAdmin] Firestore PERMISSION_DENIED caught. Switching to local in-memory store.");
+                useMemoryFallback = true;
+              }
+              
+              let currentMemTarget: any = memoryDb;
+              for (const step of currentPath) {
+                const fn = currentMemTarget[step.prop];
+                if (step.isFunc && typeof fn === "function") {
+                  currentMemTarget = fn.apply(currentMemTarget, step.args);
+                } else {
+                  currentMemTarget = currentMemTarget[step.prop];
+                }
+              }
+              return currentMemTarget;
+            }
+            throw err;
+          }
+        };
+      }
+      
+      if (val !== null && typeof val === "object") {
+        return createSafeProxy(val, currentPath);
+      }
+      
+      return val;
+    }
+  });
+}
+
 export const db = new Proxy({}, {
   get(target, prop) {
     if (useMemoryFallback) {
       return Reflect.get(memoryDb, prop);
     }
     
-    const realVal = Reflect.get(realDb, prop);
-    if (typeof realVal === "function") {
+    const realProp = Reflect.get(realDb, prop);
+    if (typeof realProp === "function") {
       return function(...args: any[]) {
+        const path = [{ prop, isFunc: true, args }];
         try {
-          const res = realVal.apply(realDb, args);
+          const res = realProp.apply(realDb, args);
           if (res && typeof res.then === "function") {
+            // Promise wrapper for direct calls on db
             return res.catch((err: any) => {
-              if (err?.code === 7 || (err?.message && err.message.includes("PERMISSION_DENIED"))) {
+              if (err?.code === 7 || (err?.message && (err.message.includes("PERMISSION_DENIED") || err.message.includes("insufficient permissions")))) {
                 if (!useMemoryFallback) {
-                  console.log("[firebaseAdmin] Firestore PERMISSION_DENIED caught. Switching all future database operations to local, sandbox-friendly in-memory store.");
+                  console.log("[firebaseAdmin] Firestore PERMISSION_DENIED caught on root. Switching to local in-memory store.");
                   useMemoryFallback = true;
                 }
-                // Delegate the failed call to the memory database
-                return Reflect.get(memoryDb, prop).apply(memoryDb, args);
+                const fn = memoryDb[prop];
+                return fn.apply(memoryDb, args);
               }
               throw err;
             });
           }
-          return res;
+          return createSafeProxy(res, path);
         } catch (err: any) {
-          if (err?.code === 7 || (err?.message && err.message.includes("PERMISSION_DENIED"))) {
+          if (err?.code === 7 || (err?.message && (err.message.includes("PERMISSION_DENIED") || err.message.includes("insufficient permissions")))) {
             if (!useMemoryFallback) {
-              console.log("[firebaseAdmin] Firestore PERMISSION_DENIED caught. Switching all future database operations to local, sandbox-friendly in-memory store.");
+              console.log("[firebaseAdmin] Firestore PERMISSION_DENIED caught on root. Switching to local in-memory store.");
               useMemoryFallback = true;
             }
-            return Reflect.get(memoryDb, prop).apply(memoryDb, args);
+            const fn = memoryDb[prop];
+            return fn.apply(memoryDb, args);
           }
           throw err;
         }
       };
     }
-    return realVal;
+    return createSafeProxy(realProp, [{ prop, isFunc: false, args: [] }]);
   }
 }) as any;
 

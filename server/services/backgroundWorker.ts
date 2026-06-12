@@ -2,6 +2,7 @@ import { db } from "../firebaseAdmin";
 import { FEATURE_FLAGS } from "./featureFlags";
 import { logLedgerEvent } from "./eventLedger";
 import { runImageGenerationAgent } from "../agents";
+import { ApiHealthMonitor, SystemHealthCenter, CEOAgent } from "./healthMonitor";
 
 
 // Worker execution lock
@@ -859,4 +860,25 @@ export function startSystemHardeningWorkers() {
   setInterval(() => {
     runImageRetryWorker().catch(err => console.error("Image retry worker exception:", err));
   }, 300000);
+
+  // API Key Health Monitor (Task 9) - Checks every 15 minutes
+  setInterval(() => {
+    ApiHealthMonitor.runDiagnostics().catch(err => console.error("API check exception:", err));
+  }, 15 * 60 * 1000);
+  // Run once on startup
+  ApiHealthMonitor.runDiagnostics().catch(err => console.error("API check initial run exception:", err));
+
+  // System Observability Center (Task 10) - Record metrics every minute
+  setInterval(() => {
+    SystemHealthCenter.logMetrics().catch(err => console.error("System health logger exception:", err));
+  }, 60000);
+  // Run once on startup
+  SystemHealthCenter.logMetrics().catch(err => console.error("System health logger initial run exception:", err));
+
+  // CEO Self-Healing Audit Daemon (Task 11) - Runs every 10 minutes
+  setInterval(() => {
+    CEOAgent.runSelfHealingAudit().catch(err => console.error("CEO audit exception:", err));
+  }, 10 * 60 * 1000);
+  // Run once on startup
+  CEOAgent.runSelfHealingAudit().catch(err => console.error("CEO audit initial run exception:", err));
 }

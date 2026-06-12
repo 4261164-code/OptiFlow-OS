@@ -171,3 +171,293 @@ opsRouter.get("/health-digest", opsAuthGuard, async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
+
+/**
+ * Retrieve comprehensive API status dashboard datasets
+ */
+opsRouter.get("/api-health", opsAuthGuard, async (req, res) => {
+    try {
+        const snap = await db.collection("api_health").doc("summary").get();
+        if (snap.exists) {
+            return res.json({ success: true, apiHealth: snap.data()?.checks || {} });
+        }
+        // Fallback or run immediate diagnostics
+        const { ApiHealthMonitor } = await import("../../services/healthMonitor");
+        const freshHealth = await ApiHealthMonitor.runDiagnostics();
+        return res.json({ success: true, apiHealth: freshHealth });
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * Force manual check of API keys
+ */
+opsRouter.post("/api-health/trigger", opsAuthGuard, async (req, res) => {
+    try {
+        const { ApiHealthMonitor } = await import("../../services/healthMonitor");
+        const freshHealth = await ApiHealthMonitor.runDiagnostics();
+        return res.json({ success: true, apiHealth: freshHealth });
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * Gathers system health metrics for charts
+ */
+opsRouter.get("/system-diagnostics", opsAuthGuard, async (req, res) => {
+    try {
+        const snap = await db.collection("system_health_metrics")
+            .orderBy("timestamp", "desc")
+            .limit(60)
+            .get();
+        
+        const metrics = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })).reverse();
+        return res.json({ success: true, metrics });
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * Retrieve the central error logs
+ */
+opsRouter.get("/error-logs", opsAuthGuard, async (req, res) => {
+    try {
+        const snap = await db.collection("error_logs")
+            .orderBy("timestamp", "desc")
+            .limit(100)
+            .get();
+        
+        const logs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        return res.json({ success: true, logs });
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * Retrieve immutable audit logs (Task 4)
+ */
+opsRouter.get("/audit-logs", opsAuthGuard, async (req, res) => {
+    try {
+        const snap = await db.collection("immutable_audit_logs")
+            .orderBy("timestamp", "desc")
+            .limit(100)
+            .get();
+        const logs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        return res.json({ success: true, logs });
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * Retrieve pending actions for Layer 3 RED gates (Task 2)
+ */
+opsRouter.get("/pending-approvals", opsAuthGuard, async (req, res) => {
+    try {
+        const snap = await db.collection("pending_approvals")
+            .where("status", "==", "PENDING_APPROVAL")
+            .orderBy("timestamp", "desc")
+            .limit(50)
+            .get();
+        const approvals = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        return res.json({ success: true, approvals });
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * Approve or Decline a pending Layer 3 action
+ */
+opsRouter.post("/approvals/evaluate", opsAuthGuard, async (req, res) => {
+    try {
+        const { id, decision } = req.body; // decision: 'APPROVE' | 'DECLINE'
+        const userId = req.headers['authorization']?.split(' ')[1] || 'dev-guest';
+
+        const docRef = db.collection("pending_approvals").doc(id);
+        const snap = await docRef.get();
+        if (!snap.exists) {
+            return res.status(404).json({ error: "Pending action not found." });
+        }
+
+        const pending = snap.data();
+        if (pending.status !== "PENDING_APPROVAL") {
+            return res.status(400).json({ error: "Action is already resolved." });
+        }
+
+        if (decision === 'DECLINE') {
+            await docRef.update({ status: "DECLINED", evaluatedAt: Date.now() });
+            
+            // Mark audit log
+            const { Layer3Execution } = await import("../../services/architectureLayers");
+            await db.collection("immutable_audit_logs").add({
+                userId,
+                idempotencyKey: pending.idempotencyKey,
+                action: pending.actionPlan.action,
+                decisionScore: pending.actionPlan.score,
+                gate: pending.actionPlan.gate,
+                status: "DECLINED_BY_ADMIN",
+                timestamp: Date.now()
+            });
+
+            return res.json({ success: true, status: "DECLINED" });
+        }
+
+        // execute with approved flag
+        const { Layer3Execution } = await import("../../services/architectureLayers");
+        const authorizedPlan = { ...pending.actionPlan };
+        authorizedPlan.normalized.params = {
+            ...authorizedPlan.normalized.params,
+            approvedByAdmin: true
+        };
+
+        const result = await Layer3Execution.executeActionPlan(
+            userId,
+            authorizedPlan,
+            pending.idempotencyKey
+        );
+
+        if (result.success) {
+            await docRef.update({ status: "APPROVED", evaluatedAt: Date.now() });
+            return res.json({ success: true, status: "APPROVED", result });
+        } else {
+            return res.status(500).json({ error: result.error || "Execution failed." });
+        }
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * Handle Rollbacks (Task 4 rollback support)
+ */
+opsRouter.post("/audit-logs/rollback", opsAuthGuard, async (req, res) => {
+    try {
+        const { auditLogId } = req.body;
+        const userId = req.headers['authorization']?.split(' ')[1] || 'dev-guest';
+
+        const { Layer3Execution } = await import("../../services/architectureLayers");
+        const success = await Layer3Execution.executeRollback(userId, auditLogId);
+
+        if (success) {
+            return res.json({ success: true, message: "Action successfully rolled back." });
+        } else {
+            return res.status(400).json({ error: "Could not execute rollback. Verify state is valid and action is reversible." });
+        }
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * Retrieve active circuit breakers (Task 3)
+ */
+opsRouter.get("/active-breakers", opsAuthGuard, async (req, res) => {
+    try {
+        const { SafeExecutionEngine } = await import("../../services/architectureLayers");
+        const activeBreakers = SafeExecutionEngine.getCircuitBreakers();
+        return res.json({ success: true, activeBreakers });
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * Force manual reset of breaker state
+ */
+opsRouter.post("/active-breakers/reset", opsAuthGuard, async (req, res) => {
+    try {
+        const { breakerKey } = req.body;
+        const { SafeExecutionEngine } = await import("../../services/architectureLayers");
+        SafeExecutionEngine.clearCircuitBreaker(breakerKey);
+        return res.json({ success: true, message: `Circuit breaker cleared for error '${breakerKey}'.` });
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * Anomaly and advisory healing simulator!
+ */
+opsRouter.post("/simulate-anomaly", opsAuthGuard, async (req, res) => {
+    try {
+        const { 
+            errorMsg, 
+            factors, 
+            impact, 
+            reversibility,
+            duplicateStripeEvent,
+            activeRetryChains,
+            selfHealCooldownViolation,
+            fromState,
+            toState,
+            depth,
+            impactScope,
+            cooldownPassed
+        } = req.body;
+        const userId = req.headers['authorization']?.split(' ')[1] || 'dev-guest';
+
+        const { Layer2Brain, SafeExecutionEngine, Layer3Execution } = await import("../../services/architectureLayers");
+
+        // Simple anomaly identifier
+        const issueKey = errorMsg.toLowerCase().replace(/[^a-z0-9]/g, "_").substring(0, 40);
+
+        // Check self healing budget & loop lock
+        const policyCheck = SafeExecutionEngine.verifyHealingPolicy(issueKey);
+        if (!policyCheck.allowed) {
+            // Write to error log directly
+            await db.collection("error_logs").add({
+                message: `[Self Healing Budget Alert] Auto-repair blocked: ${policyCheck.reason}`,
+                category: "worker",
+                severity: "Critical",
+                recommendation: "Review active breakers and increase budget boundaries as needed.",
+                timestamp: Date.now()
+            });
+            return res.json({ 
+                success: false, 
+                blocked: true,
+                reason: policyCheck.reason 
+            });
+        }
+
+        // Advisory diagnose from Layer 2
+        const normalized = Layer2Brain.diagnoseAnomalyAndRecommend(errorMsg, { simulation: true });
+        
+        // Override with custom user-supplied parameters if given
+        if (factors) normalized.factors = factors;
+        if (impact) normalized.impact = impact;
+        if (reversibility) normalized.reversibility = reversibility;
+
+        // Custom sandbox constraints simulator injections
+        normalized.params = {
+            ...normalized.params,
+            duplicateStripeEvent,
+            activeRetryChains,
+            selfHealCooldownViolation,
+            fromState,
+            toState,
+            depth,
+            impactScope,
+            cooldownPassed
+        };
+
+        const actionPlan = Layer2Brain.formulateActionPlan(normalized);
+
+        // Execute action plan through Layer 3
+        const idempotencyKey = "sim_" + Math.random().toString(36).substring(2, 12);
+        const result = await Layer3Execution.executeActionPlan(userId, actionPlan, idempotencyKey);
+
+        return res.json({
+            success: true,
+            actionPlan,
+            result
+        });
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+

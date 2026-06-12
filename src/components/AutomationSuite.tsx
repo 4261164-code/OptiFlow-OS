@@ -66,6 +66,8 @@ export function AutomationSuite() {
         if (d.autoPublishWordpress !== undefined) setAutoPublishWordpress(d.autoPublishWordpress);
         if (d.autoPublishSocial !== undefined) setAutoPublishSocial(d.autoPublishSocial);
       }
+    }, (error) => {
+      console.warn("Automation settings subscription error:", error);
     });
 
     // Load historical automation logs
@@ -94,6 +96,8 @@ export function AutomationSuite() {
       if (items.length > 0 && !selectedLogId) {
         setSelectedLogId(items[0].id);
       }
+    }, (error) => {
+      console.warn("Automation logs subscription error:", error);
     });
 
     return () => {
@@ -175,7 +179,15 @@ export function AutomationSuite() {
         })
       });
 
-      const resData = await response.json();
+      const contentType = response.headers.get("content-type");
+      let resData: any = {};
+      if (contentType && contentType.includes("application/json")) {
+        resData = await response.json();
+      } else {
+        const text = await response.text();
+        throw new Error(text.substring(0, 100) || `Server returned invalid Response Status: ${response.status}`);
+      }
+      
       if (!response.ok) {
         throw new Error(resData.error || "The platform automation controller returned an index error.");
       }

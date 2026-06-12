@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { db } from "../../firebaseAdmin";
 import { runCEOSoul, generateCEOSpeech } from "../../agents";
+import { RevenueEngine } from "../../services/revenueEngine";
 
 export const executiveApiRouter = Router();
 
@@ -10,6 +11,16 @@ const authGuard = async (req: any, res: any, next: any) => {
     if (!token) return res.status(401).json({ error: "Unauthorized" });
     next();
 };
+
+executiveApiRouter.post("/revenue/compound", authGuard, async (req, res) => {
+    try {
+        const userId = req.body.userId || "system";
+        await RevenueEngine.executeCompoundingCycle(userId);
+        res.json({ success: true, message: "Profit compounding cycle executed" });
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
 
 // --- CEO Soul & Voice ---
 

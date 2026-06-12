@@ -26,8 +26,8 @@ import {
   X
 } from 'lucide-react';
 
-const ivanAvatar = "/src/assets/images/ivan_avatar_1780799737265.png";
-const sunilAvatar = "/src/assets/images/sunil_avatar_1780799751109.png";
+const ivanAvatar = "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=300&q=80"; // Professional man in suit
+const sunilAvatar = "https://images.unsplash.com/photo-1556157382-97eda2d62296?auto=format&fit=crop&w=300&q=80"; // Professional man smiling
 
 // Custom icons or text badges for design software
 const SOFTWARE_ICONS: Record<string, { label: string; color: string; desc: string }> = {

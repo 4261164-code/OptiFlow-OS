@@ -624,7 +624,7 @@ export function ContentCalendarView({
                           <div className="flex gap-2.5 items-center truncate">
                             {pin.imageUrl && (
                               <div className="w-9 h-14 bg-zinc-950 border border-white/5 rounded overflow-hidden shrink-0">
-                                <img src={pin.imageUrl} alt={pin.title} className="object-cover w-full h-full" referrerPolicy="no-referrer" />
+                                <img src={pin.imageUrl?.includes('1618005182384') || pin.imageUrl === '/placeholder-image.png' ? `https://image.pollinations.ai/prompt/photorealistic%20${encodeURIComponent((pin.concept || pin.title || "modern").substring(0, 50))}?width=512&height=512&nologo=true&seed=${pin.id}` : pin.imageUrl} alt={pin.title} className="object-cover w-full h-full" referrerPolicy="no-referrer" />
                               </div>
                             )}
                             <div className="truncate pr-2">

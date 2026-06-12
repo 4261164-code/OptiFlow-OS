@@ -1,2 +1,2 @@
-export const MODEL_PRIMARY = "gemini-2.5-flash-lite";
-export const MODEL_FALLBACK = "gemini-2.5-flash";
+export const MODEL_PRIMARY = "gemini-3.1-flash-lite";
+export const MODEL_FALLBACK = "gemini-3.5-flash";

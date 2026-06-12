@@ -193,7 +193,7 @@ export async function runPipeline(opts: PipelineOpts): Promise<{
           } catch (err: any) {
             console.error(`[Pipeline Error] Image generation failed for pin ${pin.id}. Queueing retry.`, err);
             await queueImageRetry(pin.id, pin.concept, userId);
-            pin.imageUrl = "/placeholder-image.png";
+            pin.imageUrl = "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1200&q=80";
           }
         }
       }

@@ -6,7 +6,6 @@ import {
   TrendingDown,
   Activity,
   Layers, 
-  Activity, 
   Compass, 
   Loader2, 
   BookmarkCheck, 
