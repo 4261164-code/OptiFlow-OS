@@ -27,6 +27,7 @@ import {
   Eye,
   AlertOctagon
 } from 'lucide-react';
+import { apiFetch } from '../../lib/auth';
 
 interface ApiStatus {
   status: 'online' | 'degraded' | 'offline';
@@ -129,52 +130,45 @@ export function DiagnosticsBoard() {
   const [impactScope, setImpactScope] = useState<"LOCAL" | "GLOBAL">("LOCAL");
   const [cooldownPassed, setCooldownPassed] = useState(true);
 
-  const getHeaders = () => {
-    return {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${auth.currentUser?.uid || 'dev-guest'}`
-    };
-  };
-
   const fetchAllDiagnostics = async () => {
     try {
       // API Key statuses
-      const apiRes = await fetch('/api/ops/api-health', { headers: getHeaders() });
+      const apiRes = await apiFetch('/api/ops/api-health');
       if (apiRes.ok) {
         const data = await apiRes.json();
         setApiHealth(data?.apiHealth || {});
       }
 
       // System metrics history
-      const metricsRes = await fetch('/api/ops/system-diagnostics', { headers: getHeaders() });
+      const metricsRes = await apiFetch('/api/ops/system-diagnostics');
       if (metricsRes.ok) {
         const data = await metricsRes.json();
         setMetrics(data?.metrics || []);
       }
 
       // Errors
-      const errorsRes = await fetch('/api/ops/error-logs', { headers: getHeaders() });
+      const errorsRes = await apiFetch('/api/ops/error-logs');
       if (errorsRes.ok) {
         const data = await errorsRes.json();
         setErrorLogs(data?.logs || []);
       }
 
       // Immutable Audits
-      const auditsRes = await fetch('/api/ops/audit-logs', { headers: getHeaders() });
+      const auditsRes = await apiFetch('/api/ops/audit-logs');
       if (auditsRes.ok) {
         const data = await auditsRes.json();
         setAuditLogs(data?.logs || []);
       }
 
       // Pending approvals
-      const pendingsRes = await fetch('/api/ops/pending-approvals', { headers: getHeaders() });
+      const pendingsRes = await apiFetch('/api/ops/pending-approvals');
       if (pendingsRes.ok) {
         const data = await pendingsRes.json();
         setPendingApprovals(data?.approvals || []);
       }
 
       // Active breakers
-      const breakersRes = await fetch('/api/ops/active-breakers', { headers: getHeaders() });
+      const breakersRes = await apiFetch('/api/ops/active-breakers');
       if (breakersRes.ok) {
         const data = await breakersRes.json();
         setActiveBreakers(data?.activeBreakers || []);
@@ -191,9 +185,8 @@ export function DiagnosticsBoard() {
     setSuccessMessage(null);
     setErrorMessage(null);
     try {
-      const res = await fetch('/api/ops/api-health/trigger', {
-        method: 'POST',
-        headers: getHeaders()
+      const res = await apiFetch('/api/ops/api-health/trigger', {
+        method: 'POST'
       });
       if (res.ok) {
         const data = await res.json();
@@ -211,9 +204,8 @@ export function DiagnosticsBoard() {
     setSuccessMessage(null);
     setErrorMessage(null);
     try {
-      const res = await fetch('/api/ops/approvals/evaluate', {
+      const res = await apiFetch('/api/ops/approvals/evaluate', {
         method: 'POST',
-        headers: getHeaders(),
         body: JSON.stringify({ id, decision })
       });
       if (res.ok) {
@@ -232,9 +224,8 @@ export function DiagnosticsBoard() {
     setSuccessMessage(null);
     setErrorMessage(null);
     try {
-      const res = await fetch('/api/ops/audit-logs/rollback', {
+      const res = await apiFetch('/api/ops/audit-logs/rollback', {
         method: 'POST',
-        headers: getHeaders(),
         body: JSON.stringify({ auditLogId })
       });
       if (res.ok) {
@@ -253,9 +244,8 @@ export function DiagnosticsBoard() {
     setSuccessMessage(null);
     setErrorMessage(null);
     try {
-      const res = await fetch('/api/ops/active-breakers/reset', {
+      const res = await apiFetch('/api/ops/active-breakers/reset', {
         method: 'POST',
-        headers: getHeaders(),
         body: JSON.stringify({ breakerKey })
       });
       if (res.ok) {
@@ -273,9 +263,8 @@ export function DiagnosticsBoard() {
     setSuccessMessage(null);
     setErrorMessage(null);
     try {
-      const res = await fetch('/api/ops/simulate-anomaly', {
+      const res = await apiFetch('/api/ops/simulate-anomaly', {
         method: 'POST',
-        headers: getHeaders(),
         body: JSON.stringify({
           errorMsg: simError,
           factors: simFactors,
@@ -640,9 +629,8 @@ export function DiagnosticsBoard() {
                   <button
                     onClick={async () => {
                       if (!auth.currentUser) return;
-                      const res = await fetch('/api/executive/revenue/compound', {
+                      const res = await apiFetch('/api/executive/revenue/compound', {
                         method: 'POST',
-                        headers: getHeaders(),
                         body: JSON.stringify({ userId: auth.currentUser.uid })
                       });
                       if (res.ok) alert("Autonomous Revenue Compounding Cycle Executed via True-RL Multi-Arm Bandit parameters.");

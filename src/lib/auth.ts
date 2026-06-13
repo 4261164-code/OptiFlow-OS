@@ -28,11 +28,16 @@ export async function logout() {
   }
 }
 
-export async function apiFetch(url: string, options: RequestInit = {}) {
+export async function getAuthToken() {
   const user = auth.currentUser;
-  if (!user) throw new Error("Not authenticated");
+  if (!user) return "";
+  return await user.getIdToken(true);
+}
+
+export async function apiFetch(url: string, options: RequestInit = {}) {
+  const token = await getAuthToken();
+  if (!token) throw new Error("Not authenticated");
   
-  const token = await user.getIdToken(true);
   const headers = {
     ...options.headers,
     "Authorization": `Bearer ${token}`

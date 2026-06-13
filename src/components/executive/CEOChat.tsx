@@ -12,6 +12,7 @@ import {
   Loader2,
   Activity
 } from 'lucide-react';
+import { apiFetch } from '../../lib/auth';
 
 interface Message {
   role: 'user' | 'soul';
@@ -28,8 +29,17 @@ export function CEOChat() {
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [ceoName, setCeoName] = useState("ExOS Strategic Core");
   const scrollRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    // Fetch CEO name
+    apiFetch('/api/settings/get-ceo-name')
+      .then(res => res.json())
+      .then(data => { if (data.ceoName) setCeoName(data.ceoName); })
+      .catch(console.error);
+  }, []);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -75,9 +85,8 @@ export function CEOChat() {
   const playTTS = async (text: string) => {
     try {
       setIsSpeaking(true);
-      const res = await fetch('/api/executive/soul/tts', {
+      const res = await apiFetch('/api/executive/soul/tts', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer local' },
         body: JSON.stringify({ text })
       });
       const data = await res.json();
@@ -110,9 +119,8 @@ export function CEOChat() {
         parts: [{ text: m.content }] 
       }));
 
-      const res = await fetch('/api/executive/soul/chat', {
+      const res = await apiFetch('/api/executive/soul/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer local' },
         body: JSON.stringify({ message: text, history })
       });
 
@@ -149,7 +157,7 @@ export function CEOChat() {
             />
           </div>
           <div>
-            <h3 className="text-base font-bold text-zinc-900 dark:text-white">ExOS Strategic Core</h3>
+            <h3 className="text-base font-bold text-zinc-900 dark:text-white">{ceoName}</h3>
             <div className="flex items-center space-x-2">
               <span className="w-1.5 h-1.5 bg-[#a8ff35] rounded-full animate-pulse" />
               <p className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Real-time Intelligence Active</p>

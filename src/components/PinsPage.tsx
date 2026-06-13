@@ -8,6 +8,7 @@ import { resolvePinImage, handleImageFallback } from '../lib/utils';
 import { Copy, Check, Eye, ExternalLink, BookmarkCheck, TrendingUp, Image as ImageIcon, Bot, Wand2, Loader2, Activity, RefreshCw } from 'lucide-react';
 import { PinterestIcon, CloverMascotIcon } from './CustomIcons';
 import { addNotification } from '../lib/notifications';
+import { apiFetch } from '../lib/auth';
 
 export function PinsPage() {
   const [pins, setPins] = useState<Pin[]>([]);
@@ -61,7 +62,7 @@ export function PinsPage() {
         userId: auth.currentUser.uid
       };
 
-      const response = await fetch('/api/generate-custom-pin', {
+      const response = await apiFetch('/api/generate-custom-pin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -123,7 +124,7 @@ export function PinsPage() {
     setRegeneratingId(pin.id);
     
     try {
-      const response = await fetch('/api/regenerate-pin-image', {
+      const response = await apiFetch('/api/regenerate-pin-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ concept: pin.concept, userId: auth.currentUser.uid })

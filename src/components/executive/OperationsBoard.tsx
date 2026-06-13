@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   Server
 } from 'lucide-react';
+import { apiFetch } from '../../lib/auth';
 
 interface HealthOverview {
   agentFailureRate: number;
@@ -81,13 +82,6 @@ export function OpsBoard() {
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   // Authenticated ops headers
-  const getHeaders = () => {
-    return {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${auth.currentUser?.uid || 'dev-guest'}`
-    };
-  };
-
   useEffect(() => {
     if (!auth.currentUser) return;
     const uid = auth.currentUser.uid;
@@ -122,9 +116,7 @@ export function OpsBoard() {
     });
 
     // 4. Load initial health digest and costs through ops routing
-    fetch(`/api/ops/health-digest`, {
-      headers: getHeaders()
-    })
+    apiFetch(`/api/ops/health-digest`)
       .then(res => res.json())
       .then(data => {
         if (data.success) {
@@ -150,15 +142,14 @@ export function OpsBoard() {
     setSyncing(true);
     setStatusMessage(null);
     try {
-      const res = await fetch('/api/ops/recovery/ledger-sync', {
-        method: 'POST',
-        headers: getHeaders()
+      const res = await apiFetch('/api/ops/recovery/ledger-sync', {
+        method: 'POST'
       });
       const data = await res.json();
       if (res.ok && data.success) {
         setStatusMessage({ text: 'Prisinte Ledger and Pre-aggregated Metrics synchronized successfully!', type: 'success' });
         // Reload health metrics and stats
-        const digestRes = await fetch(`/api/ops/health-digest`, { headers: getHeaders() });
+        const digestRes = await apiFetch(`/api/ops/health-digest`);
         const digestData = await digestRes.json();
         if (digestData.success) {
           if (digestData.overview) setHealth(digestData.overview);
@@ -179,9 +170,8 @@ export function OpsBoard() {
   const triggerJobRetry = async (jobId: string) => {
     setRetryingId(jobId);
     try {
-      const res = await fetch('/api/ops/job/retry', {
+      const res = await apiFetch('/api/ops/job/retry', {
         method: 'POST',
-        headers: getHeaders(),
         body: JSON.stringify({ jobId })
       });
       const data = await res.json();
@@ -202,9 +192,8 @@ export function OpsBoard() {
     setTogglingClusterId(clusterId);
     const action = currentStatus === 'paused' ? 'resume' : 'pause';
     try {
-      const res = await fetch('/api/ops/cluster/pause-resume', {
+      const res = await apiFetch('/api/ops/cluster/pause-resume', {
         method: 'POST',
-        headers: getHeaders(),
         body: JSON.stringify({ clusterId, action })
       });
       const data = await res.json();

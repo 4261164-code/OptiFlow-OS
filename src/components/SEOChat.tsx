@@ -13,6 +13,7 @@ import {
   Activity,
   MessageSquare
 } from 'lucide-react';
+import { apiFetch } from '../lib/auth';
 import { auth } from '../lib/firebase';
 
 interface Message {
@@ -77,9 +78,8 @@ export function SEOChat() {
   const playTTS = async (text: string) => {
     try {
       setIsSpeaking(true);
-      const res = await fetch('/api/executive/soul/tts', {
+      const res = await apiFetch('/api/executive/soul/tts', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer local' },
         body: JSON.stringify({ text })
       });
       const data = await res.json();
@@ -112,9 +112,8 @@ export function SEOChat() {
         parts: [{ text: m.content }] 
       }));
 
-      const res = await fetch('/api/executive/soul/seo-chat', {
+      const res = await apiFetch('/api/executive/soul/seo-chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': auth.currentUser?.uid || 'local' },
         body: JSON.stringify({ message: text, history, userId: auth.currentUser?.uid || 'system' })
       });
 

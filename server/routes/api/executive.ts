@@ -15,7 +15,16 @@ executiveApiRouter.post("/revenue/compound", async (req: any, res: any) => {
     }
 });
 
-// --- CEO Soul & Voice ---
+executiveApiRouter.get("/settings/get-ceo-name", async (req: any, res: any) => {
+    try {
+        const userId = req.user.uid;
+        const snap = await db.collection("settings").doc(userId).get();
+        const data = snap.exists ? snap.data() : {};
+        res.json({ ceoName: data?.ceoName || "" });
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
 
 executiveApiRouter.post("/soul/chat", async (req: any, res: any) => {
     try {

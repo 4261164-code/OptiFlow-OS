@@ -291,6 +291,31 @@ export function SettingsPage() {
         <form onSubmit={handleSave} className="md:col-span-2 contents">
           <Card>
             <CardHeader>
+              <CardTitle>CEO Agent Personality</CardTitle>
+              <CardDescription>Customize your strategic partner's identity.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">CEO Name</label>
+                <Input 
+                  value={settings.ceoName || 'ExOS Strategic Core'} 
+                  onChange={e => setSettings({...settings, ceoName: e.target.value})} 
+                  placeholder="e.g. Athena" 
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Persona Description</label>
+                <textarea 
+                  value={settings.ceoPersona || ''} 
+                  onChange={e => setSettings({...settings, ceoPersona: e.target.value})} 
+                  className="w-full bg-[#0D1117] border border-white/10 rounded-lg p-3 text-sm text-white min-h-[100px]"
+                  placeholder="Describe the CEO's personality, tone, and strategic focus..." 
+                />
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
               <CardTitle>AI Core Connections</CardTitle>
               <CardDescription>Required for content factory generation.</CardDescription>
             </CardHeader>
