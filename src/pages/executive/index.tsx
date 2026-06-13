@@ -71,14 +71,14 @@ export default function ExecutiveDashboard() {
 
                     <div className="flex items-center space-x-4">
                         {/* Tab Switcher */}
-                        <div className="flex bg-zinc-100 dark:bg-zinc-900 p-1 rounded-lg border border-zinc-200 dark:border-zinc-850">
+                        <div className="flex bg-zinc-100 dark:bg-zinc-900 p-1 rounded-lg border border-zinc-200 dark:border-zinc-800">
                             <button
                                 onClick={() => setActiveTab('command')}
                                 className={`inline-flex items-center px-4 py-2 text-xs font-semibold rounded-md transition-all duration-200 cursor-pointer ${
                                     activeTab === 'command'
-                                        ? 'bg-white dark:bg-[#111] text-[#d7f941] dark:text-[#d7f941] shadow-sm'
+                                        ? 'bg-white dark:bg-[#111] text-blue-600 dark:text-blue-400 shadow-sm'
                                         : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
-                                }`}
+                                    }`}
                             >
                                 <Shield className="w-3.5 h-3.5 mr-1.5" />
                                 CEO Command Center
@@ -111,7 +111,7 @@ export default function ExecutiveDashboard() {
                                     activeTab === 'maxbounty'
                                         ? 'bg-white dark:bg-[#111] text-zinc-900 dark:text-white shadow-sm'
                                         : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
-                                }`}
+                                    }`}
                             >
                                 <Globe className="w-3.5 h-3.5 mr-1.5" />
                                 MaxBounty CPA
@@ -120,7 +120,7 @@ export default function ExecutiveDashboard() {
                                 onClick={() => setActiveTab('diagnostics')}
                                 className={`inline-flex items-center px-4 py-2 text-xs font-semibold rounded-md transition-all duration-200 cursor-pointer ${
                                     activeTab === 'diagnostics'
-                                        ? 'bg-white dark:bg-[#111] text-[#d7f941] dark:text-[#d7f941] shadow-sm'
+                                        ? 'bg-white dark:bg-[#111] text-blue-600 dark:text-blue-400 shadow-sm'
                                         : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
                                 }`}
                             >

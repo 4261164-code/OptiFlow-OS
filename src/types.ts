@@ -234,21 +234,6 @@ export interface AppNotification {
   updatedAt: number;
 }
 
-export interface UserStats {
-  balance: number;          // in cents
-  pendingBalance: number;   // in cents
-  lifetimeEarned: number;   // in cents
-  streakDays: number;
-  streakClaimedToday: boolean;
-  lastLoginDate: number;
-  signupBonusGranted: boolean;
-  level: 'bronze' | 'silver' | 'gold' | 'platinum';
-  completedOfferIds: string[];
-  referralCode?: string;
-  fraudFlags?: string[];
-  isSuspended?: boolean;
-}
-
 export interface Transaction {
   id: string;
   userId: string;
@@ -259,28 +244,5 @@ export interface Transaction {
   provider?: string;
   providerTransactionId?: string;
   timestamp: number;
-}
-
-export interface WithdrawalRequest {
-  id: string;
-  userId: string;
-  amount: number; // cents
-  method: 'paypal' | 'amazon_gc';
-  recipient: string; // email
-  status: 'pending' | 'approved' | 'processed' | 'rejected';
-  processedAt?: number;
-  timestamp: number;
-}
-
-export interface PostbackLog {
-  id: string;
-  userId: string;
-  provider: string;
-  providerTransactionId: string;
-  offerId: string;
-  amountCents: number;
-  timestamp: number;
-  rawPayload: any;
-  status: 'success' | 'duplicate' | 'fraud' | 'error';
 }
 

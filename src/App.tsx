@@ -33,11 +33,6 @@ import { NotificationToast } from './components/NotificationToast';
 import { NotificationDrawer } from './components/NotificationDrawer';
 import { LandingPage } from './components/LandingPage';
 
-import EarnPage from './pages/rewards/EarnPage';
-import WalletPage from './pages/rewards/WalletPage';
-import WithdrawPage from './pages/rewards/WithdrawPage';
-import AdminRewardsPage from './pages/rewards/AdminRewardsPage';
-
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -119,12 +114,6 @@ export default function App() {
             <Route path="/intel-digest" element={<IntelligenceCenter />} />
             <Route path="/agents" element={<AgentManagement />} />
             <Route path="/settings" element={<SettingsPage />} />
-
-            {/* EarnPulse GPT Layers */}
-            <Route path="/earn" element={<EarnPage />} />
-            <Route path="/wallet" element={<WalletPage />} />
-            <Route path="/withdraw" element={<WithdrawPage />} />
-            <Route path="/admin/rewards" element={<AdminRewardsPage />} />
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
