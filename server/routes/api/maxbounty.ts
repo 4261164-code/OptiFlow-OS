@@ -5,9 +5,10 @@ import { MaxBountyAuth, MaxBountyCampaigns, MaxBountyTracking, MaxBountyPostback
 export const maxbountyRouter = express.Router();
 
 // 1. Authentication Configuration POST
-maxbountyRouter.post("/auth", async (req, res) => {
+maxbountyRouter.post("/auth", async (req: any, res: any) => {
   try {
-    const { email, password, userId = "system-fallback" } = req.body;
+    const userId = req.user.uid;
+    const { email, password } = req.body;
     if (!email || !password) {
       return res.status(400).json({ error: "Email and passcode/token are required." });
     }
@@ -31,9 +32,9 @@ maxbountyRouter.post("/auth", async (req, res) => {
 });
 
 // 2. Fetch configured credentials
-maxbountyRouter.get("/credentials", async (req, res) => {
+maxbountyRouter.get("/credentials", async (req: any, res: any) => {
   try {
-    const userId = (req.query.userId as string) || "system-fallback";
+    const userId = req.user.uid;
     const creds = await MaxBountyAuth.getCredentials(userId);
 
     if (!creds) {
@@ -51,9 +52,9 @@ maxbountyRouter.get("/credentials", async (req, res) => {
 });
 
 // 3. Campaign Sync and discovery scoring GET
-maxbountyRouter.get("/campaigns", async (req, res) => {
+maxbountyRouter.get("/campaigns", async (req: any, res: any) => {
   try {
-    const userId = (req.query.userId as string) || "system-fallback";
+    const userId = req.user.uid;
     const forceSync = req.query.sync === "true";
 
     let campaignsSnap = await db.collection("maxbounty_campaigns").get();
@@ -89,9 +90,9 @@ maxbountyRouter.get("/campaigns", async (req, res) => {
 });
 
 // 4. Manual Sync Trigger POST
-maxbountyRouter.post("/sync", async (req, res) => {
+maxbountyRouter.post("/sync", async (req: any, res: any) => {
   try {
-    const { userId = "system-fallback" } = req.body;
+    const userId = req.user.uid;
     const creds = await MaxBountyAuth.getCredentials(userId);
 
     if (!creds) {
@@ -112,8 +113,9 @@ maxbountyRouter.post("/sync", async (req, res) => {
 });
 
 // 5. Generate tracking link POST
-maxbountyRouter.post("/generate-link", async (req, res) => {
+maxbountyRouter.post("/generate-link", async (req: any, res: any) => {
   try {
+    const userId = req.user.uid;
     const {
       campaignId, // networkCampaignId (number)
       dbCampaignId, // path id (string)
@@ -121,8 +123,7 @@ maxbountyRouter.post("/generate-link", async (req, res) => {
       sub2 = "money-hub",
       sub3 = "pin-5542",
       sub4 = "",
-      sub5 = "user123",
-      userId = "system-fallback"
+      sub5 = "user123"
     } = req.body;
 
     if (!campaignId) {

@@ -608,17 +608,13 @@ export class Layer3Execution {
         execResult = { refreshedCount: queueRef.size };
         success = true;
       } 
-      else if (plan.action === "PURGE_LOGS") {
-        // Controlled limits deleting logs
-        const oldLogs = await db.collection("error_logs")
-          .where("timestamp", "<", now - (24 * 60 * 60 * 1000))
-          .limit(20)
-          .get();
-
-        const batch = db.batch();
-        oldLogs.forEach(doc => batch.delete(doc.ref));
-        await batch.commit();
-        execResult = { purgedCount: oldLogs.size };
+      else if (plan.action === "GENERAL_HEAL_LOG") {
+        // Generic healing log entry if no specific action matched
+        await db.collection("error_logs").add({
+          message: "System self-healing cycle completed successfully with no critical blocking anomalies.",
+          severity: "Low",
+          timestamp: Date.now()
+        });
         success = true;
       }
       else if (plan.action === "RESET_CIRCUIT_BREAKER") {

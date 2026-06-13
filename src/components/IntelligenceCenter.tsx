@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { Button } from './ui';
 import { auth } from '../lib/firebase';
+import { apiFetch } from '../lib/auth';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface KPICard {
@@ -119,15 +120,14 @@ Matched Bounties with CTR limits:
     });
 
     try {
-      const response = await fetch('/api/report-digest', {
+      const response = await apiFetch('/api/report-digest', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           documentText: pasteText,
-          docType: docType,
-          userId: auth.currentUser?.uid || "system-fallback"
+          docType: docType
         })
       });
 

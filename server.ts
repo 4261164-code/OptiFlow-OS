@@ -3,6 +3,8 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { runPipeline } from "./server/pipeline";
 import { db } from "./server/firebaseAdmin";
+import { verifyToken } from "./server/middleware/verifyToken";
+import { getUserSettings } from "./server/cache";
 import { goRouter } from "./server/routes/go";
 import { clicksApiRouter } from "./server/routes/api/clicks";
 import { executiveApiRouter } from "./server/routes/api/executive";
@@ -16,11 +18,8 @@ async function hasValidAIKey(userId?: string): Promise<boolean> {
   if (process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY || process.env.NVIDIA_API_KEY) return true;
   if (userId) {
     try {
-      const snap = await db.collection("settings").doc(userId).get();
-      if (snap.exists) {
-        const data = snap.data();
-        if (data?.geminiApiKey || data?.openaiApiKey || data?.nvidiaApiKey || data?.midjourneyApiKey) return true;
-      }
+      const data = await getUserSettings(userId);
+      if (data?.geminiApiKey || data?.openaiApiKey || data?.nvidiaApiKey || data?.midjourneyApiKey) return true;
     } catch (e: any) {
       if (e?.code === 7 || e?.message?.includes("PERMISSION_DENIED")) {
          // Silently ignore
@@ -39,6 +38,16 @@ async function startServer() {
   app.use(express.json());
 
   app.use("/go", goRouter);
+
+  // Secure all API routes except public ones
+  app.use("/api", (req, res, next) => {
+    // Public routes
+    if (req.path === "/health" || req.path === "/postback" || req.path.startsWith("/webhooks")) {
+      return next();
+    }
+    return verifyToken(req, res, next);
+  });
+
   app.use("/api/clicks", clicksApiRouter);
   app.use("/api/executive", executiveApiRouter);
   app.use("/api/webhooks", postbackRouter);
@@ -79,70 +88,10 @@ async function startServer() {
     }
   });
 
-  // ==========================================
-  // REVENUE SIMULATION RECURRING WORKER
-  // ==========================================
-  // In a production app, this would be based on actual tracking postbacks.
-  // We simulate it here to drive the Revenue Intelligence dashboard for active users.
-  setInterval(async () => {
+  app.post("/api/run-pipeline", async (req: any, res) => {
     try {
-      console.log("[Revenue AI] Running cyclical revenue simulation suite...");
-      
-      // Safety check: ensure we can perform a basic query
-      const articlesSnap = await db.collection("articles").limit(5).get();
-      if (articlesSnap.empty) {
-        console.log("[Revenue AI] Simulation skipped: No articles found to attach revenue to.");
-        return;
-      }
-
-      const randomArticle = articlesSnap.docs[Math.floor(Math.random() * articlesSnap.docs.length)];
-      const docData = randomArticle.data();
-      const userId = docData.userId;
-      const keyword = docData.keyword || "Global traffic";
-
-      if (!userId) {
-        console.log("[Revenue AI] Simulation skipped: Target article missing userId.");
-        return;
-      }
-
-      // Simulation logic: Generate a new revenue metric entry
-      const clicks = Math.floor(Math.random() * 25) + 1;
-      const conversions = Math.random() > 0.7 ? Math.floor(Math.random() * 3) + 1 : 0;
-      const revenue = conversions * (Math.random() * 50 + 20);
-      const epc = clicks > 0 ? Number((revenue / clicks).toFixed(2)) : 0;
-      const ctr = Number((Math.random() * 5 + 1).toFixed(1));
-      const roi = Math.floor(Math.random() * 300) + 100;
-
-      const metricId = `rev-${Date.now()}`;
-      await db.collection("revenue_metrics").doc(metricId).set({
-        id: metricId,
-        userId,
-        keyword,
-        clicks,
-        conversions,
-        revenue: Number(revenue.toFixed(2)),
-        epc,
-        ctr,
-        roi,
-        date: new Date().toISOString().split('T')[0],
-        timestamp: Date.now(),
-        createdAt: Date.now()
-      });
-
-      console.log(`[Revenue AI] Logged simulated revenue signal for user ${userId}: $${revenue.toFixed(2)} (Keyword: ${keyword})`);
-    } catch (err: any) {
-      if (err?.code === 7 || (err?.message && err.message.includes("PERMISSION_DENIED"))) {
-        console.error("[Revenue AI] PERMISSION_DENIED: The Service Account may lack permissions on the Firestore database.");
-      } else {
-        console.error("[Revenue AI] Simulation error:", err);
-      }
-    }
-  }, 120000); // 2 minutes
-
-  app.post("/api/run-pipeline", async (req, res) => {
-    try {
+      const userId = req.user.uid;
       const { 
-        userId,
         jobId,
         keyword, 
         articleLength, 
@@ -167,7 +116,7 @@ async function startServer() {
         return res.status(400).json({ error: "Keyword required" });
       }
 
-      const targetUserId = userId || "system-fallback";
+      const targetUserId = userId;
       const targetJobId = jobId || `fallback-job-${Date.now()}`;
 
       console.log(`[API] Running runPipeline synchronously for keyword: ${keyword}, job: ${targetJobId}`);
@@ -202,9 +151,10 @@ async function startServer() {
     }
   });
 
-  app.post("/api/affiliate-match", async (req, res) => {
+  app.post("/api/affiliate-match", async (req: any, res) => {
     try {
-      const { keyword, userId } = req.body;
+      const userId = req.user.uid;
+      const { keyword } = req.body;
       if (!(await hasValidAIKey(userId))) {
         return res.status(400).json({ error: "No AI API keys configured (Gemini or OpenAI). Please check your settings." });
       }
@@ -224,9 +174,10 @@ async function startServer() {
     }
   });
 
-  app.post("/api/traffic-engine", async (req, res) => {
+  app.post("/api/traffic-engine", async (req: any, res) => {
     try {
-      const { keyword, userId } = req.body;
+      const userId = req.user.uid;
+      const { keyword } = req.body;
       if (!(await hasValidAIKey(userId))) {
         return res.status(400).json({ error: "No AI API keys configured (Gemini or OpenAI). Please check your settings." });
       }
@@ -246,9 +197,10 @@ async function startServer() {
     }
   });
 
-  app.post("/api/seo-link-agent", async (req, res) => {
+  app.post("/api/seo-link-agent", async (req: any, res) => {
     try {
-      const { articleContent, offers, userId } = req.body;
+      const userId = req.user.uid;
+      const { articleContent, offers } = req.body;
       if (!(await hasValidAIKey(userId))) {
         return res.status(400).json({ error: "No AI API keys configured (Gemini or OpenAI). Please check your settings." });
       }
@@ -368,11 +320,12 @@ async function startServer() {
     }
   });
 
-  app.post("/api/pinterest-boards", async (req, res) => {
+  app.post("/api/pinterest-boards", async (req: any, res) => {
     try {
-      const { pinterestToken, userId } = req.body;
+      const userId = req.user.uid;
+      const { pinterestToken } = req.body;
       let token = pinterestToken;
-      if (!token && userId) {
+      if (!token) {
         const snap = await db.collection("settings").doc(userId).get();
         if (snap.exists) {
           token = snap.data()?.pinterestToken;
@@ -411,11 +364,12 @@ async function startServer() {
     }
   });
 
-  app.post("/api/publish-pinterest", async (req, res) => {
+  app.post("/api/publish-pinterest", async (req: any, res) => {
     try {
-      const { pinterestToken, userId, boardId, title, description, imageUrl, link } = req.body;
+      const userId = req.user.uid;
+      const { pinterestToken, boardId, title, description, imageUrl, link } = req.body;
       let token = pinterestToken;
-      if (!token && userId) {
+      if (!token) {
         const snap = await db.collection("settings").doc(userId).get();
         if (snap.exists) {
           token = snap.data()?.pinterestToken;
@@ -477,11 +431,12 @@ async function startServer() {
     }
   });
 
-  app.post("/api/generate-social-copy", async (req, res) => {
+  app.post("/api/generate-social-copy", async (req: any, res) => {
     try {
-      const { id, collection: colName, userId } = req.body;
-      if (!id || !colName || !userId) {
-        return res.status(400).json({ error: "Missing required parameters: id, collection, userId" });
+      const userId = req.user.uid;
+      const { id, collection: colName } = req.body;
+      if (!id || !colName) {
+        return res.status(400).json({ error: "Missing required parameters: id, collection" });
       }
 
       const docRef = db.collection(colName).doc(id);
@@ -516,11 +471,12 @@ async function startServer() {
     }
   });
 
-  app.post("/api/publish-twitter", async (req, res) => {
+  app.post("/api/publish-twitter", async (req: any, res) => {
     try {
-      const { id, text, collection: colName, userId } = req.body;
-      if (!id || !colName || !userId) {
-        return res.status(400).json({ error: "Missing required parameters: id, collection, userId" });
+      const userId = req.user.uid;
+      const { id, text, collection: colName } = req.body;
+      if (!id || !colName) {
+        return res.status(400).json({ error: "Missing required parameters: id, collection" });
       }
 
       // Fetch settings
@@ -554,11 +510,12 @@ async function startServer() {
     }
   });
 
-  app.post("/api/publish-linkedin", async (req, res) => {
+  app.post("/api/publish-linkedin", async (req: any, res) => {
     try {
-      const { id, text, collection: colName, userId } = req.body;
-      if (!id || !colName || !userId) {
-        return res.status(400).json({ error: "Missing required parameters: id, collection, userId" });
+      const userId = req.user.uid;
+      const { id, text, collection: colName } = req.body;
+      if (!id || !colName) {
+        return res.status(400).json({ error: "Missing required parameters: id, collection" });
       }
 
       // Fetch settings
@@ -583,12 +540,9 @@ async function startServer() {
     }
   });
 
-  app.post("/api/test-linkedin", async (req, res) => {
+  app.post("/api/test-linkedin", async (req: any, res) => {
     try {
-      const { userId } = req.body;
-      if (!userId) {
-        return res.status(400).json({ error: "Missing required parameter: userId" });
-      }
+      const userId = req.user.uid;
 
       const settingsSnap = await db.collection("settings").doc(userId).get();
       const linkedinToken = settingsSnap.exists ? settingsSnap.data()?.linkedinToken : null;
@@ -617,11 +571,12 @@ async function startServer() {
     }
   });
 
-  app.post("/api/test-integration", async (req, res) => {
+  app.post("/api/test-integration", async (req: any, res) => {
     try {
-      const { integrationId, userId } = req.body;
-      if (!integrationId || !userId) {
-        return res.status(400).json({ error: "Missing required parameters: integrationId or userId" });
+      const userId = req.user.uid;
+      const { integrationId } = req.body;
+      if (!integrationId) {
+        return res.status(400).json({ error: "Missing required parameters: integrationId" });
       }
 
       const settingsSnap = await db.collection("settings").doc(userId).get();
@@ -824,9 +779,10 @@ async function startServer() {
     }
   });
 
-  app.post("/api/generate-seo-cluster", async (req, res) => {
+  app.post("/api/generate-seo-cluster", async (req: any, res) => {
     try {
-      const { pillarTopic, userId } = req.body;
+      const userId = req.user.uid;
+      const { pillarTopic } = req.body;
       if (!pillarTopic) {
         return res.status(400).json({ error: "Pillar Topic is required" });
       }
@@ -842,9 +798,10 @@ async function startServer() {
     }
   });
 
-  app.post("/api/report-digest", async (req, res) => {
+  app.post("/api/report-digest", async (req: any, res) => {
     try {
-      const { documentText, docType, userId } = req.body;
+      const userId = req.user.uid;
+      const { documentText, docType } = req.body;
       if (!documentText) {
         return res.status(400).json({ error: "Document text to digest is required" });
       }
@@ -864,13 +821,14 @@ async function startServer() {
     }
   });
 
-  app.post("/api/executive-summary", async (req, res) => {
+  app.post("/api/executive-summary", async (req: any, res) => {
     try {
-      const { recentActivities, userId } = req.body;
+      const userId = req.user.uid;
+      const { recentActivities } = req.body;
       const activitiesStr = recentActivities && Array.isArray(recentActivities) ? JSON.stringify(recentActivities) : "[]";
 
       // If key is missing, runExecutiveSummaryAgent's internal catch block handles it and yields a high-fidelity visual fallback
-      console.log(`[API] Processing Executive Portfolio Summary for user: ${userId || "anonymous"}`);
+      console.log(`[API] Processing Executive Portfolio Summary for user: ${userId}`);
       const summary = await runExecutiveSummaryAgent(activitiesStr, userId);
       res.json({
         success: true,
@@ -882,9 +840,10 @@ async function startServer() {
     }
   });
 
-  app.post("/api/regenerate-pin-image", async (req, res) => {
+  app.post("/api/regenerate-pin-image", async (req: any, res) => {
     try {
-      const { concept, userId } = req.body;
+      const userId = req.user.uid;
+      const { concept } = req.body;
       console.log(`[API] Received regenerate-pin-image request:`, { concept, userId });
       if (!concept) {
         return res.status(400).json({ error: "Concept is required." });
@@ -903,9 +862,10 @@ async function startServer() {
     }
   });
 
-  app.post("/api/generate-custom-pin", async (req, res) => {
+  app.post("/api/generate-custom-pin", async (req: any, res) => {
     try {
-      const { concept, title, description, userId } = req.body;
+      const userId = req.user.uid;
+      const { concept, title, description } = req.body;
       if (!concept) {
         return res.status(400).json({ error: "A visual idea or style prompt concept is required." });
       }
@@ -926,9 +886,10 @@ async function startServer() {
     }
   });
 
-  app.post("/api/keyword-research", async (req, res) => {
+  app.post("/api/keyword-research", async (req: any, res) => {
     try {
-      const { keyword, country, language, userId } = req.body;
+      const userId = req.user.uid;
+      const { keyword, country, language } = req.body;
       if (!keyword) {
         return res.status(400).json({ error: "A keyword search query is required." });
       }
@@ -947,9 +908,10 @@ async function startServer() {
     }
   });
 
-  app.post("/api/keywords/audit-competitor", async (req, res) => {
+  app.post("/api/keywords/audit-competitor", async (req: any, res) => {
     try {
-      const { keyword, competitorDomain, userId } = req.body;
+      const userId = req.user.uid;
+      const { keyword, competitorDomain } = req.body;
       if (!keyword || !competitorDomain) {
         return res.status(400).json({ error: "Keyword and competitor domain are required." });
       }
@@ -967,9 +929,10 @@ async function startServer() {
     }
   });
 
-  app.post("/api/ebook-creator", async (req, res) => {
+  app.post("/api/ebook-creator", async (req: any, res) => {
     try {
-      const { topic, userId } = req.body;
+      const userId = req.user.uid;
+      const { topic } = req.body;
       if (!topic) {
         return res.status(400).json({ error: "Topic is required." });
       }
@@ -986,43 +949,13 @@ async function startServer() {
     }
   });
 
-  app.post("/api/purge-content", async (req, res) => {
-    try {
-      const { userId, purgeType } = req.body;
-      if (!userId) {
-        return res.status(400).json({ error: "User ID required for purging." });
-      }
-
-      console.log(`[API] Purging content for user: ${userId}, type: ${purgeType || 'all'}`);
-      
-      const collectionsToPurge = [];
-      if (!purgeType || purgeType === 'articles' || purgeType === 'all') collectionsToPurge.push('articles');
-      if (!purgeType || purgeType === 'abstracts' || purgeType === 'all') collectionsToPurge.push('pins', 'images');
-      if (purgeType === 'logs' || purgeType === 'all') collectionsToPurge.push('agent_logs', 'automationLogs');
-
-      for (const col of collectionsToPurge) {
-        const snap = await db.collection(col).where("userId", "==", userId).get();
-        const batch = db.batch();
-        snap.forEach(doc => batch.delete(doc.ref));
-        await batch.commit();
-        console.log(`[Purge] Cleared ${snap.size} documents from ${col}`);
-      }
-
-      res.json({ success: true, message: `Successfully purged ${collectionsToPurge.join(', ')} for user.` });
-    } catch (err: any) {
-      console.error("Purge error:", err);
-      res.status(500).json({ error: err.message });
-    }
-  });
 
   // Simulate trend API removed
 
-  app.post("/api/automation/trigger", async (req, res) => {
+  app.post("/api/automation/trigger", async (req: any, res) => {
     try {
-      const { userId, keywords, autoPublishWordpress, autoPublishSocial } = req.body;
-      if (!userId) {
-        return res.status(400).json({ error: "User ID is required for automation context." });
-      }
+      const userId = req.user.uid;
+      const { keywords, autoPublishWordpress, autoPublishSocial } = req.body;
 
       if (!(await hasValidAIKey(userId))) {
         return res.status(400).json({ error: "No AI API keys configured (Gemini or OpenAI). Please check your settings." });
@@ -1156,6 +1089,253 @@ async function startServer() {
     } catch (e: any) {
       console.error("[Autopilot API Error] Routine failed:", e);
       res.status(500).json({ error: e?.message || "Internal Autopilot routine failure" });
+    }
+  });
+
+  // ==========================================
+  // Reward System Endpoints
+  // ==========================================
+
+  app.post("/api/claim-streak", async (req: any, res) => {
+    try {
+      const userId = req.user.uid;
+      const userRef = db.collection("users").doc(userId);
+      
+      await db.runTransaction(async (transaction: any) => {
+        const userSnap = await transaction.get(userRef);
+        const userData = userSnap.exists ? userSnap.data() : { balance: 0, streakDays: 0, lastLoginDate: 0 };
+        
+        const now = Date.now();
+        const lastClaim = userData.lastLoginDate || 0;
+        const oneDay = 24 * 60 * 60 * 1000;
+        
+        // Check if already claimed today
+        if (userData.streakClaimedToday) {
+          throw new Error("Streak bonus already claimed today.");
+        }
+
+        let newStreak = userData.streakDays || 0;
+        if (now - lastClaim < 2 * oneDay) {
+          newStreak += 1;
+        } else {
+          newStreak = 1;
+        }
+
+        // Bonus table: day 1=$0.50, 3=$0.75, 7=$1.50, 14=$3
+        let bonus = 0;
+        if (newStreak === 1) bonus = 50;
+        else if (newStreak === 3) bonus = 75;
+        else if (newStreak === 7) bonus = 150;
+        else if (newStreak === 14) bonus = 300;
+        else bonus = 10; // daily base bonus
+
+        const transactionId = `bonus-${Date.now()}`;
+        const transRef = db.collection("transactions").doc(transactionId);
+        
+        transaction.update(userRef, {
+          balance: (userData.balance || 0) + bonus,
+          lifetimeEarned: (userData.lifetimeEarned || 0) + bonus,
+          streakDays: newStreak,
+          streakClaimedToday: true,
+          lastLoginDate: now,
+          updatedAt: now
+        });
+
+        transaction.set(transRef, {
+          id: transactionId,
+          userId,
+          amount: bonus,
+          type: 'bonus',
+          status: 'completed',
+          description: `Daily streak bonus: Day ${newStreak}`,
+          timestamp: now
+        });
+      });
+
+      res.json({ success: true, message: "Streak bonus claimed!" });
+    } catch (e: any) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  app.post("/api/postback", async (req, res) => {
+    try {
+      const secret = req.query.secret;
+      if (secret !== process.env.POSTBACK_SECRET && process.env.POSTBACK_SECRET) {
+        return res.status(401).json({ error: "Invalid secret" });
+      }
+
+      const { subId, transId, amount, provider, offerId } = req.body;
+      const userId = subId;
+      const amountCents = Math.floor(parseFloat(amount) * 100);
+
+      const postbackId = `pb-${transId}`;
+      const postbackRef = db.collection("postbacks").doc(postbackId);
+      const postbackSnap = await postbackRef.get();
+
+      if (postbackSnap.exists) {
+        return res.json({ success: true, message: "Duplicate postback ignored" });
+      }
+
+      await db.runTransaction(async (transaction: any) => {
+        const userRef = db.collection("users").doc(userId);
+        const userSnap = await transaction.get(userRef);
+        
+        if (!userSnap.exists) {
+          throw new Error("User not found");
+        }
+
+        const userData = userSnap.data();
+        
+        // Simple Fraud Check: Velocity (mock)
+        const fraudFlags = userData.fraudFlags || [];
+        // if (too_many_recent) fraudFlags.push("VELOCITY_HIGH");
+
+        transaction.update(userRef, {
+          balance: (userData.balance || 0) + amountCents,
+          lifetimeEarned: (userData.lifetimeEarned || 0) + amountCents,
+          fraudFlags,
+          updatedAt: Date.now()
+        });
+
+        const txId = `tx-${transId}`;
+        transaction.set(db.collection("transactions").doc(txId), {
+          id: txId,
+          userId,
+          amount: amountCents,
+          type: 'earn',
+          status: 'completed',
+          description: `Offer completion: ${offerId}`,
+          provider,
+          providerTransactionId: transId,
+          timestamp: Date.now()
+        });
+
+        transaction.set(postbackRef, {
+          id: postbackId,
+          userId,
+          provider,
+          providerTransactionId: transId,
+          offerId,
+          amountCents,
+          timestamp: Date.now(),
+          rawPayload: req.body,
+          status: 'success'
+        });
+      });
+
+      res.json({ success: true });
+    } catch (e: any) {
+      console.error("Postback error:", e);
+      // Return 200 to quieten providers but log error
+      res.json({ success: false, error: e.message });
+    }
+  });
+
+  app.post("/api/request-withdraw", async (req: any, res) => {
+    try {
+      const userId = req.user.uid;
+      const { amount, method, recipient } = req.body; // amount in cents
+      const amountCents = Number(amount);
+
+      if (amountCents < 1000) {
+        return res.status(400).json({ error: "Minimum withdrawal is $10.00 (1000 cents)" });
+      }
+
+      const userRef = db.collection("users").doc(userId);
+      
+      await db.runTransaction(async (transaction: any) => {
+        const userSnap = await transaction.get(userRef);
+        const userData = userSnap.data();
+
+        if (userData.balance < amountCents) {
+          throw new Error("Insufficient balance");
+        }
+
+        const withdrawalId = `wd-${Date.now()}`;
+        const withdrawalRef = db.collection("withdrawals").doc(withdrawalId);
+
+        transaction.update(userRef, {
+          balance: userData.balance - amountCents,
+          pendingBalance: (userData.pendingBalance || 0) + amountCents,
+          updatedAt: Date.now()
+        });
+
+        transaction.set(withdrawalRef, {
+          id: withdrawalId,
+          userId,
+          amount: amountCents,
+          method,
+          recipient,
+          status: 'pending',
+          timestamp: Date.now()
+        });
+
+        const txId = `tx-wd-${withdrawalId}`;
+        transaction.set(db.collection("transactions").doc(txId), {
+          id: txId,
+          userId,
+          amount: -amountCents,
+          type: 'withdraw',
+          status: 'pending',
+          description: `Withdrawal request (${method})`,
+          timestamp: Date.now()
+        });
+      });
+
+      res.json({ success: true, message: "Withdrawal request submitted" });
+    } catch (e: any) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  app.post("/api/admin/approve-withdrawal", async (req: any, res) => {
+    try {
+      const userId = req.user.uid;
+      const userSnap = await db.collection("users").doc(userId).get();
+      if (!userSnap.data()?.isAdmin) {
+        return res.status(403).json({ error: "Admin only" });
+      }
+
+      const { withdrawalId, status } = req.body; // status: 'approved' | 'rejected'
+      const withdrawalRef = db.collection("withdrawals").doc(withdrawalId);
+      
+      await db.runTransaction(async (transaction: any) => {
+        const wdSnap = await transaction.get(withdrawalRef);
+        if (!wdSnap.exists) throw new Error("Withdrawal not found");
+        const wdData = wdSnap.data();
+
+        if (wdData.status !== 'pending') throw new Error("Already processed");
+
+        const targetUserRef = db.collection("users").doc(wdData.userId);
+        const targetUserSnap = await transaction.get(targetUserRef);
+        const targetUserData = targetUserSnap.data();
+
+        if (status === 'approved') {
+          transaction.update(withdrawalRef, {
+            status: 'approved',
+            processedAt: Date.now()
+          });
+          transaction.update(targetUserRef, {
+            pendingBalance: targetUserData.pendingBalance - wdData.amount,
+            updatedAt: Date.now()
+          });
+        } else {
+          transaction.update(withdrawalRef, {
+            status: 'rejected',
+            processedAt: Date.now()
+          });
+          transaction.update(targetUserRef, {
+            balance: targetUserData.balance + wdData.amount,
+            pendingBalance: targetUserData.pendingBalance - wdData.amount,
+            updatedAt: Date.now()
+          });
+        }
+      });
+
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(400).json({ error: e.message });
     }
   });
 

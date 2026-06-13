@@ -1,20 +1,13 @@
 import { Router } from "express";
 import { db } from "../../firebaseAdmin";
-import { runCEOSoul, generateCEOSpeech } from "../../agents";
+import { runCEOSoul, runSEOSoul, generateCEOSpeech } from "../../agents";
 import { RevenueEngine } from "../../services/revenueEngine";
 
 export const executiveApiRouter = Router();
 
-// Assuming admin auth guard
-const authGuard = async (req: any, res: any, next: any) => {
-    const token = req.headers.authorization;
-    if (!token) return res.status(401).json({ error: "Unauthorized" });
-    next();
-};
-
-executiveApiRouter.post("/revenue/compound", authGuard, async (req, res) => {
+executiveApiRouter.post("/revenue/compound", async (req: any, res: any) => {
     try {
-        const userId = req.body.userId || "system";
+        const userId = req.user.uid;
         await RevenueEngine.executeCompoundingCycle(userId);
         res.json({ success: true, message: "Profit compounding cycle executed" });
     } catch (e: any) {
@@ -24,9 +17,10 @@ executiveApiRouter.post("/revenue/compound", authGuard, async (req, res) => {
 
 // --- CEO Soul & Voice ---
 
-executiveApiRouter.post("/soul/chat", authGuard, async (req, res) => {
+executiveApiRouter.post("/soul/chat", async (req: any, res: any) => {
     try {
-        const { message, history, userId } = req.body;
+        const { message, history } = req.body;
+        const userId = req.user.uid;
         const result = await runCEOSoul(message, history || [], userId);
         res.json(result);
     } catch (e: any) {
@@ -34,9 +28,21 @@ executiveApiRouter.post("/soul/chat", authGuard, async (req, res) => {
     }
 });
 
-executiveApiRouter.post("/soul/tts", authGuard, async (req, res) => {
+executiveApiRouter.post("/soul/seo-chat", async (req: any, res: any) => {
     try {
-        const { text, voice, userId } = req.body;
+        const { message, history } = req.body;
+        const userId = req.user.uid;
+        const result = await runSEOSoul(message, history || [], userId);
+        res.json(result);
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+executiveApiRouter.post("/soul/tts", async (req: any, res: any) => {
+    try {
+        const { text, voice } = req.body;
+        const userId = req.user.uid;
         const audio = await generateCEOSpeech(text, voice || 'Kore', userId);
         if (!audio) return res.status(500).json({ error: "Failed to generate speech" });
         res.json({ audio });
@@ -47,28 +53,31 @@ executiveApiRouter.post("/soul/tts", authGuard, async (req, res) => {
 
 // --- Strategic Memory and Targets ---
 
-executiveApiRouter.get("/memory", authGuard, async (req, res) => {
+executiveApiRouter.get("/memory", async (req: any, res: any) => {
     try {
+        const userId = req.user.uid;
         const snap = await db.collection("strategic_memory")
+            .where("userId", "==", userId)
             .orderBy("createdAt", "desc")
             .limit(50)
             .get();
-        const results = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const results = snap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
         res.json(results);
     } catch (e: any) {
         res.status(500).json({ error: e.message });
     }
 });
 
-executiveApiRouter.post("/memory", authGuard, async (req, res) => {
+executiveApiRouter.post("/memory", async (req: any, res: any) => {
     try {
-        const { topic, insight, reliability, sourceAgent, userId } = req.body;
+        const { topic, insight, reliability, sourceAgent } = req.body;
+        const userId = req.user.uid;
         const entry = {
             topic,
             insight,
             reliability: reliability || 0.8,
             sourceAgent: sourceAgent || "Manual Entry",
-            userId: userId || "system",
+            userId,
             createdAt: Date.now()
         };
         const ref = await db.collection("strategic_memory").add(entry);
@@ -78,28 +87,31 @@ executiveApiRouter.post("/memory", authGuard, async (req, res) => {
     }
 });
 
-executiveApiRouter.get("/targets", authGuard, async (req, res) => {
+executiveApiRouter.get("/targets", async (req: any, res: any) => {
     try {
+        const userId = req.user.uid;
         const snap = await db.collection("ceo_targets")
+            .where("userId", "==", userId)
             .orderBy("updatedAt", "desc")
             .get();
-        const results = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const results = snap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
         res.json(results);
     } catch (e: any) {
         res.status(500).json({ error: e.message });
     }
 });
 
-executiveApiRouter.post("/targets", authGuard, async (req, res) => {
+executiveApiRouter.post("/targets", async (req: any, res: any) => {
     try {
-        const { title, description, priority, metrics, userId } = req.body;
+        const { title, description, priority, metrics } = req.body;
+        const userId = req.user.uid;
         const target = {
             title,
             description,
             status: "active",
             priority: priority || "medium",
             metrics: metrics || [],
-            userId: userId || "system",
+            userId,
             createdAt: Date.now(),
             updatedAt: Date.now()
         };
@@ -110,7 +122,7 @@ executiveApiRouter.post("/targets", authGuard, async (req, res) => {
     }
 });
 
-executiveApiRouter.patch("/targets/:id", authGuard, async (req, res) => {
+executiveApiRouter.patch("/targets/:id", async (req: any, res: any) => {
     try {
         const { status, metrics, priority } = req.body;
         const update: any = { updatedAt: Date.now() };
@@ -125,7 +137,7 @@ executiveApiRouter.patch("/targets/:id", authGuard, async (req, res) => {
     }
 });
 
-executiveApiRouter.get("/nodes", authGuard, async (req, res) => {
+executiveApiRouter.get("/nodes", async (req: any, res: any) => {
     try {
         // Mock organization state for UI visualization
         const nodes = [
@@ -140,15 +152,17 @@ executiveApiRouter.get("/nodes", authGuard, async (req, res) => {
     }
 });
 
-executiveApiRouter.get("/charts", authGuard, async (req, res) => {
+executiveApiRouter.get("/charts", async (req: any, res: any) => {
     try {
         const { days } = req.query;
+        const userId = req.user.uid;
         const d = parseInt((days as string) || "30");
         const fromDate = new Date();
         fromDate.setDate(fromDate.getDate() - d);
 
         // Pre-aggregated check
         const dailyMetricsSnap = await db.collection("daily_metrics")
+            .where("userId", "==", userId)
             .where("timestamp", ">=", fromDate.getTime())
             .get();
 
@@ -229,7 +243,7 @@ executiveApiRouter.get("/charts", authGuard, async (req, res) => {
     }
 });
 
-executiveApiRouter.get("/rankings", authGuard, async (req, res) => {
+executiveApiRouter.get("/rankings", async (req: any, res: any) => {
     try {
         const { type } = req.query; // 'clusters', 'articles', 'offers'
 

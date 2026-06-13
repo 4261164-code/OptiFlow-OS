@@ -32,29 +32,22 @@ import { NotificationProvider } from './components/NotificationContext';
 import { NotificationToast } from './components/NotificationToast';
 import { NotificationDrawer } from './components/NotificationDrawer';
 import { LandingPage } from './components/LandingPage';
-import { ProductionLoading } from './components/executive/ProductionLoading';
+
+import EarnPage from './pages/rewards/EarnPage';
+import WalletPage from './pages/rewards/WalletPage';
+import WithdrawPage from './pages/rewards/WithdrawPage';
+import AdminRewardsPage from './pages/rewards/AdminRewardsPage';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
   const [guestLoading, setGuestLoading] = useState(false);
-  const [showProductionBoot, setShowProductionBoot] = useState(false);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
-      if (u) {
-        setShowProductionBoot(true);
-        setTimeout(() => {
-          setUser(u);
-          setLoading(false);
-          // Keep boot screen for at least 6 seconds for effect
-          setTimeout(() => setShowProductionBoot(false), 7500);
-        }, 100);
-      } else {
-        setUser(null);
-        setLoading(false);
-      }
+      setUser(u);
+      setLoading(false);
     });
     return unsub;
   }, []);
@@ -92,10 +85,6 @@ export default function App() {
 
   if (loading) return null;
 
-  if (showProductionBoot) {
-    return <ProductionLoading />;
-  }
-
   if (!user) {
     return (
       <LandingPage 
@@ -130,6 +119,13 @@ export default function App() {
             <Route path="/intel-digest" element={<IntelligenceCenter />} />
             <Route path="/agents" element={<AgentManagement />} />
             <Route path="/settings" element={<SettingsPage />} />
+
+            {/* EarnPulse GPT Layers */}
+            <Route path="/earn" element={<EarnPage />} />
+            <Route path="/wallet" element={<WalletPage />} />
+            <Route path="/withdraw" element={<WithdrawPage />} />
+            <Route path="/admin/rewards" element={<AdminRewardsPage />} />
+
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

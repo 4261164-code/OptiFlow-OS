@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { db, auth } from '../lib/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { Article, Pin } from '../types';
+import { resolvePinImage, handleImageFallback } from '../lib/utils';
 import { addNotification } from '../lib/notifications';
 import { 
   Clock, 
@@ -622,11 +623,9 @@ export function ContentCalendarView({
                       {unscheduledPins.map(pin => (
                         <div key={pin.id} className="p-2.5 bg-zinc-900/60 border border-white/3 rounded-xl flex items-center justify-between gap-3 group">
                           <div className="flex gap-2.5 items-center truncate">
-                            {pin.imageUrl && (
-                              <div className="w-9 h-14 bg-zinc-950 border border-white/5 rounded overflow-hidden shrink-0">
-                                <img src={pin.imageUrl?.includes('1618005182384') || pin.imageUrl === '/placeholder-image.png' ? `https://image.pollinations.ai/prompt/photorealistic%20${encodeURIComponent((pin.concept || pin.title || "modern").substring(0, 50))}?width=512&height=512&nologo=true&seed=${pin.id}` : pin.imageUrl} alt={pin.title} className="object-cover w-full h-full" referrerPolicy="no-referrer" />
-                              </div>
-                            )}
+                            <div className="w-9 h-14 bg-zinc-950 border border-white/5 rounded overflow-hidden shrink-0">
+                              <img src={resolvePinImage(pin.imageUrl, pin.concept || pin.title, pin.id)} onError={handleImageFallback} alt={pin.title} className="object-cover w-full h-full" referrerPolicy="no-referrer" />
+                            </div>
                             <div className="truncate pr-2">
                               <span className="text-[8px] uppercase font-mono font-extrabold text-pink-500 block">[Pin Asset]</span>
                               <span className="text-xs font-bold text-white block truncate">{pin.title}</span>

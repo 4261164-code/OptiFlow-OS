@@ -11,21 +11,12 @@ import {
 
 export const opsRouter = express.Router();
 
-// SaaS Auth guard
-const opsAuthGuard = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
-    // Allows admin or guest mock token access
-    const authHeader = req.headers.authorization;
-    if (!authHeader) {
-        return res.status(401).json({ error: "Unauthorized access to Operational Controls." });
-    }
-    next();
-};
-
 /**
  * Endpoint to Pause or Resume Topic Clusters
  */
-opsRouter.post("/cluster/pause-resume", opsAuthGuard, async (req, res) => {
+opsRouter.post("/cluster/pause-resume", async (req: any, res: any) => {
     try {
+        const userId = req.user.uid;
         const { clusterId, action } = req.body; // action: "pause" or "resume"
         if (!clusterId || !action) {
             return res.status(400).json({ error: "Missing clusterId or action parameter" });
@@ -35,6 +26,11 @@ opsRouter.post("/cluster/pause-resume", opsAuthGuard, async (req, res) => {
         const snap = await clusterRef.get();
         if (!snap.exists) {
             return res.status(404).json({ error: `Topic cluster ${clusterId} not found.` });
+        }
+
+        // Verify ownership
+        if (snap.data().userId !== userId) {
+            return res.status(403).json({ error: "Forbidden: You do not own this cluster" });
         }
 
         const nextStatus = action === "pause" ? "paused" : "planning";
@@ -59,8 +55,9 @@ opsRouter.post("/cluster/pause-resume", opsAuthGuard, async (req, res) => {
 /**
  * Force retry of any failed agent pipeline job
  */
-opsRouter.post("/job/retry", opsAuthGuard, async (req, res) => {
+opsRouter.post("/job/retry", async (req: any, res: any) => {
     try {
+        const userId = req.user.uid;
         const { jobId } = req.body;
         if (!jobId) {
             return res.status(400).json({ error: "jobId parameter is required" });
@@ -73,6 +70,10 @@ opsRouter.post("/job/retry", opsAuthGuard, async (req, res) => {
         }
 
         const jobData = snap.data() || {};
+        if (jobData.userId !== userId) {
+             return res.status(403).json({ error: "Forbidden: You do not own this job" });
+        }
+
         if (jobData.status !== "error") {
             return res.status(400).json({ error: `Job ${jobId} is not in an error state. Current: ${jobData.status}` });
         }
@@ -89,7 +90,7 @@ opsRouter.post("/job/retry", opsAuthGuard, async (req, res) => {
             try {
                 console.log(`[SaaS Ops] Retrying failed pipeline job: ${jobId} (Keyword: ${jobData.keyword})`);
                 await runPipeline({
-                    userId: jobData.userId,
+                    userId: userId,
                     jobId: jobId,
                     keyword: jobData.keyword,
                     forceRebuild: true
@@ -113,7 +114,7 @@ opsRouter.post("/job/retry", opsAuthGuard, async (req, res) => {
 /**
  * Manual trigger to reconcile or rebuild ledger syncs from historic collections
  */
-opsRouter.post("/recovery/ledger-sync", opsAuthGuard, async (req, res) => {
+opsRouter.post("/recovery/ledger-sync", async (req: any, res: any) => {
     try {
         console.log("[SaaS Ops] Manual ledger synchronization and metric compile triggered.");
 
@@ -137,7 +138,7 @@ opsRouter.post("/recovery/ledger-sync", opsAuthGuard, async (req, res) => {
 /**
  * Retrieve system intelligence and health analytics for observability panel
  */
-opsRouter.get("/health-digest", opsAuthGuard, async (req, res) => {
+opsRouter.get("/health-digest", async (req: any, res: any) => {
     try {
         const summarySnap = await db.collection("system_health_metrics").doc("summary").get();
         
@@ -175,7 +176,7 @@ opsRouter.get("/health-digest", opsAuthGuard, async (req, res) => {
 /**
  * Retrieve comprehensive API status dashboard datasets
  */
-opsRouter.get("/api-health", opsAuthGuard, async (req, res) => {
+opsRouter.get("/api-health", async (req: any, res: any) => {
     try {
         const snap = await db.collection("api_health").doc("summary").get();
         if (snap.exists) {
@@ -193,7 +194,7 @@ opsRouter.get("/api-health", opsAuthGuard, async (req, res) => {
 /**
  * Force manual check of API keys
  */
-opsRouter.post("/api-health/trigger", opsAuthGuard, async (req, res) => {
+opsRouter.post("/api-health/trigger", async (req: any, res: any) => {
     try {
         const { ApiHealthMonitor } = await import("../../services/healthMonitor");
         const freshHealth = await ApiHealthMonitor.runDiagnostics();
@@ -206,7 +207,7 @@ opsRouter.post("/api-health/trigger", opsAuthGuard, async (req, res) => {
 /**
  * Gathers system health metrics for charts
  */
-opsRouter.get("/system-diagnostics", opsAuthGuard, async (req, res) => {
+opsRouter.get("/system-diagnostics", async (req: any, res: any) => {
     try {
         const snap = await db.collection("system_health_metrics")
             .orderBy("timestamp", "desc")
@@ -223,7 +224,7 @@ opsRouter.get("/system-diagnostics", opsAuthGuard, async (req, res) => {
 /**
  * Retrieve the central error logs
  */
-opsRouter.get("/error-logs", opsAuthGuard, async (req, res) => {
+opsRouter.get("/error-logs", async (req: any, res: any) => {
     try {
         const snap = await db.collection("error_logs")
             .orderBy("timestamp", "desc")
@@ -240,7 +241,7 @@ opsRouter.get("/error-logs", opsAuthGuard, async (req, res) => {
 /**
  * Retrieve immutable audit logs (Task 4)
  */
-opsRouter.get("/audit-logs", opsAuthGuard, async (req, res) => {
+opsRouter.get("/audit-logs", async (req: any, res: any) => {
     try {
         const snap = await db.collection("immutable_audit_logs")
             .orderBy("timestamp", "desc")
@@ -256,7 +257,7 @@ opsRouter.get("/audit-logs", opsAuthGuard, async (req, res) => {
 /**
  * Retrieve pending actions for Layer 3 RED gates (Task 2)
  */
-opsRouter.get("/pending-approvals", opsAuthGuard, async (req, res) => {
+opsRouter.get("/pending-approvals", async (req: any, res: any) => {
     try {
         const snap = await db.collection("pending_approvals")
             .where("status", "==", "PENDING_APPROVAL")
@@ -273,10 +274,10 @@ opsRouter.get("/pending-approvals", opsAuthGuard, async (req, res) => {
 /**
  * Approve or Decline a pending Layer 3 action
  */
-opsRouter.post("/approvals/evaluate", opsAuthGuard, async (req, res) => {
+opsRouter.post("/approvals/evaluate", async (req: any, res: any) => {
     try {
         const { id, decision } = req.body; // decision: 'APPROVE' | 'DECLINE'
-        const userId = req.headers['authorization']?.split(' ')[1] || 'dev-guest';
+        const userId = req.user.uid;
 
         const docRef = db.collection("pending_approvals").doc(id);
         const snap = await docRef.get();
@@ -293,7 +294,6 @@ opsRouter.post("/approvals/evaluate", opsAuthGuard, async (req, res) => {
             await docRef.update({ status: "DECLINED", evaluatedAt: Date.now() });
             
             // Mark audit log
-            const { Layer3Execution } = await import("../../services/architectureLayers");
             await db.collection("immutable_audit_logs").add({
                 userId,
                 idempotencyKey: pending.idempotencyKey,
@@ -335,10 +335,10 @@ opsRouter.post("/approvals/evaluate", opsAuthGuard, async (req, res) => {
 /**
  * Handle Rollbacks (Task 4 rollback support)
  */
-opsRouter.post("/audit-logs/rollback", opsAuthGuard, async (req, res) => {
+opsRouter.post("/audit-logs/rollback", async (req: any, res: any) => {
     try {
         const { auditLogId } = req.body;
-        const userId = req.headers['authorization']?.split(' ')[1] || 'dev-guest';
+        const userId = req.user.uid;
 
         const { Layer3Execution } = await import("../../services/architectureLayers");
         const success = await Layer3Execution.executeRollback(userId, auditLogId);
@@ -356,7 +356,7 @@ opsRouter.post("/audit-logs/rollback", opsAuthGuard, async (req, res) => {
 /**
  * Retrieve active circuit breakers (Task 3)
  */
-opsRouter.get("/active-breakers", opsAuthGuard, async (req, res) => {
+opsRouter.get("/active-breakers", async (req: any, res: any) => {
     try {
         const { SafeExecutionEngine } = await import("../../services/architectureLayers");
         const activeBreakers = SafeExecutionEngine.getCircuitBreakers();
@@ -369,7 +369,7 @@ opsRouter.get("/active-breakers", opsAuthGuard, async (req, res) => {
 /**
  * Force manual reset of breaker state
  */
-opsRouter.post("/active-breakers/reset", opsAuthGuard, async (req, res) => {
+opsRouter.post("/active-breakers/reset", async (req: any, res: any) => {
     try {
         const { breakerKey } = req.body;
         const { SafeExecutionEngine } = await import("../../services/architectureLayers");
@@ -383,7 +383,7 @@ opsRouter.post("/active-breakers/reset", opsAuthGuard, async (req, res) => {
 /**
  * Anomaly and advisory healing simulator!
  */
-opsRouter.post("/simulate-anomaly", opsAuthGuard, async (req, res) => {
+opsRouter.post("/simulate-anomaly", async (req: any, res: any) => {
     try {
         const { 
             errorMsg, 
@@ -399,7 +399,7 @@ opsRouter.post("/simulate-anomaly", opsAuthGuard, async (req, res) => {
             impactScope,
             cooldownPassed
         } = req.body;
-        const userId = req.headers['authorization']?.split(' ')[1] || 'dev-guest';
+        const userId = req.user.uid;
 
         const { Layer2Brain, SafeExecutionEngine, Layer3Execution } = await import("../../services/architectureLayers");
 

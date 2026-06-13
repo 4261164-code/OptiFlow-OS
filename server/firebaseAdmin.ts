@@ -19,9 +19,35 @@ const realDb = getFirestore(app, databaseId);
 // Robust In-Memory Fallback Implementation
 // ==========================================
 
+class InMemoryWriteBatch {
+  private operations: (() => void)[] = [];
+  constructor(private db: InMemoryDatabase) {}
+
+  set(docRef: InMemoryDocReference, data: any, options?: { merge?: boolean }) {
+    this.operations.push(() => docRef.set(data, options));
+    return this;
+  }
+
+  update(docRef: InMemoryDocReference, data: any) {
+    this.operations.push(() => docRef.update(data));
+    return this;
+  }
+
+  delete(docRef: InMemoryDocReference) {
+    this.operations.push(() => docRef.delete());
+    return this;
+  }
+
+  async commit() {
+    for (const op of this.operations) op();
+    return [];
+  }
+}
+
 class InMemoryDocReference {
-  constructor(private collectionName: string, private docId: string, private db: InMemoryDatabase) {}
+  constructor(public collectionName: string, public docId: string, private db: InMemoryDatabase) {}
   
+  get ref() { return this; }
   async get() {
     const data = this.db.getDoc(this.collectionName, this.docId);
     return {
@@ -199,6 +225,10 @@ class InMemoryDatabase {
     return Array.from(this.store.keys()).map(name => ({
       id: name
     }));
+  }
+
+  batch() {
+    return new InMemoryWriteBatch(this);
   }
 }
 

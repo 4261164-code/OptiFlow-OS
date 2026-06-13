@@ -161,6 +161,35 @@ service cloud.firestore {
         && data.updatedAt is number;
     }
 
+    function isAdmin() { 
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true; 
+    }
+
+    function isValidUserStats(data) {
+      return data.keys().hasAll(['balance', 'streakDays'])
+        && data.balance is number
+        && data.streakDays is number;
+    }
+
+    function isValidTransaction(data) {
+      return data.keys().hasAll(['userId', 'amount', 'type', 'status', 'timestamp'])
+        && data.userId is string
+        && data.amount is number
+        && data.type in ['earn', 'withdraw', 'bonus', 'referral']
+        && data.status in ['pending', 'completed', 'failed', 'reversed']
+        && data.timestamp is number;
+    }
+
+    function isValidWithdrawal(data) {
+      return data.keys().hasAll(['userId', 'amount', 'method', 'recipient', 'status', 'timestamp'])
+        && data.userId is string
+        && data.amount is number
+        && data.method in ['paypal', 'amazon_gc']
+        && data.recipient is string && data.recipient.size() <= 500
+        && data.status in ['pending', 'approved', 'processed', 'rejected']
+        && data.timestamp is number;
+    }
+
     match /strategic_memory/{memoryId} {
       allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
       allow create: if isSignedIn() && isValidStrategicMemory(incoming());
@@ -313,6 +342,27 @@ service cloud.firestore {
     match /tracking_links/{linkId} {
       allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
       allow write: if false; // Admin-only database writes
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow write: if false; // Managed by server logic
+    }
+
+    match /transactions/{transactionId} {
+      allow read: if (resource.data.status == "completed" && resource.data.type in ["earn", "bonus"]) || 
+                    (isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin()));
+      allow write: if false; // Managed by server logic
+    }
+
+    match /withdrawals/{withdrawalId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow write: if false; // Managed by server logic
+    }
+
+    match /postbacks/{postbackId} {
+      allow read: if isAdmin();
+      allow write: if false;
     }
 
     match /postback_processing_queue/{taskId} {

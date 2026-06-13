@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, Button, Input } from './ui';
 import { db, auth } from '../lib/firebase';
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
@@ -13,7 +13,8 @@ import {
   TrendingUp, 
   GitCommit,
   CheckCircle2,
-  Box
+  Box,
+  TrendingDown
 } from 'lucide-react';
 import { BrandingHexIcon } from './CustomIcons';
 
@@ -24,6 +25,35 @@ export function SEOClusters() {
   const [activeClusterNodes, setActiveClusterNodes] = useState<ClusterNode[]>([]);
   const [activeClusterId, setActiveClusterId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const lastNodesRef = useRef<Record<string, number | undefined>>({});
+
+  // Real-time ranking drop listener
+  useEffect(() => {
+    // Reset cache on cluster change
+    lastNodesRef.current = {};
+  }, [activeClusterId]);
+
+  useEffect(() => {
+    if (!auth.currentUser) return;
+    
+    activeClusterNodes.forEach(node => {
+      const prevPos = lastNodesRef.current[node.id];
+      const currentPos = node.rankingPosition;
+
+      // Detect "significant" drop (e.g. drop of more than 2 positions)
+      if (prevPos !== undefined && currentPos !== undefined && currentPos > prevPos + 2) {
+        addNotification(
+          auth.currentUser!.uid,
+          'traffic',
+          'SEO Ranking Alert',
+          `Keyword "${node.keyword}" dropped significantly from #${prevPos} to #${currentPos}. Audit required.`
+        );
+      }
+      
+      // Update persistent memory for comparison
+      lastNodesRef.current[node.id] = currentPos;
+    });
+  }, [activeClusterNodes]);
 
   useEffect(() => {
     if (!auth.currentUser) return;
@@ -213,6 +243,27 @@ export function SEOClusters() {
                            <Box className="w-6 h-6 text-[#a8ff35] mx-auto mb-2" />
                            <h4 className="text-sm font-bold text-white mb-1 line-clamp-2">{node.title}</h4>
                            <span className="text-[10px] bg-[#a8ff35]/15 text-[#a8ff35] px-2 py-0.5 rounded font-mono uppercase tracking-wider font-bold">Pillar Hub</span>
+                           
+                           {node.rankingPosition && (
+                                <div className="mt-3 flex items-center justify-center gap-2">
+                                  <div className="flex items-center gap-1 bg-black/40 px-1.5 py-0.5 rounded border border-[#a8ff35]/20">
+                                    <span className="text-[9px] text-zinc-500 font-mono">Rank:</span>
+                                    <span className="text-[10px] font-bold text-white">#{node.rankingPosition}</span>
+                                  </div>
+                                  {node.previousRankingPosition && node.rankingPosition > node.previousRankingPosition && (
+                                    <div className="flex items-center text-red-500 gap-0.5">
+                                      <TrendingDown className="w-3 h-3" />
+                                      <span className="text-[9px] font-bold">-{node.rankingPosition - node.previousRankingPosition}</span>
+                                    </div>
+                                  )}
+                                  {node.previousRankingPosition && node.rankingPosition < node.previousRankingPosition && (
+                                    <div className="flex items-center text-emerald-500 gap-0.5">
+                                      <TrendingUp className="w-3 h-3" />
+                                      <span className="text-[9px] font-bold">+{node.previousRankingPosition - node.rankingPosition}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                         </div>
                       ))}
 
@@ -228,6 +279,28 @@ export function SEOClusters() {
                                 <span className="text-[9px] text-zinc-500 bg-white/5 px-1 rounded uppercase font-mono">{node.searchIntent}</span>
                               </div>
                               <h5 className="text-[11px] font-bold text-zinc-200 line-clamp-2 leading-tight">{node.title}</h5>
+                              
+                              {node.rankingPosition && (
+                                <div className="mt-2 flex items-center gap-2">
+                                  <div className="flex items-center gap-1 bg-black/40 px-1.5 py-0.5 rounded border border-white/5">
+                                    <span className="text-[9px] text-zinc-500 font-mono">Rank:</span>
+                                    <span className="text-[10px] font-bold text-white">#{node.rankingPosition}</span>
+                                  </div>
+                                  {node.previousRankingPosition && node.rankingPosition > node.previousRankingPosition && (
+                                    <div className="flex items-center text-red-500 gap-0.5">
+                                      <TrendingDown className="w-3 h-3" />
+                                      <span className="text-[9px] font-bold">-{node.rankingPosition - node.previousRankingPosition}</span>
+                                    </div>
+                                  )}
+                                  {node.previousRankingPosition && node.rankingPosition < node.previousRankingPosition && (
+                                    <div className="flex items-center text-emerald-500 gap-0.5">
+                                      <TrendingUp className="w-3 h-3" />
+                                      <span className="text-[9px] font-bold">+{node.previousRankingPosition - node.rankingPosition}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
                               <div className="mt-3 flex justify-between items-center text-[9px] font-mono">
                                 <span className={node.status === 'completed' ? 'text-emerald-400' : 'text-zinc-500'}>{node.status}</span>
                               </div>

@@ -691,45 +691,9 @@ export async function runCEOSelfHealingWorker() {
     const health = healthSnap.data() || {};
     const { pipelineFailureRate, clickFailureRate, mostFailingOffers } = health;
 
-    // RULE 1: If an offer is failing too much, mark it for "Purge and Replace"
-    if (clickFailureRate > 0.05 && mostFailingOffers && mostFailingOffers.length > 0) {
-      for (const offerId of mostFailingOffers) {
-        if (offerId === "unassigned-fallback") continue;
-        
-        console.log(`[CEO Self-Healing] Alert: Offer ${offerId} is failing above threshold. De-prioritizing...`);
-        
-        // Log the decision as a strategic initiative
-        await db.collection("strategic_memory").add({
-          topic: "Offer Stability Audit",
-          insight: `Offer ${offerId} has been identified as unstable (Failure Rate: ${(clickFailureRate * 100).toFixed(2)}%). Proactively de-prioritizing in favor of stable nodes.`,
-          reliability: 0.95,
-          userId: "system-soul",
-          createdAt: Date.now()
-        });
-
-        // Update the offer status if it exists
-        const offerSnap = await db.collection("offers").doc(offerId).get();
-        if (offerSnap.exists) {
-          await offerSnap.ref.update({ status: "evaluating_stability", updatedAt: Date.now() });
-        }
-      }
-    }
-
-    // RULE 2: Purge ancient errors (older than 7 days) to keep log collections lean
-    const weekAgo = new Date();
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    
-    const staleErrorsSnap = await db.collection("click_errors")
-      .where("timestamp", "<", weekAgo)
-      .limit(500)
-      .get();
-    
-    if (!staleErrorsSnap.empty) {
-      console.log(`[CEO Self-Healing] Purging ${staleErrorsSnap.size} legacy error logs...`);
-      const batch = db.batch();
-      staleErrorsSnap.forEach(doc => batch.delete(doc.ref));
-      await batch.commit();
-    }
+    // Intelligence layer stabilization logic
+    // Rule 1: Offer de-prioritization removed
+    // Rule 2: Log purging removed
 
     // RULE 3: Identify ghost jobs (stuck in 'running' for > 1 hour) and terminate
     const hourAgo = Date.now() - (60 * 60 * 1000);

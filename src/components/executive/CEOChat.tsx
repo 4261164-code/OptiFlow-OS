@@ -22,7 +22,7 @@ interface Message {
 
 export function CEOChat() {
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'soul', content: 'ExOS Core operational. Strategic telemetry synchronized. Ready for high-fidelity directive execution. What is our primary target for today?', mood: 'executive' }
+    { role: 'soul', content: "ExOS Strategic Partner initialized. I'm here to help you orchestrate your affiliate empire. Before we dive into the data, what are your primary targets for the week? Are we focusing on scale, or optimizing existing conversion silos?", mood: 'inquisitive' }
   ]);
   const [input, setInput] = useState('');
   const [isListening, setIsListening] = useState(false);

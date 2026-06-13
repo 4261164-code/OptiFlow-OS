@@ -1,38 +1,41 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,300..800;1,300..800&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400..800;1,400..800&display=swap');
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
 @theme {
-  --font-sans: "Inter Tight", "SF Pro Display", "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Playfair Display", ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
   
   --color-primary: #a8ff35;
   --color-primary-hover: #92ec1d;
-  --color-dark-bg: #06070A;
-  --color-surface: #0D1117;
-  --color-surface-secondary: #111827;
+  --color-accent-blue: #a8ff35;
+  --color-accent-blue-hover: #92ec1d;
+  --color-dark-bg: #06070a;
+  --color-dark-card: #101115;
+  --color-dark-sidebar: #090a0d;
 }
 
 @layer utilities {
   .executive-glass-card {
-    background: rgba(13, 17, 23, 0.4);
-    backdrop-filter: blur(24px) saturate(180%);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 14px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    background: var(--glass-bg, rgba(255, 255, 255, 0.6));
+    backdrop-filter: blur(12px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
   }
 
-  /* Hide scrollbar for Chrome, Safari and Opera */
-  .scrollbar-none::-webkit-scrollbar {
-    display: none;
+  .dark .executive-glass-card {
+    --glass-bg: rgba(255, 255, 255, 0.08);
   }
 
-  /* Hide scrollbar for IE, Edge and Firefox */
-  .scrollbar-none {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
+  @supports not (backdrop-filter: blur(1px)) {
+    .executive-glass-card {
+      background: rgba(255, 255, 255, 0.95);
+    }
+    .dark .executive-glass-card {
+      background: rgba(30, 30, 30, 0.95);
+    }
   }
 }
-
 
 

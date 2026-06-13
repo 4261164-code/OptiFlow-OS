@@ -231,6 +231,53 @@
         "userId": { "type": "string" }
       },
       "required": ["id", "campaignId", "affiliateLink", "createdAt", "userId"]
+    },
+    "UserStats": {
+      "title": "User Stats",
+      "description": "Earnings and engagement metrics for a user",
+      "type": "object",
+      "properties": {
+        "balance": { "type": "number", "description": "Balance in cents" },
+        "pendingBalance": { "type": "number" },
+        "lifetimeEarned": { "type": "number" },
+        "streakDays": { "type": "number" },
+        "streakClaimedToday": { "type": "boolean" },
+        "lastLoginDate": { "type": "number" },
+        "level": { "type": "string", "enum": ["bronze", "silver", "gold", "platinum"] },
+        "isAdmin": { "type": "boolean" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["balance", "streakDays"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Ledger entry for earnings or withdrawals",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "amount": { "type": "number" },
+        "type": { "type": "string", "enum": ["earn", "withdraw", "bonus", "referral"] },
+        "status": { "type": "string", "enum": ["pending", "completed", "failed", "reversed"] },
+        "description": { "type": "string" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["userId", "amount", "type", "status", "timestamp"]
+    },
+    "Withdrawal": {
+      "title": "Withdrawal Request",
+      "description": "User request to cash out balance",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "amount": { "type": "number" },
+        "method": { "type": "string", "enum": ["paypal", "amazon_gc"] },
+        "recipient": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "processed", "rejected"] },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["userId", "amount", "method", "recipient", "status", "timestamp"]
     }
   },
   "firestore": {
@@ -289,6 +336,22 @@
     "tracking_links/{linkId}": {
       "schema": { "$ref": "#/entities/MaxBountyTrackingLink" },
       "description": "Pinterest and content monetization links"
+    },
+    "users/{userId}": {
+      "schema": { "$ref": "#/entities/UserStats" },
+      "description": "User earnings and profile state"
+    },
+    "transactions/{transactionId}": {
+      "schema": { "$ref": "#/entities/Transaction" },
+      "description": "Reward system ledger"
+    },
+    "withdrawals/{withdrawalId}": {
+      "schema": { "$ref": "#/entities/Withdrawal" },
+      "description": "Payout requests"
+    },
+    "postbacks/{postbackId}": {
+      "schema": { "type": "object" },
+      "description": "Raw provider postback logs"
     },
     "postback_processing_queue/{taskId}": {
       "schema": { "type": "object" },

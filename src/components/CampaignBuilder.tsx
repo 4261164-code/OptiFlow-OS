@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { apiFetch } from '../lib/auth';
 import { Button, Input, Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui';
 import { db, auth } from '../lib/firebase';
 import { collection, doc, setDoc, onSnapshot } from 'firebase/firestore';
@@ -6,6 +7,7 @@ import { addNotification } from '../lib/notifications';
 import { Loader2, ArrowRight, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { CampaignIcon, ArticlesIcon, AgentsIcon } from './CustomIcons';
+import { SEOChat } from './SEOChat';
 
 function generateId() {
   return Array.from({ length: 20 }, () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'.charAt(Math.floor(Math.random() * 62))).join('');
@@ -54,7 +56,6 @@ export function CampaignBuilder() {
 
     const payload = {
       ...form,
-      userId,
       jobId,
       // If we are in create mode, clear external article info to avoid mismatch
       existingArticleTitle: activeTab === 'repurpose' ? form.existingArticleTitle : '',
@@ -103,7 +104,7 @@ export function CampaignBuilder() {
       });
 
       // 3. Call backend pipeline orchestrator to run agents (returns full generated payload on success)
-      const response = await fetch('/api/run-pipeline', {
+      const response = await apiFetch('/api/run-pipeline', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -250,22 +251,32 @@ export function CampaignBuilder() {
       {!loading ? (
         <form onSubmit={handleRun} className="space-y-6">
           {activeTab === 'create' ? (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center text-lg"><CampaignIcon className="w-4 h-4 mr-2 text-[#d7f941]" /> Primary Target SEO Keyword</CardTitle>
-                <CardDescription>Our research agent will analyze search intent and project conversions based on this target phrase.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Input 
-                  value={form.keyword}
-                  onChange={(e) => setForm({...form, keyword: e.target.value})}
-                  placeholder="e.g. why pinterest still wins for affiliate traffic"
-                  className="text-lg py-6"
-                  disabled={loading}
-                  required
-                />
-              </CardContent>
-            </Card>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center text-lg"><CampaignIcon className="w-4 h-4 mr-2 text-[#d7f941]" /> Primary Target SEO Keyword</CardTitle>
+                  <CardDescription>Our research agent will analyze search intent and project conversions based on this target phrase.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Input 
+                    value={form.keyword}
+                    onChange={(e) => setForm({...form, keyword: e.target.value})}
+                    placeholder="e.g. why pinterest still wins for affiliate traffic"
+                    className="text-lg py-6"
+                    disabled={loading}
+                    required
+                  />
+                  <div className="mt-8 pt-6 border-t border-white/5 space-y-4">
+                    <h4 className="text-xs uppercase tracking-wider text-zinc-500 font-semibold font-mono">Not sure where to start?</h4>
+                    <p className="text-sm text-zinc-400">
+                      Use the conversational SEO Agent Consultant on the right to dial in your perfect keyword strategy before deploying the campaign. The Agent will ask you about your niche, goals, and domain authority to formulate the perfect topic.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <SEOChat />
+            </div>
           ) : (
             <Card className="border border-[#d7f941]/10 bg-[#d7f941]/[0.01]">
               <CardHeader>

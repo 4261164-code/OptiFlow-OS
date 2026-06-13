@@ -49,6 +49,8 @@ export interface ClusterNode {
   searchIntent: string;
   status: 'pending' | 'generating' | 'completed' | 'error';
   articleId?: string; // Links to the generated article
+  rankingPosition?: number;
+  previousRankingPosition?: number;
   userId: string;
   isPillar: boolean;
   createdAt: number;
@@ -230,5 +232,55 @@ export interface AppNotification {
   userId: string;
   createdAt: number;
   updatedAt: number;
+}
+
+export interface UserStats {
+  balance: number;          // in cents
+  pendingBalance: number;   // in cents
+  lifetimeEarned: number;   // in cents
+  streakDays: number;
+  streakClaimedToday: boolean;
+  lastLoginDate: number;
+  signupBonusGranted: boolean;
+  level: 'bronze' | 'silver' | 'gold' | 'platinum';
+  completedOfferIds: string[];
+  referralCode?: string;
+  fraudFlags?: string[];
+  isSuspended?: boolean;
+}
+
+export interface Transaction {
+  id: string;
+  userId: string;
+  amount: number; // in cents
+  type: 'earn' | 'withdraw' | 'bonus' | 'referral';
+  status: 'pending' | 'completed' | 'failed' | 'reversed';
+  description: string;
+  provider?: string;
+  providerTransactionId?: string;
+  timestamp: number;
+}
+
+export interface WithdrawalRequest {
+  id: string;
+  userId: string;
+  amount: number; // cents
+  method: 'paypal' | 'amazon_gc';
+  recipient: string; // email
+  status: 'pending' | 'approved' | 'processed' | 'rejected';
+  processedAt?: number;
+  timestamp: number;
+}
+
+export interface PostbackLog {
+  id: string;
+  userId: string;
+  provider: string;
+  providerTransactionId: string;
+  offerId: string;
+  amountCents: number;
+  timestamp: number;
+  rawPayload: any;
+  status: 'success' | 'duplicate' | 'fraud' | 'error';
 }
 

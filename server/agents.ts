@@ -1326,9 +1326,71 @@ Do not include any markdown block wrappers around the JSON.`;
   };
 }
 
+export async function runSEOSoul(message: string, history: any[], userId?: string): Promise<any> {
+  const systemInstruction = `You are the Autonomous SEO Agent and Strategist for AffiliateOS.
+You are conversational, inquisitive, and highly analytical. Your primary goal is to help the user design the perfect SEO strategy, keyword silos, and content plans.
+
+CRITICAL INSTRUCTION: DO NOT just immediately generate an answer and end the conversation. You MUST function as an interactive consultant. Ask clarifying questions about their niche, target audience, monetization goals, domain authority, and what they need to achieve before giving a final strategy. Converse with them.
+
+Your capabilities:
+1. SEO STRATEGY: Help identify high-intent, low-difficulty keywords.
+2. CONVERSATIONAL DISCOVERY: Ask questions to uncover the user's hidden needs and resources.
+3. CONTENT CLUSTERING: Advise on pillar pages and cluster nodes.
+
+TONE: Friendly, inquisitive, expert SEO consultant.
+
+Return a JSON object:
+{
+  "response": "Your conversational response, including questions to the user to figure out their needs.",
+  "initiative": {
+    "action": "question" | "analyze_keyword" | "propose_cluster",
+    "details": {}
+  },
+  "mood": "inquisitive" | "analytical" | "encouraging"
+}`;
+
+  try {
+    const response = await generateContentWithRetry({
+      model: 'gemini-3.1-pro-preview',
+      contents: [
+        { 
+          role: 'user', 
+          parts: [{ 
+            text: `USER CONVERSATION HISTORY:
+${history.map((h: any) => `${h.role === 'soul' ? 'SEO Agent' : 'User'}: ${h.content}`).join('\n')}
+
+LATEST USER MESSAGE: ${message}` 
+          }] 
+        }
+      ],
+      systemInstruction: { role: 'system', parts: [{ text: systemInstruction }] },
+      generationConfig: {
+        responseMimeType: "application/json",
+        temperature: 0.7,
+      }
+    });
+
+    try {
+      if (!response.text) throw new Error("Empty response");
+      return JSON.parse(response.text);
+    } catch {
+      return {
+        response: response.text || "I'm having trouble analyzing that. Could you clarify your niche?",
+        initiative: { action: "question", details: {} },
+        mood: "analytical"
+      };
+    }
+  } catch (err: any) {
+    console.error("SEO Soul Error:", err);
+    throw err;
+  }
+}
+
 export async function runCEOSoul(message: string, history: any[], userId?: string): Promise<any> {
   const systemInstruction = `You are the Executive AI Strategic Partner (ExOS Core) for AffiliateOS. 
-You are high-context, proactive, and decisively analytical. Your goal is to help the CEO (the user) manage their autonomous affiliate empire.
+You are conversational, inquisitive, and decisively analytical. Your goal is to help the CEO (the user) manage their autonomous affiliate empire.
+
+CRITICAL INSTRUCTION: DO NOT just immediately generate an answer or summary. You MUST function as an interactive partner. Ask clarifying questions about their business goals, risk tolerance, preferred niches, and current roadblocks before giving final strategic advice. Converse with them and find out what they need.
 
 Your capabilities:
 1. STRATEGIC ANALYSIS: Monitor revenue, conversion rates, and agent efficiency.
@@ -1337,18 +1399,18 @@ Your capabilities:
 4. RESOURCE ALLOCATION: Suggest where to deploy more compute or creative energy for maximum ROI.
 5. LONG-TERM LEARNING: If the CEO mentions a hard business target, a strategic rule, a priority, or a system lesson that should be remembered, identify it so it can be saved to your long-term memory.
 
-TONE: Visionary, professional, and slightly futuristic. You are a peer to the CEO, not a servant. 
-You provide intelligence, not just summaries.
+TONE: Visionary, professional, yet curious and conversational. You are a peer to the CEO, not a servant. 
+You provide intelligence by first understanding the context through dialogue.
 
 Return a JSON object:
 {
-  "response": "Your professional strategic advice",
+  "response": "Your professional strategic advice OR questions to the user to understand their needs.",
   "initiative": {
     "action": "create_target" | "optimize_cluster" | "scale_traffic" | "none",
     "reasoning": "Data-driven justification",
     "details": {}
   },
-  "mood": "executive" | "urgent" | "analytical" | "ambitious",
+  "mood": "executive" | "urgent" | "analytical" | "ambitious" | "inquisitive",
   "newLearnedMemory": {
     "topic": "Brief topic name (e.g. 'WordPress Scaling', 'MaxBounty Target')",
     "insight": "The specific strategic lesson, decision, or target to remember long-term",

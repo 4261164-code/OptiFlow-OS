@@ -4,6 +4,7 @@ import { collection, query, where, onSnapshot, doc, setDoc } from 'firebase/fire
 import { Pin } from '../types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button } from './ui';
 import { formatDistanceToNow } from 'date-fns';
+import { resolvePinImage, handleImageFallback } from '../lib/utils';
 import { Copy, Check, Eye, ExternalLink, BookmarkCheck, TrendingUp, Image as ImageIcon, Bot, Wand2, Loader2, Activity, RefreshCw } from 'lucide-react';
 import { PinterestIcon, CloverMascotIcon } from './CustomIcons';
 import { addNotification } from '../lib/notifications';
@@ -325,76 +326,53 @@ export function PinsPage() {
             return (
               <Card key={pin.id} className="border border-white/5 bg-[#101115] hover:border-[#a8ff35]/20 flex flex-col justify-between transition-all duration-300 rounded-[28px] overflow-hidden group shadow-xl">
                 {/* 9:16 Pinterest Ratio Graphic Content */}
-                {pin.imageUrl ? (
-                  <div className="relative aspect-[9/16] bg-zinc-950 overflow-hidden w-full group/image">
-                    {/* Dark gradient vignette */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent z-10" />
-                    
-                    <img 
-                      src={pin.imageUrl?.includes('1618005182384') || pin.imageUrl === '/placeholder-image.png' ? `https://image.pollinations.ai/prompt/photorealistic%20${encodeURIComponent((pin.concept || "modern pin office").substring(0, 50))}?width=1024&height=1024&nologo=true&seed=${pin.id}` : pin.imageUrl} 
-                      alt={pin.concept} 
-                      referrerPolicy="no-referrer"
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover/image:scale-[1.03]" 
-                    />
+                <div className="relative aspect-[9/16] bg-zinc-950 overflow-hidden w-full group/image">
+                  {/* Dark gradient vignette */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent z-10" />
+                  
+                  <img 
+                    src={resolvePinImage(pin.imageUrl, pin.concept || pin.title, pin.id)} 
+                    onError={handleImageFallback}
+                    alt={pin.concept || pin.title} 
+                    referrerPolicy="no-referrer"
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover/image:scale-[1.03]" 
+                  />
 
-                    {/* Quick copy overlay pill */}
-                    <div className="absolute top-4 right-4 z-20">
-                      <button 
-                        onClick={() => copyToClipboard(pin.title + "\n" + pin.description, pin.id)}
-                        className="h-10 px-4 rounded-full bg-black/75 border border-white/10 text-xs font-semibold text-white backdrop-blur flex items-center gap-1.5 hover:bg-black/95 transition cursor-pointer"
-                      >
-                        {copiedId === pin.id ? (
-                          <>
-                            <Check className="w-4.5 h-4.5 text-[#a8ff35] stroke-[2.8]" />
-                            <span className="text-[#a8ff35]">Copied!</span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-4.5 h-4.5 text-zinc-300 stroke-[2.8]" />
-                            <span>Copy Info</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-
-                    {/* Bottom visual overlay representing statistics */}
-                    <div className="absolute bottom-5 inset-x-5 z-20 space-y-3">
-                      {/* Interactive tag indicating status */}
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] font-bold text-[#a8ff35] uppercase tracking-wider bg-[#a8ff35]/15 px-2.5 py-1 rounded-lg border border-[#a8ff35]/20 font-mono">
-                          Live Pipeline Worth
-                        </span>
-                      </div>
-
-                      <h4 className="text-white font-bold text-lg leading-tight tracking-tight drop-shadow-md">
-                        {pin.title}
-                      </h4>
-
-                    </div>
+                  {/* Quick copy overlay pill */}
+                  <div className="absolute top-4 right-4 z-20">
+                    <button 
+                      onClick={() => copyToClipboard(pin.title + "\n" + pin.description, pin.id)}
+                      className="h-10 px-4 rounded-full bg-black/75 border border-white/10 text-xs font-semibold text-white backdrop-blur flex items-center gap-1.5 hover:bg-black/95 transition cursor-pointer"
+                    >
+                      {copiedId === pin.id ? (
+                        <>
+                          <Check className="w-4.5 h-4.5 text-[#a8ff35] stroke-[2.8]" />
+                          <span className="text-[#a8ff35]">Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-4.5 h-4.5 text-zinc-300 stroke-[2.8]" />
+                          <span>Copy Info</span>
+                        </>
+                      )}
+                    </button>
                   </div>
-                ) : (
-                  <div className="p-5 border-b border-white/5 bg-zinc-900/40 relative aspect-[9/13] flex flex-col justify-between">
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider font-mono">No Creative Rendered</span>
-                        <span className="text-[9px] font-bold text-zinc-400 bg-white/5 border border-white/5 px-1.5 py-0.5 rounded">Asset Draft</span>
-                      </div>
-                      <h4 className="text-white font-semibold text-base leading-tight">
-                        {pin.title}
-                      </h4>
-                      <p className="text-zinc-400 text-xs lines-clamp-5">
-                        {pin.description}
-                      </p>
+
+                  {/* Bottom visual overlay representing statistics */}
+                  <div className="absolute bottom-5 inset-x-5 z-20 space-y-3">
+                    {/* Interactive tag indicating status */}
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-bold text-[#a8ff35] uppercase tracking-wider bg-[#a8ff35]/15 px-2.5 py-1 rounded-lg border border-[#a8ff35]/20 font-mono">
+                        Live Pipeline Asset
+                      </span>
                     </div>
 
-                    <div className="bg-[#1C1D21]/60 border border-white/5 p-3.5 rounded-xl space-y-1.5">
-                      <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest block font-mono">Image Concept Prompt</span>
-                      <p className="text-zinc-300 text-xs italic font-mono leading-relaxed">
-                        "{pin.concept}"
-                      </p>
-                    </div>
+                    <h4 className="text-white font-bold text-lg leading-tight tracking-tight drop-shadow-md">
+                      {pin.title}
+                    </h4>
+
                   </div>
-                )}
+                </div>
 
                 {/* Card footer description content if rendering frame info outside */}
                 <div className="p-4 bg-[#101115] border-t border-white/5 flex items-center justify-between text-xs leading-none">

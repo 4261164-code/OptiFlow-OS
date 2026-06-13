@@ -3,23 +3,12 @@ import { db } from "../../firebaseAdmin";
 
 export const clicksApiRouter = Router();
 
-// Middleware placeholder for existing admin auth guard
-// For this example, assuming it's hooked up in server.ts or we do a simple check
-const authGuard = async (req: any, res: any, next: any) => {
-    // Basic stub. Re-using the prompt instruction "require existing admin auth middleware... reuse whatever is there"
-    // Since we don't have a formal one, we'll check the auth header or user context if it was passed by a central middleware.
-    // In our server.ts, usually it's just expected userId in body for API, but this is a GET.
-    // I'll check headers.authorization as a generic implementation.
-    const token = req.headers.authorization;
-    if (!token) return res.status(401).json({ error: "Unauthorized" });
-    next();
-};
-
-clicksApiRouter.get("/analytics", authGuard, async (req, res) => {
+clicksApiRouter.get("/analytics", async (req: any, res: any) => {
     try {
+        const userId = req.user.uid;
         const { offerId, articleId, from, to } = req.query;
 
-        let query: any = db.collection("affiliate_clicks");
+        let query: any = db.collection("affiliate_clicks").where("userId", "==", userId);
         
         if (offerId) query = query.where("offerId", "==", String(offerId));
         if (articleId) query = query.where("articleId", "==", String(articleId));
@@ -56,7 +45,7 @@ clicksApiRouter.get("/analytics", authGuard, async (req, res) => {
         }
 
         // Get error count
-        let errorQuery: any = db.collection("click_errors");
+        let errorQuery: any = db.collection("click_errors").where("userId", "==", userId);
         if (offerId) errorQuery = errorQuery.where("offerId", "==", String(offerId));
         if (from) errorQuery = errorQuery.where("timestamp", ">=", new Date(String(from)));
         if (to) errorQuery = errorQuery.where("timestamp", "<=", new Date(String(to)));

@@ -4,6 +4,7 @@ import { db, auth } from '../lib/firebase';
 import { collection, query, where, onSnapshot, doc, setDoc, getDoc } from 'firebase/firestore';
 import { Article, Pin } from '../types';
 import { handleFirestoreError, OperationType } from '../lib/errorHandler';
+import { resolvePinImage, handleImageFallback } from '../lib/utils';
 import { 
   Send, 
   Clock, 
@@ -881,16 +882,15 @@ export function PublishingQueue() {
                   <CardHeader className="pb-3">
                     <div className="flex flex-col md:flex-row items-stretch justify-between gap-6">
                       <div className="flex gap-4">
-                        {pin.imageUrl && (
-                          <div className="relative w-16 h-28 md:w-20 md:h-36 bg-[#1C1D21] border border-white/5 rounded-md overflow-hidden shrink-0">
-                            <img 
-                              src={pin.imageUrl?.includes('1618005182384') || pin.imageUrl === '/placeholder-image.png' ? `https://image.pollinations.ai/prompt/photorealistic%20${encodeURIComponent((pin.concept || pin.title || "modern").substring(0, 50))}?width=512&height=512&nologo=true&seed=${pin.id}` : pin.imageUrl} 
-                              alt={pin.title} 
-                              referrerPolicy="no-referrer"
-                              className="object-cover w-full h-full" 
-                            />
-                          </div>
-                        )}
+                        <div className="relative w-16 h-28 md:w-20 md:h-36 bg-[#1C1D21] border border-white/5 rounded-md overflow-hidden shrink-0">
+                          <img 
+                            src={resolvePinImage(pin.imageUrl, pin.concept || pin.title, pin.id)} 
+                            alt={pin.title} 
+                            onError={handleImageFallback}
+                            referrerPolicy="no-referrer"
+                            className="object-cover w-full h-full" 
+                          />
+                        </div>
                         <div className="flex-1 min-w-0">
                           <span className="text-xs uppercase tracking-wider text-pink-500 bg-pink-500/10 px-2 py-0.5 rounded font-mono font-medium">Pinterest Pin</span>
                           <h3 className="text-lg font-bold text-white mt-1.5 truncate">{pin.title}</h3>
@@ -951,7 +951,7 @@ export function PublishingQueue() {
                         <div className="mt-4 pt-2 border-t border-zinc-805 flex justify-end">
                           <button
                             onClick={() => {
-                              const resolvedImage = pin.imageUrl?.includes('1618005182384') || pin.imageUrl === '/placeholder-image.png' ? `https://image.pollinations.ai/prompt/photorealistic%20${encodeURIComponent((pin.concept || pin.title || "modern").substring(0, 50))}?width=512&height=512&nologo=true&seed=${pin.id}` : pin.imageUrl;
+                              const resolvedImage = resolvePinImage(pin.imageUrl, pin.concept || pin.title, pin.id);
                               publishToWordPress(pin.id, `Pinterest Idea: ${pin.title}`, `<center><img src="${resolvedImage || ''}" alt="${pin.title}" style="max-width:100%; border-radius:8px;" /><br/><h3>${pin.title}</h3><p>${pin.description}</p></center>`, 'pins')
                             }}
                             disabled={!hasWordPressSetup || opLoading[wpOpKey] || wpStatus === 'publishing'}
