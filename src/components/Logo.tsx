@@ -15,7 +15,7 @@ export function Logo({ className, size = 'md' }: LogoProps) {
 
   return (
     <div className={cn("flex items-center gap-2.5 font-semibold tracking-tight text-white", textSize, className)}>
-      <div className={cn("bg-gradient-to-tr from-blue-600 to-blue-500 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20", containerSize)}>
+      <div className={cn("bg-gradient-to-tr from-emerald-600 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-600/20", containerSize)}>
         <Hexagon size={iconSize} className="text-white" strokeWidth={2.5} />
       </div>
       AffiliateOS

@@ -154,9 +154,9 @@ export function Dashboard() {
       <div className="space-y-8">
         <div className="flex justify-end border-b border-white/5 pb-6">
           <div className="bg-[#0D1117] p-1 rounded-full flex items-center border border-white/5 text-xs shadow-inner">
-            <button 
+              <button 
               onClick={() => setViewMode('launcher')} 
-              className="px-6 py-2.5 rounded-full font-bold transition duration-300 flex items-center gap-2 bg-blue-600 text-white shadow-lg cursor-pointer"
+              className="px-6 py-2.5 rounded-full font-bold transition duration-300 flex items-center gap-2 bg-emerald-600 text-white shadow-lg cursor-pointer"
             >
               <Activity className="w-4 h-4" />
               <span>Agent Launcher</span>
@@ -193,7 +193,7 @@ export function Dashboard() {
           </button>
           <button 
             onClick={() => setViewMode('analytics')} 
-            className="px-6 py-2.5 rounded-full font-bold transition duration-300 flex items-center gap-2 bg-blue-600 text-white shadow-lg cursor-pointer"
+            className="px-6 py-2.5 rounded-full font-bold transition duration-300 flex items-center gap-2 bg-emerald-600 text-white shadow-lg cursor-pointer"
           >
             <BarChart3 className="w-4 h-4" />
             <span>Campaign Console</span>
@@ -211,7 +211,7 @@ export function Dashboard() {
             </div>
             <div className="flex items-center gap-2">
               <span className="text-[12px] font-bold text-zinc-400 font-mono flex items-center gap-2 bg-zinc-900/50 px-4 py-2 rounded-lg border border-white/5">
-                <BrandingHexIcon className="w-5 h-5 text-blue-500" />
+                <BrandingHexIcon className="w-5 h-5 text-emerald-500" />
                 <span>REALTIME CORE ONLINE</span>
               </span>
             </div>

@@ -6,10 +6,10 @@
   --font-sans: "Inter Tight", "Inter", "SF Pro Display", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
   
-  --color-primary: #3B82F6;
-  --color-primary-hover: #2563EB;
-  --color-accent-blue: #3B82F6;
-  --color-accent-blue-hover: #2563EB;
+  --color-primary: #10B981;
+  --color-primary-hover: #059669;
+  --color-accent-emerald: #10B981;
+  --color-accent-emerald-hover: #059669;
   --color-dark-bg: #05070A;
   --color-dark-card: #0D1117;
   --color-dark-sidebar: #05070A;
