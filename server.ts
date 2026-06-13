@@ -31,7 +31,7 @@ async function hasValidAIKey(userId?: string): Promise<boolean> {
   return false;
 }
 
-async function startServer() {
+export const appPromise = (async () => {
   const app = express();
   const PORT = 3000;
 
@@ -1358,17 +1358,19 @@ async function startServer() {
   }
 
   // Start the background workers for AffiliateOS click buffering, reconciliation, pre-aggregated analytics, and health logging.
-  try {
-    const { startSystemHardeningWorkers } = await import("./server/services/backgroundWorker");
-    startSystemHardeningWorkers();
-    console.log("[System Hardening] Successfully started background workers.");
-  } catch (err) {
-    console.error("[System Hardening] Failed to initialize background workers:", err);
+  if (!process.env.VERCEL) {
+    try {
+      const { startSystemHardeningWorkers } = await import("./server/services/backgroundWorker");
+      startSystemHardeningWorkers();
+      console.log("[System Hardening] Successfully started background workers.");
+    } catch (err) {
+      console.error("[System Hardening] Failed to initialize background workers:", err);
+    }
+
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
-}
-
-startServer();
+  return app;
+})();
