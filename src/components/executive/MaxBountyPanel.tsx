@@ -19,6 +19,7 @@ import {
   HelpCircle,
   Hash
 } from 'lucide-react';
+import { apiFetch } from '../../lib/auth';
 
 interface Campaign {
   id: string;
@@ -87,7 +88,7 @@ export function MaxBountyPanel() {
 
   const loadCredentials = async () => {
     try {
-      const res = await fetch('/api/maxbounty/credentials');
+      const res = await apiFetch('/api/maxbounty/credentials');
       const data = await res.json();
       setCreds(data);
       if (data.connected && data.email) {
@@ -101,7 +102,7 @@ export function MaxBountyPanel() {
   const loadCampaigns = async (sync = false) => {
     setSyncingCampaigns(true);
     try {
-      const res = await fetch(`/api/maxbounty/campaigns?sync=${sync}`);
+      const res = await apiFetch(`/api/maxbounty/campaigns?sync=${sync}`);
       const data = await res.json();
       if (data.campaigns) {
         setCampaigns(data.campaigns);
@@ -115,9 +116,9 @@ export function MaxBountyPanel() {
 
   const loadRecentConversions = async () => {
     try {
-      const res = await fetch('/api/executive/rankings?type=offers');
+      const res = await apiFetch('/api/executive/rankings?type=offers');
       // Re-use rankings or general database snapshot of affiliate_conversions
-      const snap = await fetch('/api/clicks'); // just to get fresh IDs if needed
+      const snap = await apiFetch('/api/clicks'); // just to get fresh IDs if needed
     } catch (e) {}
   };
 
@@ -127,7 +128,7 @@ export function MaxBountyPanel() {
     setAuthLoading(true);
     setNotification(null);
     try {
-      const res = await fetch('/api/maxbounty/auth', {
+      const res = await apiFetch('/api/maxbounty/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
@@ -151,7 +152,7 @@ export function MaxBountyPanel() {
     setSyncingCampaigns(true);
     setNotification(null);
     try {
-      const res = await fetch('/api/maxbounty/sync', {
+      const res = await apiFetch('/api/maxbounty/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({})
@@ -175,7 +176,7 @@ export function MaxBountyPanel() {
     if (!selectedCamId) return;
     setLinkLoading(true);
     try {
-      const res = await fetch('/api/maxbounty/generate-link', {
+      const res = await apiFetch('/api/maxbounty/generate-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -208,7 +209,7 @@ export function MaxBountyPanel() {
     e.preventDefault();
     setPostbackLoading(true);
     try {
-      const res = await fetch('/api/postbacks/maxbounty', {
+      const res = await apiFetch('/api/postbacks/maxbounty', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

@@ -1,3 +1,4 @@
+import { logger } from "../lib/logger";
 import { db } from "../firebaseAdmin";
 import crypto from "crypto";
 
@@ -48,9 +49,9 @@ export async function processClick(
 
             // Write to the Buffer collection pending_click_events
             await db.collection("pending_click_events").doc(clickId).set(clickData);
-            console.log(`[Click Buffer] Enqueued pending click event: ${clickId}`);
+            logger.info(`[Click Buffer] Enqueued pending click event: ${clickId}`);
         } catch (error: any) {
-            console.error(`[Click Buffer Error] Failed to write click ${clickId} to buffer:`, error.message);
+            logger.error(`[Click Buffer Error] Failed to write click ${clickId} to buffer:`, error.message);
             try {
                 await db.collection("click_errors").add({
                     clickId,
@@ -60,7 +61,7 @@ export async function processClick(
                     timestamp: new Date()
                 });
             } catch (err) {
-                console.error("Failed to write to click_errors", err);
+                logger.error("Failed to write to click_errors", err);
             }
         }
     })();

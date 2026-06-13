@@ -1,3 +1,4 @@
+import { logger } from "../lib/logger";
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import { MODEL_PRIMARY, MODEL_FALLBACK } from "../config/models";
 import { db } from "../firebaseAdmin";
@@ -27,7 +28,7 @@ export async function robustGenerateContent(params: any, userId?: string): Promi
             try {
                 JSON.parse(text);
             } catch (e) {
-                console.error("Malformed JSON response:", text);
+                logger.error("Malformed JSON response:", { text });
                 throw new Error("Malformed JSON response");
             }
         }
@@ -44,10 +45,10 @@ export async function robustGenerateContent(params: any, userId?: string): Promi
             return await execute(MODEL_PRIMARY);
         } catch (err: any) {
             retries++;
-            console.error(`Attempt ${retries} failed for ${MODEL_PRIMARY}:`, err.message);
+            logger.error(`Attempt ${retries} failed for ${MODEL_PRIMARY}:`, err.message);
             
             if (retries === maxRetries) {
-                console.log(`Primary model failed, trying fallback: ${MODEL_FALLBACK}`);
+                logger.info(`Primary model failed, trying fallback: ${MODEL_FALLBACK}`);
                 return await execute(MODEL_FALLBACK);
             }
             

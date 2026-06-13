@@ -1,3 +1,4 @@
+import { logger } from "../lib/logger";
 import { db } from "../firebaseAdmin";
 
 /**
@@ -115,7 +116,7 @@ export class RevenueEngine {
 
     // If portfolio is profitable, unlock higher scaling limits across the board
     if (totalPortfolioProfit > 1000) {
-       console.log(`[RevenueEngine] Exponential Compounding activated for ${userId}. Scaling caps.`);
+       logger.info(`[RevenueEngine] Exponential Compounding activated for ${userId}. Scaling caps.`);
        // Actual implementation would distribute limits to best performers
     }
   }

@@ -1,3 +1,4 @@
+import { logger } from "../../lib/logger";
 import { Router } from "express";
 import { db } from "../../firebaseAdmin";
 import { runCEOSoul, runSEOSoul, generateCEOSpeech } from "../../agents";
@@ -176,7 +177,7 @@ executiveApiRouter.get("/charts", async (req: any, res: any) => {
             .get();
 
         if (!dailyMetricsSnap.empty) {
-            console.log(`[Executive API] Serving charts from HIGH-SPEED pre-aggregated daily_metrics view!`);
+            logger.info(`[Executive API] Serving charts from HIGH-SPEED pre-aggregated daily_metrics view!`);
             const dataByDate: Record<string, { date: string; revenue: number; clicks: number; conversions: number }> = {};
             
             // pre-populate last D days
@@ -200,12 +201,14 @@ executiveApiRouter.get("/charts", async (req: any, res: any) => {
             return res.json(Object.values(dataByDate).sort((a, b) => a.date.localeCompare(b.date)));
         }
 
-        console.log(`[Executive API] Falling back to slow runtime chart compilation on raw logs...`);
+        logger.info(`[Executive API] Falling back to slow runtime chart compilation on raw logs...`);
 
         // Fetch fallback data for charts
-        const revSnap = await db.collection("revenue_events").where("timestamp", ">=", fromDate).get();
-        const clicksSnap = await db.collection("affiliate_clicks").where("timestamp", ">=", fromDate).get();
-        const convSnap = await db.collection("affiliate_conversions").where("status", "==", "confirmed").where("timestamp", ">=", fromDate).get();
+        const [revSnap, clicksSnap, convSnap] = await Promise.all([
+          db.collection("revenue_events").where("timestamp", ">=", fromDate).get(),
+          db.collection("affiliate_clicks").where("timestamp", ">=", fromDate).get(),
+          db.collection("affiliate_conversions").where("status", "==", "confirmed").where("timestamp", ">=", fromDate).get()
+        ]);
 
         const dataByDate: Record<string, { date: string; revenue: number; clicks: number; conversions: number }> = {};
 
@@ -259,7 +262,7 @@ executiveApiRouter.get("/rankings", async (req: any, res: any) => {
         if (type === "clusters") {
             const metricsSnap = await db.collection("cluster_metrics").get();
             if (!metricsSnap.empty) {
-                console.log(`[Executive API] Serving cluster rankings from cluster_metrics!`);
+                logger.info(`[Executive API] Serving cluster rankings from cluster_metrics!`);
                 const results = metricsSnap.docs.map(doc => {
                     const d = doc.data();
                     return {
@@ -293,7 +296,7 @@ executiveApiRouter.get("/rankings", async (req: any, res: any) => {
         if (type === "articles") {
             const metricsSnap = await db.collection("article_metrics").get();
             if (!metricsSnap.empty) {
-                console.log(`[Executive API] Serving article rankings from article_metrics!`);
+                logger.info(`[Executive API] Serving article rankings from article_metrics!`);
                 const results = metricsSnap.docs.map(doc => {
                     const d = doc.data();
                     return {
@@ -337,7 +340,7 @@ executiveApiRouter.get("/rankings", async (req: any, res: any) => {
         if (type === "offers") {
             const metricsSnap = await db.collection("offer_metrics").get();
             if (!metricsSnap.empty) {
-                console.log(`[Executive API] Serving offer rankings from offer_metrics!`);
+                logger.info(`[Executive API] Serving offer rankings from offer_metrics!`);
                 const results = metricsSnap.docs.map(doc => {
                     const d = doc.data();
                     return {
@@ -353,11 +356,14 @@ executiveApiRouter.get("/rankings", async (req: any, res: any) => {
             }
 
             // Fallback
-            const offersSnap = await db.collection("offers").get();
+            const [offersSnap, convSnap, clicksSnap] = await Promise.all([
+              db.collection("offers").get(),
+              db.collection("affiliate_conversions").where("status", "==", "confirmed").get(),
+              db.collection("affiliate_clicks").get()
+            ]);
             const offerMap: any = {};
             offersSnap.forEach(doc => offerMap[doc.id] = doc.data().brand || doc.id);
 
-            const convSnap = await db.collection("affiliate_conversions").where("status", "==", "confirmed").get();
             const map: any = {};
             convSnap.forEach(doc => {
                 const offId = doc.data().offerId || "unknown";
@@ -365,7 +371,7 @@ executiveApiRouter.get("/rankings", async (req: any, res: any) => {
                 map[offId].conversions++;
                 map[offId].revenue += Number(doc.data().amount || 0);
             });
-            const clicksSnap = await db.collection("affiliate_clicks").get();
+
             clicksSnap.forEach(doc => {
                 const offId = doc.data().offerId || "unknown";
                 if (!map[offId]) map[offId] = { clicks: 0, conversions: 0, revenue: 0 };

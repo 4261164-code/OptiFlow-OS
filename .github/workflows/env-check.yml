@@ -1,0 +1,12 @@
+name: Environment Check
+on: [push]
+jobs:
+  check-env:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify required secrets exist
+        run: |
+          [ -z "${{ secrets.FIREBASE_PROJECT_ID }}" ] && echo "MISSING: FIREBASE_PROJECT_ID" && exit 1
+          [ -z "${{ secrets.FIREBASE_CLIENT_EMAIL }}" ] && echo "MISSING: FIREBASE_CLIENT_EMAIL" && exit 1
+          [ -z "${{ secrets.FIREBASE_PRIVATE_KEY }}" ] && echo "MISSING: FIREBASE_PRIVATE_KEY" && exit 1
+          echo "All required Firebase secrets present"

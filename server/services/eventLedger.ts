@@ -1,3 +1,4 @@
+import { logger } from "../lib/logger";
 import { db } from "../firebaseAdmin";
 import { FEATURE_FLAGS } from "./featureFlags";
 import crypto from "crypto";
@@ -47,8 +48,8 @@ export async function logLedgerEvent(params: {
 
   try {
     await db.collection("event_ledger").doc(eventId).set(eventData);
-    console.log(`[Event Ledger] Successfully appended event ${eventId} of type ${params.eventType} (Source ID: ${params.sourceId})`);
+    logger.info(`[Event Ledger] Successfully appended event ${eventId} of type ${params.eventType} (Source ID: ${params.sourceId})`);
   } catch (error: any) {
-    console.error(`[Event Ledger] Failed to write event to ledger:`, error);
+    logger.error(`[Event Ledger] Failed to write event to ledger:`, error);
   }
 }

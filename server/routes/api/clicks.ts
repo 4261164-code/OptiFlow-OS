@@ -18,7 +18,17 @@ clicksApiRouter.get("/analytics", async (req: any, res: any) => {
 
         query = query.limit(10001);
 
-        const snap = await query.get();
+        // Get error count query declaration to parallelize both calls
+        let errorQuery: any = db.collection("click_errors").where("userId", "==", userId);
+        if (offerId) errorQuery = errorQuery.where("offerId", "==", String(offerId));
+        if (from) errorQuery = errorQuery.where("timestamp", ">=", new Date(String(from)));
+        if (to) errorQuery = errorQuery.where("timestamp", "<=", new Date(String(to)));
+
+        const [snap, errSnap] = await Promise.all([
+            query.get(),
+            errorQuery.get()
+        ]);
+
         const docs = snap.docs;
         
         let truncated = false;
@@ -44,13 +54,6 @@ clicksApiRouter.get("/analytics", async (req: any, res: any) => {
             byArticle[artId] = (byArticle[artId] || 0) + 1;
         }
 
-        // Get error count
-        let errorQuery: any = db.collection("click_errors").where("userId", "==", userId);
-        if (offerId) errorQuery = errorQuery.where("offerId", "==", String(offerId));
-        if (from) errorQuery = errorQuery.where("timestamp", ">=", new Date(String(from)));
-        if (to) errorQuery = errorQuery.where("timestamp", "<=", new Date(String(to)));
-
-        const errSnap = await errorQuery.get();
         const errCount = errSnap.docs.length;
         
         const errorRate = totalClicks > 0 ? Number((errCount / totalClicks).toFixed(4)) : 0;

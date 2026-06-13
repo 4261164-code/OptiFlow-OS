@@ -26,6 +26,7 @@ import {
 import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { ContentCalendarView } from './ContentCalendarView';
+import { apiFetch } from '../lib/auth';
 
 interface SocialDistributionSectionProps {
   item: any;
@@ -302,7 +303,7 @@ export function PublishingQueue() {
     const loadBoards = async () => {
       setLoadingBoards(true);
       try {
-        const response = await fetch('/api/pinterest-boards', {
+        const response = await apiFetch('/api/pinterest-boards', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -347,7 +348,7 @@ export function PublishingQueue() {
         pinterestError: null 
       }, { merge: true });
 
-      const response = await fetch('/api/publish-pinterest', {
+      const response = await apiFetch('/api/publish-pinterest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -405,7 +406,7 @@ export function PublishingQueue() {
       }, { merge: true });
 
       // 2. HTTP POST
-      const response = await fetch('/api/publish-wordpress', {
+      const response = await apiFetch('/api/publish-wordpress', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -460,7 +461,7 @@ export function PublishingQueue() {
         : `<b>[NEW OPTIFLOW ARTICLE PUBLISHED]</b>\n\n<b>${text}</b>`;
 
       // 2. HTTP POST
-      const response = await fetch('/api/publish-telegram', {
+      const response = await apiFetch('/api/publish-telegram', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -496,7 +497,7 @@ export function PublishingQueue() {
     const opKey = `${id}_gen_social`;
     setOpLoading(prev => ({ ...prev, [opKey]: true }));
     try {
-      const response = await fetch('/api/generate-social-copy', {
+      const response = await apiFetch('/api/generate-social-copy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -526,7 +527,7 @@ export function PublishingQueue() {
         twitterError: null 
       }, { merge: true });
 
-      const response = await fetch('/api/publish-twitter', {
+      const response = await apiFetch('/api/publish-twitter', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -568,7 +569,7 @@ export function PublishingQueue() {
         linkedinError: null 
       }, { merge: true });
 
-      const response = await fetch('/api/publish-linkedin', {
+      const response = await apiFetch('/api/publish-linkedin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -1,3 +1,4 @@
+import { logger } from "../lib/logger";
 import { db } from "../firebaseAdmin";
 import { FEATURE_FLAGS } from "./featureFlags";
 import crypto from "crypto";
@@ -41,8 +42,8 @@ export async function logCostEvent(params: {
 
   try {
     await db.collection("cost_events").doc(costId).set(costData);
-    console.log(`[Cost Tracker] Logged cost event ${costId}: $${params.cost} for ${params.type}`);
+    logger.info(`[Cost Tracker] Logged cost event ${costId}: $${params.cost} for ${params.type}`);
   } catch (error: any) {
-    console.error(`[Cost Tracker] Failed to write cost event:`, error);
+    logger.error(`[Cost Tracker] Failed to write cost event:`, error);
   }
 }

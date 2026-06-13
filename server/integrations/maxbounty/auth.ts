@@ -1,3 +1,4 @@
+import { logger } from "../../lib/logger";
 import { db } from "../../firebaseAdmin";
 import { NetworkCredentials } from "./types";
 
@@ -18,7 +19,7 @@ export class MaxBountyAuth {
     affiliateId: string;
   }> {
     try {
-      console.log(`[MaxBountyAuth] Attempting login for ${this.email}...`);
+      logger.info(`[MaxBountyAuth] Attempting login for ${this.email}...`);
       
       // Real MaxBounty API request
       const response = await fetch("https://api.maxbounty.com/authentication", {
@@ -39,11 +40,11 @@ export class MaxBountyAuth {
         };
       } else {
         const errText = await response.text();
-        console.warn(`[MaxBountyAuth] API returned code ${response.status}: ${errText}. Using secure sandboxed simulator.`);
+        logger.warn(`[MaxBountyAuth] API returned code ${response.status}: ${errText}. Using secure sandboxed simulator.`);
         return this.generateSimulatedSession();
       }
     } catch (err: any) {
-      console.warn(`[MaxBountyAuth] Connection to https://api.maxbounty.com failed (${err.message}). Activating secure sandbox session simulator.`);
+      logger.warn(`[MaxBountyAuth] Connection to https://api.maxbounty.com failed (${err.message}). Activating secure sandbox session simulator.`);
       return this.generateSimulatedSession();
     }
   }
@@ -87,7 +88,7 @@ export class MaxBountyAuth {
 
     // Save user credentials
     await db.collection("network_credentials").doc(credentialsDoc.id).set(credentialsDoc);
-    console.log(`[MaxBountyAuth] Credentials and network parameters successfully verified & persisted in datastore.`);
+    logger.info(`[MaxBountyAuth] Credentials and network parameters successfully verified & persisted in datastore.`);
 
     return credentialsDoc;
   }
@@ -105,7 +106,7 @@ export class MaxBountyAuth {
 
     // Check if token has expired or is expiring soon (within 2 minutes)
     if (creds.tokenExpiry <= Date.now() + 120000) {
-      console.log(`[MaxBountyAuth] Token for ${creds.email} has expired. Performing automated renewal...`);
+      logger.info(`[MaxBountyAuth] Token for ${creds.email} has expired. Performing automated renewal...`);
       // Simulating credential reload - we'll renew with the token we stored as a refresh anchor
       const authManager = new MaxBountyAuth(creds.email, creds.apiToken, userId);
       return authManager.saveCredentials();

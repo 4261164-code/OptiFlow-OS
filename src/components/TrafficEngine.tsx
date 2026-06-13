@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button, Inpu
 import { db, auth } from '../lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { Loader2, Rocket, Search, Clock, ListPlus, Share2, Award, Activity, Copy, ExternalLink, CheckCircle } from 'lucide-react';
+import { apiFetch } from '../lib/auth';
 
 interface RecommendedBoard {
   name: string;
@@ -108,7 +109,7 @@ export function TrafficEngine() {
     if (!keywordToRun.trim()) return;
     setLoading(true);
     try {
-      const resp = await fetch('/api/traffic-engine', {
+      const resp = await apiFetch('/api/traffic-engine', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

@@ -35,7 +35,7 @@ export function CEOChat() {
 
   useEffect(() => {
     // Fetch CEO name
-    apiFetch('/api/settings/get-ceo-name')
+    apiFetch('/api/executive/settings/get-ceo-name')
       .then(res => res.json())
       .then(data => { if (data.ceoName) setCeoName(data.ceoName); })
       .catch(console.error);

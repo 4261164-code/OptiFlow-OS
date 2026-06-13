@@ -1,3 +1,4 @@
+import { logger } from "../../lib/logger";
 import express from "express";
 import { db } from "../../firebaseAdmin";
 import { MaxBountyAuth, MaxBountyCampaigns, MaxBountyTracking, MaxBountyPostbacks } from "../../integrations/maxbounty";
@@ -26,7 +27,7 @@ maxbountyRouter.post("/auth", async (req: any, res: any) => {
       }
     });
   } catch (err: any) {
-    console.error("[MaxBounty API Auth Error]", err);
+    logger.error("[MaxBounty API Auth Error]", err);
     res.status(500).json({ error: err.message || "Failed to authenticate with MaxBounty API." });
   }
 });
@@ -64,7 +65,7 @@ maxbountyRouter.get("/campaigns", async (req: any, res: any) => {
       const creds = await MaxBountyAuth.getCredentials(userId);
       if (!creds) {
         // Return structured seed offers if credentials aren't configured yet so that the UI can function immediately
-        console.log("[MaxBounty Router] No credentials found. Loading scored seed campaign list.");
+        logger.info("[MaxBounty Router] No credentials found. Loading scored seed campaign list.");
         const seedMgr = new MaxBountyCampaigns("unauthenticated_token");
         const seedList = await seedMgr.fetchFromNetwork("top");
         const scored = await seedMgr.scoreCampaigns(seedList);
@@ -84,7 +85,7 @@ maxbountyRouter.get("/campaigns", async (req: any, res: any) => {
 
     res.json({ campaigns, synced: false });
   } catch (err: any) {
-    console.error("[MaxBounty API Campaigns Error]", err);
+    logger.error("[MaxBounty API Campaigns Error]", err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -151,7 +152,7 @@ maxbountyRouter.post("/generate-link", async (req: any, res: any) => {
       link: createdLink
     });
   } catch (err: any) {
-    console.error("[MaxBounty Tracking Link Generator Error]", err);
+    logger.error("[MaxBounty Tracking Link Generator Error]", err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -187,7 +188,7 @@ maxbountyRouter.post("/postbacks/maxbounty", async (req, res) => {
       taskQueueId
     });
   } catch (err: any) {
-    console.error("[MaxBounty Webhook Hook Error]", err);
+    logger.error("[MaxBounty Webhook Hook Error]", err);
     res.status(500).json({ error: err.message });
   }
 });

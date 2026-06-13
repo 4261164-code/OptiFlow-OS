@@ -1,3 +1,4 @@
+import { logger } from "../../lib/logger";
 import express from "express";
 import crypto from "crypto";
 import { db } from "../../firebaseAdmin";
@@ -24,7 +25,7 @@ postbackRouter.post("/postback", async (req, res) => {
             return res.status(400).json({ error: "Missing required clickId for postback conversion" });
         }
 
-        console.log(`[Postback Webhook] Received conversion signal. Click ID: ${activeClickId}, conversion ID: ${conversionId}, payout: $${activeAmount}`);
+        logger.info(`[Postback Webhook] Received conversion signal. Click ID: ${activeClickId}, conversion ID: ${conversionId}, payout: $${activeAmount}`);
 
         // 1. Strict Idempotency check: Reject processed conversion ID duplicates
         const convSnap = await db.collection("affiliate_conversions").doc(conversionId).get();
@@ -141,7 +142,7 @@ postbackRouter.post("/postback", async (req, res) => {
                 timestamp: Date.now()
             });
 
-            console.log(`[Postback Webhook] No click immediately matched for clickId: ${activeClickId}. Queued in replication delay buffer.`);
+            logger.info(`[Postback Webhook] No click immediately matched for clickId: ${activeClickId}. Queued in replication delay buffer.`);
 
             return res.json({
                 success: true,
@@ -152,7 +153,7 @@ postbackRouter.post("/postback", async (req, res) => {
         }
 
     } catch (error: any) {
-        console.error("[Postback Webhook Error]", error.message);
+        logger.error("[Postback Webhook Error]", error.message);
         res.status(500).json({ error: error.message });
     }
 });

@@ -1,3 +1,4 @@
+import { logger } from "../lib/logger";
 import { db } from "../firebaseAdmin";
 
 // ============================================================================
@@ -44,7 +45,7 @@ export class Layer1Edge {
     // 1. Check Memory Cache
     const entry = this.inMemoryCache.get(key);
     if (entry && entry.expiresAt > now) {
-      console.log(`[Layer1Edge Cache] Hit (Memory) for key: ${key}`);
+      logger.info(`[Layer1Edge Cache] Hit (Memory) for key: ${key}`);
       return entry.response;
     }
 
@@ -69,7 +70,7 @@ export class Layer1Edge {
         createdAt: Date.now()
       });
     } catch (err) {
-      console.warn("[Layer1Edge Cache] Firestore backup cache write failed:", err);
+      logger.warn("[Layer1Edge Cache] Firestore backup cache write failed:", err);
     }
   }
 
@@ -422,11 +423,11 @@ export class Layer3Execution {
 
       if (!existingAudit.empty) {
         const auditDoc = existingAudit.docs[0].data();
-        console.log(`[Layer3Execution] Idempotency Hit for Key: ${idempotencyKey}. Returning previous result.`);
+        logger.info(`[Layer3Execution] Idempotency Hit for Key: ${idempotencyKey}. Returning previous result.`);
         return { success: true, result: auditDoc.result, auditLogId: existingAudit.docs[0].id };
       }
     } catch (e) {
-      console.warn("[Layer3Execution] Idempotency evaluation error:", e);
+      logger.warn("[Layer3Execution] Idempotency evaluation error:", e);
     }
 
     // 2. TEMPORAL CONSTRAINT CHECK (Sliding window burst check)
@@ -668,7 +669,7 @@ export class Layer3Execution {
       const ref = await db.collection("immutable_audit_logs").add(auditDoc);
       return ref.id;
     } catch (err) {
-      console.error("[Layer3Execution] AUDIT WRITE FAILURE:", err);
+      logger.error("[Layer3Execution] AUDIT WRITE FAILURE:", err);
       return "fallback_audit_id";
     }
   }
@@ -684,7 +685,7 @@ export class Layer3Execution {
       const data = snap.data();
       if (data?.status !== "SUCCESS") return false;
 
-      console.log(`[Layer3Execution] Executing rollback of actions: ${data.action} | pointer: ${data.rollbackPointer}`);
+      logger.info(`[Layer3Execution] Executing rollback of actions: ${data.action} | pointer: ${data.rollbackPointer}`);
 
       // Perform inverse action
       if (data.action === "ROUTING_FAILOVER") {
@@ -701,7 +702,7 @@ export class Layer3Execution {
 
       return true;
     } catch (err) {
-      console.error(`Rollback failed for auditId: ${auditLogId}`, err);
+      logger.error(`Rollback failed for auditId: ${auditLogId}`, err);
       return false;
     }
   }

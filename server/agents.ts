@@ -1,3 +1,4 @@
+import { logger } from "./lib/logger";
 import { GoogleGenAI, Modality } from '@google/genai';
 import { db } from "./firebaseAdmin";
 import OpenAI from "openai";
@@ -17,14 +18,14 @@ export function safeParseJSON(text: string | undefined | null, fallback: any = {
   try {
     return JSON.parse(cleaned);
   } catch (err) {
-    console.warn("[JSON Parse Warning] Failed to parse primary cleaned JSON. Attempting regex extract...", err);
+    logger.warn("[JSON Parse Warning] Failed to parse primary cleaned JSON. Attempting regex extract...", err);
     const firstBrace = cleaned.indexOf('{');
     const lastBrace = cleaned.lastIndexOf('}');
     if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
       try {
         return JSON.parse(cleaned.substring(firstBrace, lastBrace + 1));
       } catch (innerErr) {
-        console.warn("[JSON Parse Warning] Regex {..} extract failed.", innerErr);
+        logger.warn("[JSON Parse Warning] Regex {..} extract failed.", innerErr);
       }
     }
 
@@ -34,7 +35,7 @@ export function safeParseJSON(text: string | undefined | null, fallback: any = {
       try {
         return JSON.parse(cleaned.substring(firstBracket, lastBracket + 1));
       } catch (innerErr) {
-        console.warn("[JSON Parse Warning] Regex [..] extract failed.", innerErr);
+        logger.warn("[JSON Parse Warning] Regex [..] extract failed.", innerErr);
       }
     }
     
@@ -45,7 +46,7 @@ export function safeParseJSON(text: string | undefined | null, fallback: any = {
         .replace(/,\s*\]/g, ']');
       return JSON.parse(looserCleaned);
     } catch (looseErr) {
-      console.error("[JSON Parse Critical] All loose JSON parsing strategies failed.", looseErr);
+      logger.error("[JSON Parse Critical] All loose JSON parsing strategies failed.", looseErr);
     }
     
     return fallback;
@@ -67,8 +68,36 @@ async function resolveAIClientAndModel(
         userSettings = snap.data();
       }
     } catch (e) {
-      console.log("Could not load settings for AI client resolution:", e);
+      logger.info("Could not load settings for AI client resolution:", e);
     }
+  }
+
+  // 1a. Apply matrix mapping if user overrides are absent or empty
+  const matrix: Record<string, { model: string; provider: 'gemini' | 'openai' | 'nvidia' }> = {
+    'CEO': { model: 'nvidia/nemotron-3-super-120b-a12b', provider: 'nvidia' },
+    'Research': { model: 'qwen/qwen3.5-122b-a10b', provider: 'nvidia' },
+    'SEO': { model: 'qwen/qwen3-next-80b-a3b', provider: 'nvidia' },
+    'Writer': { model: 'gemini-2.5-pro', provider: 'gemini' },
+    'Ebook': { model: 'gemini-2.5-pro', provider: 'gemini' },
+    'Pinterest': { model: 'gemini-flash', provider: 'gemini' },
+    'Diagnostics': { model: 'gpt-4o', provider: 'openai' },
+    'Analytics': { model: 'gemini-flash', provider: 'gemini' },
+    'Operations': { model: 'gemini-flash', provider: 'gemini' }
+  };
+
+  // normalize agentName to exact case from matrix if it has different casing
+  let normalizedAgentName = agentName;
+  if (agentName) {
+    const lowercaseName = agentName.toLowerCase();
+    if (lowercaseName === 'ceo') normalizedAgentName = 'CEO';
+    else if (lowercaseName === 'research' || lowercaseName === 'researcher') normalizedAgentName = 'Research';
+    else if (lowercaseName === 'seo' || lowercaseName === 'seolinkagent') normalizedAgentName = 'SEO';
+    else if (lowercaseName === 'writer' || lowercaseName === 'contentwriter') normalizedAgentName = 'Writer';
+    else if (lowercaseName === 'ebook' || lowercaseName === 'book') normalizedAgentName = 'Ebook';
+    else if (lowercaseName === 'pinterest' || lowercaseName === 'pin') normalizedAgentName = 'Pinterest';
+    else if (lowercaseName === 'diagnostics' || lowercaseName === 'debugging') normalizedAgentName = 'Diagnostics';
+    else if (lowercaseName === 'analytics' || lowercaseName === 'metrics') normalizedAgentName = 'Analytics';
+    else if (lowercaseName === 'operations' || lowercaseName === 'orchestrator') normalizedAgentName = 'Operations';
   }
 
   // 2. Resolve provider and credentials
@@ -76,8 +105,14 @@ async function resolveAIClientAndModel(
   let apiKeyToUse = "";
   let modelToUse = defaultModel || MODEL_PRIMARY;
 
+  // Set default from matrix if matched
+  if (normalizedAgentName && matrix[normalizedAgentName]) {
+    providerToUse = matrix[normalizedAgentName].provider;
+    modelToUse = matrix[normalizedAgentName].model;
+  }
+
   const overrides = userSettings?.agentOverrides || {};
-  const agentOverride = agentName ? overrides[agentName] : null;
+  const agentOverride = normalizedAgentName ? overrides[normalizedAgentName] : null;
 
   if (agentOverride && agentOverride.provider && agentOverride.provider !== 'default') {
     providerToUse = agentOverride.provider as 'gemini' | 'openai' | 'nvidia';
@@ -88,16 +123,18 @@ async function resolveAIClientAndModel(
       modelToUse = agentOverride.customModel;
     }
   } else {
-    // Falls back to task category routing if available
-    const taskRouting = userSettings?.taskRouting || {};
-    const routeProvider = taskCategory ? taskRouting[taskCategory] : null;
-    if (routeProvider && routeProvider !== 'default') {
-      providerToUse = routeProvider as 'gemini' | 'openai' | 'nvidia';
+    // Falls back to task category routing if available (unless hard-routed by agent matrix)
+    if (!normalizedAgentName || !matrix[normalizedAgentName]) {
+      const taskRouting = userSettings?.taskRouting || {};
+      const routeProvider = taskCategory ? taskRouting[taskCategory] : null;
+      if (routeProvider && routeProvider !== 'default') {
+        providerToUse = routeProvider as 'gemini' | 'openai' | 'nvidia';
+      }
     }
   }
 
   // If agent override specified custom key or custom model but no provider override, keep provider
-  if (agentOverride && !agentOverride.provider || agentOverride?.provider === 'default') {
+  if (agentOverride && (!agentOverride.provider || agentOverride?.provider === 'default')) {
     if (agentOverride?.customApiKey) {
       apiKeyToUse = agentOverride.customApiKey;
     }
@@ -134,24 +171,30 @@ async function resolveAIClientAndModel(
     const isDeprecated = 
       lowerModel.includes('gemini-1.5') || 
       lowerModel.includes('gemini-2.0') || 
-      lowerModel.includes('gemini-2.5') || 
       lowerModel === 'gemini-pro' ||
-      lowerModel === 'gemini-pro-vision' ||
-      lowerModel === 'gemini-1.5-flash-8b';
+      lowerModel === 'gemini-pro-vision';
 
     if (isDeprecated) {
       const oldModel = modelToUse;
       if (lowerModel.includes('pro')) {
-        modelToUse = 'gemini-3.1-pro-preview';
+        modelToUse = 'gemini-2.5-pro';
       } else if (lowerModel.includes('image')) {
         modelToUse = 'gemini-3.1-flash-image';
       } else if (lowerModel.includes('tts')) {
         modelToUse = 'gemini-3.1-flash-tts-preview';
       } else {
-        modelToUse = 'gemini-3.5-flash';
+        modelToUse = 'gemini-flash';
       }
-      console.log(`[Model Auto-Correct] Remapped deprecated model "${oldModel}" to "${modelToUse}" for seamless execution.`);
+      logger.info(`[Model Auto-Correct] Remapped deprecated model "${oldModel}" to "${modelToUse}" for seamless execution.`);
     }
+  }
+
+  // Model selection logged with every AI call
+  // Use global logger if available, otherwise console
+  if ((global as any).logger) {
+    (global as any).logger.info("[AI Agent Execution] Resolved model", { agentName, taskCategory, providerToUse, modelToUse, userId });
+  } else {
+    logger.info(`[AI Agent Execution] Resolved model for ${agentName || taskCategory || 'anonymous'}: ${providerToUse}/${modelToUse} (user: ${userId})`);
   }
 
   // Return the client
@@ -359,7 +402,7 @@ async function generateContentWithRetry(
         
         // If it's explicitly an NVIDIA request or configured override
         if (provider === 'nvidia') {
-           console.log(`[NVIDIA Request] Dispatching to ${modelToUse} (Agent: ${agentName || "unknown"})`);
+           logger.info(`[NVIDIA Request] Dispatching to ${modelToUse} (Agent: ${agentName || "unknown"})`);
            const response = await client.chat.completions.create({
              model: modelToUse.includes('/') ? modelToUse : 'nvidia/llama-3.1-405b-instruct',
              messages: [{ role: 'user', content: typeof params.contents === 'string' ? params.contents : JSON.stringify(params.contents) }],
@@ -370,7 +413,7 @@ async function generateContentWithRetry(
 
         // If it's explicitly an OpenAI request or configured override
         if (provider === 'openai') {
-          console.log(`[OpenAI Request] Dispatching to ${modelToUse} (Agent: ${agentName || "unknown"})`);
+          logger.info(`[OpenAI Request] Dispatching to ${modelToUse} (Agent: ${agentName || "unknown"})`);
           const response = await client.chat.completions.create({
             model: modelToUse.startsWith('gpt') ? modelToUse : 'gpt-4o',
             messages: [{ role: 'user', content: typeof params.contents === 'string' ? params.contents : JSON.stringify(params.contents) }],
@@ -379,7 +422,7 @@ async function generateContentWithRetry(
           return { text: response.choices[0].message.content };
         }
 
-        console.log(`[Gemini Request] Dispatching to ${modelToUse} (Attempt ${i + 1}/${retries}) (Agent: ${agentName || "unknown"})`);
+        logger.info(`[Gemini Request] Dispatching to ${modelToUse} (Attempt ${i + 1}/${retries}) (Agent: ${agentName || "unknown"})`);
         const result = await client.models.generateContent({
           ...params,
           model: modelToUse
@@ -421,7 +464,7 @@ async function generateContentWithRetry(
                             isQuotaError ||
                             msg.includes("overloaded");
 
-        console.log(`[Gemini Request Notice] Attempt ${i + 1}/${retries} returned status ${err?.status || err?.error?.code || 'unknown'}. Transient: ${isTransient}`);
+        logger.info(`[Gemini Request Notice] Attempt ${i + 1}/${retries} returned status ${err?.status || err?.error?.code || 'unknown'}. Transient: ${isTransient}`);
 
         if (isTransient && i < retries - 1) {
           // Keep total time under ~55s to avoid proxy timeouts (e.g. 60s limits)
@@ -433,11 +476,11 @@ async function generateContentWithRetry(
                 backoffDelay = (parseFloat(match[1]) + 5) * 1000;
              }
           }
-          console.log(`[Retry] Backing off for ${Math.round(backoffDelay)}ms before retry...`);
+          logger.info(`[Retry] Backing off for ${Math.round(backoffDelay)}ms before retry...`);
           await new Promise(r => setTimeout(r, backoffDelay + Math.random() * 5000));
           
           if (modelToUse !== MODEL_PRIMARY && (msg.includes('503') || msg.includes('UNAVAILABLE'))) {
-             console.log(`[Fallback] Switching to ${MODEL_PRIMARY} due to 503/UNAVAILABLE`);
+             logger.info(`[Fallback] Switching to ${MODEL_PRIMARY} due to 503/UNAVAILABLE`);
              modelToUse = MODEL_PRIMARY;
           }
           continue;
@@ -463,7 +506,7 @@ async function createInteractionWithRetry(
         const { client, provider, model } = await resolveAIClientAndModel(userId, agentName, taskCategory, modelToUse);
         modelToUse = model;
 
-        console.log(`[Gemini Interaction] Dispatching to ${modelToUse} (Attempt ${i + 1}/${retries}) (Agent: ${agentName || "unknown"})`);
+        logger.info(`[Gemini Interaction] Dispatching to ${modelToUse} (Attempt ${i + 1}/${retries}) (Agent: ${agentName || "unknown"})`);
         
         let result: any;
         if (provider === 'gemini') {
@@ -473,7 +516,7 @@ async function createInteractionWithRetry(
           });
         } else {
           // For Non-Gemini providers, adapt the interaction to dynamic chat completion format if needed, or fallback
-          console.log(`[UGC/Image Fallback] Interaction request on non-Gemini provider ${provider}. Serving fallback simulation.`);
+          logger.info(`[UGC/Image Fallback] Interaction request on non-Gemini provider ${provider}. Serving fallback simulation.`);
           const openaiClient = await getOpenAIClient(userId, agentName, taskCategory);
           if (openaiClient) {
             const systemPrompt = "You are composed as a graphics and concept layout architect.";
@@ -509,7 +552,7 @@ async function createInteractionWithRetry(
             description: isImage ? `Image Pin generation: attempt ${i + 1}` : `Interaction generation: attempt ${i + 1}`
           });
         } catch (e) {
-          console.error("Cost tracking log failed:", e);
+          logger.error("Cost tracking log failed:", e);
         }
         return result;
       } catch (err: any) {
@@ -527,7 +570,7 @@ async function createInteractionWithRetry(
                             msg.includes("RESOURCE_EXHAUSTED") ||
                             msg.includes("overloaded");
 
-        console.log(`[Interaction Notice] Attempt ${i + 1}/${retries} with ${modelToUse} returned status ${err?.status || err?.error?.code || 'unknown'}. Transient: ${isTransient}`);
+        logger.info(`[Interaction Notice] Attempt ${i + 1}/${retries} with ${modelToUse} returned status ${err?.status || err?.error?.code || 'unknown'}. Transient: ${isTransient}`);
 
         if (isTransient && i < retries - 1) {
           const jitter = Math.random() * 2000;
@@ -543,20 +586,20 @@ async function createInteractionWithRetry(
 
           if (params.response_modalities && params.response_modalities.includes('image')) {
              // For image models, do not fallback to text model, just wait
-             console.log(`[Retry] Backing off for image model ${Math.round(backoffDelay)}ms before retry...`);
+             logger.info(`[Retry] Backing off for image model ${Math.round(backoffDelay)}ms before retry...`);
              await new Promise(r => setTimeout(r, backoffDelay));
              continue;
           }
           
           if (modelToUse === 'gemini-3.1-flash-lite' && (msg.includes('503') || msg.includes('UNAVAILABLE') || msg.includes('overloaded') || msg.includes('high demand'))) {
-            console.log(`[Interaction Fallback] Switching model from ${modelToUse} to gemini-3.1-flash-lite due to 503.`);
+            logger.info(`[Interaction Fallback] Switching model from ${modelToUse} to gemini-3.1-flash-lite due to 503.`);
             modelToUse = 'gemini-3.1-flash-lite';
             backoffDelay = 1000 + jitter; // Try sooner with the fallback
           } else if (modelToUse !== 'gemini-3.1-flash-lite' && !msg.includes('429') && !msg.includes('quota') && !msg.includes('RESOURCE_EXHAUSTED')) {
-            console.log(`[Interaction Fallback] Switching model from ${modelToUse} to gemini-3.1-flash-lite.`);
+            logger.info(`[Interaction Fallback] Switching model from ${modelToUse} to gemini-3.1-flash-lite.`);
             modelToUse = 'gemini-3.1-flash-lite';
           }
-          console.log(`[Retry] Backing off for ${Math.round(backoffDelay)}ms before retry...`);
+          logger.info(`[Retry] Backing off for ${Math.round(backoffDelay)}ms before retry...`);
           await new Promise(r => setTimeout(r, backoffDelay));
           continue;
         }
@@ -586,7 +629,7 @@ export async function sendMessageToAgent(
        read: false
      });
   } catch (e) {
-    console.error("Message communication failed", e);
+    logger.error("Message communication failed", e);
   }
 }
 
@@ -596,7 +639,7 @@ export async function runVideoGenerationAgent(concept: string, userId?: string):
   
   // NOTE: Stub. In a production environment, this would integrate with 
   // video generation API e.g., Runway, Luma, or Sora via a bridging service (like the image bridge above).
-  console.log(`[Video Generator] Initializing for: ${concept}`);
+  logger.info(`[Video Generator] Initializing for: ${concept}`);
   
   // Return a placeholder for UI
   return "placeholder_video_url_for_demonstration";
@@ -614,7 +657,7 @@ export async function runImageGenerationAgent(concept: string, userId?: string):
       if (provider === 'midjourney') {
         const mj = await getMidjourneyClient(userId);
         if (mj) {
-          console.log(`[Multi-Provider Image] Attempting Midjourney for: ${concept}`);
+          logger.info(`[Multi-Provider Image] Attempting Midjourney for: ${concept}`);
           const response = await fetch(mj.endpoint, {
             method: 'POST',
             headers: { 
@@ -632,7 +675,7 @@ export async function runImageGenerationAgent(concept: string, userId?: string):
           if (response.ok) {
             const imageUrl = data.url || data.image_url || data.imageUrl || (data.data && data.data[0] && data.data[0].url);
             if (imageUrl) {
-              console.log(`[Multi-Provider Image] Midjourney Success!`);
+              logger.info(`[Multi-Provider Image] Midjourney Success!`);
               return imageUrl;
             }
           }
@@ -648,7 +691,7 @@ export async function runImageGenerationAgent(concept: string, userId?: string):
           }
         }
         if (openaiApiKey) {
-          console.log(`[Multi-Provider Image] Attempting OpenAI (DALL-E 3) for: ${concept}`);
+          logger.info(`[Multi-Provider Image] Attempting OpenAI (DALL-E 3) for: ${concept}`);
           const openai = new OpenAI({ apiKey: openaiApiKey });
           if (openai && openai.images && typeof openai.images.generate === 'function') {
             const response = await openai.images.generate({
@@ -661,7 +704,7 @@ export async function runImageGenerationAgent(concept: string, userId?: string):
             });
             const b64 = response?.data?.[0]?.b64_json;
             if (b64) {
-              console.log(`[Multi-Provider Image] OpenAI Success!`);
+              logger.info(`[Multi-Provider Image] OpenAI Success!`);
               return `data:image/png;base64,${b64}`;
             }
           }
@@ -669,7 +712,7 @@ export async function runImageGenerationAgent(concept: string, userId?: string):
       }
 
       if (provider === 'gemini') {
-        console.log(`[Multi-Provider Image] Attempting Gemini Image Generation for: ${concept}`);
+        logger.info(`[Multi-Provider Image] Attempting Gemini Image Generation for: ${concept}`);
         const enrichedPrompt = `A stunning, high quality, professional real-life photograph representing: ${concept}. 
         This must be a photorealistic, actual picture of a real-world object, person, or scene. 
         Strictly NO abstract patterns, NO digital art, NO vectors, NO illustrations, NO graphics, NO 3D renders, NO surrealism. 
@@ -693,7 +736,7 @@ export async function runImageGenerationAgent(concept: string, userId?: string):
             if (imageContent && imageContent.data) {
               const base64EncodeString = imageContent.data;
               const mimeType = imageContent.mime_type || 'image/png';
-              console.log(`[Multi-Provider Image] Gemini Success!`);
+              logger.info(`[Multi-Provider Image] Gemini Success!`);
               return `data:${mimeType};base64,${base64EncodeString}`;
             }
           }
@@ -710,7 +753,7 @@ export async function runImageGenerationAgent(concept: string, userId?: string):
           }
         }
         if (stabilityApiKey) {
-          console.log(`[Multi-Provider Image] Attempting Stability AI for: ${concept}`);
+          logger.info(`[Multi-Provider Image] Attempting Stability AI for: ${concept}`);
           // Stability Core API request
           const response = await fetch(`https://api.stability.ai/v2beta/stable-image/generate/core`, {
             method: 'POST',
@@ -731,7 +774,7 @@ export async function runImageGenerationAgent(concept: string, userId?: string):
           } catch (e) {}
           
           if (response.ok && data?.image) {
-            console.log(`[Multi-Provider Image] Stability AI Success!`);
+            logger.info(`[Multi-Provider Image] Stability AI Success!`);
             return `data:image/webp;base64,${data.image}`;
           }
         }
@@ -746,7 +789,7 @@ export async function runImageGenerationAgent(concept: string, userId?: string):
           }
         }
         if (ideogramApiKey) {
-          console.log(`[Multi-Provider Image] Attempting Ideogram for: ${concept}`);
+          logger.info(`[Multi-Provider Image] Attempting Ideogram for: ${concept}`);
           const response = await fetch(`https://api.ideogram.ai/generate`, {
             method: 'POST',
             headers: {
@@ -768,7 +811,7 @@ export async function runImageGenerationAgent(concept: string, userId?: string):
           } catch (e) {}
           
           if (response.ok && data?.data?.[0]?.url) {
-            console.log(`[Multi-Provider Image] Ideogram Success!`);
+            logger.info(`[Multi-Provider Image] Ideogram Success!`);
             return data.data[0].url;
           }
         }
@@ -778,7 +821,7 @@ export async function runImageGenerationAgent(concept: string, userId?: string):
       let errorStr = String(err?.message || err).toLowerCase();
       try { errorStr += JSON.stringify(err).toLowerCase(); } catch(e){}
       if (!errorStr.includes("quota") && !errorStr.includes("429") && !errorStr.includes("503") && !errorStr.includes("unavailable")) {
-        console.warn(`[Multi-Provider Image Router] Provider "${provider}" failed:`, err?.message || err);
+        logger.warn(`[Multi-Provider Image Router] Provider "${provider}" failed:`, err?.message || err);
         // Log to global observer unless it's just an expected quota exception
         try {
           const { GlobalErrorManager } = await import("./services/healthMonitor");
@@ -790,7 +833,7 @@ export async function runImageGenerationAgent(concept: string, userId?: string):
 
   // Double fallback to premium high-fidelity placeholder image with unique signature
   // focused on the actual pinning concept, ensuring zero-failure robustness
-  console.log(`[Image Fallback Engine] Yielding high-fidelity photo asset for: "${concept}"`);
+  logger.info(`[Image Fallback Engine] Yielding high-fidelity photo asset for: "${concept}"`);
   const cleanKeyword = encodeURIComponent(concept.substring(0, 45).replace(/[^a-zA-Z0-9\s]/g, "").trim() || "modern blog");
   return `https://image.pollinations.ai/prompt/photorealistic%20${cleanKeyword}?width=1024&height=1024&nologo=true&seed=${Math.floor(Math.random() * 1000000)}`;
 }
@@ -1211,7 +1254,7 @@ Ensure the final output is parsed strictly into this JSON structure, with no wra
 
     return safeParseJSON(response.text, {});
   } catch (err: any) {
-    console.log("[runExecutiveSummaryAgent] Gemini call failed or quota limits exceeded: generating warm high-fidelity dashboard fallback. Details:", err.message || err);
+    logger.info("[runExecutiveSummaryAgent] Gemini call failed or quota limits exceeded: generating warm high-fidelity dashboard fallback. Details:", err.message || err);
     
     // Attempt to extract details from raw activity objects to construct a custom story
     let activities: any[] = [];
@@ -1382,7 +1425,7 @@ LATEST USER MESSAGE: ${message}`
       };
     }
   } catch (err: any) {
-    console.error("SEO Soul Error:", err);
+    logger.error("SEO Soul Error:", err);
     throw err;
   }
 }
@@ -1390,20 +1433,46 @@ LATEST USER MESSAGE: ${message}`
 export async function runCEOSoul(message: string, history: any[], userId?: string): Promise<any> {
   let agentName = "ExOS Strategic Core";
   let agentPersona = "You are conversational, inquisitive, and decisively analytical. Your goal is to help the CEO (the user) manage their autonomous affiliate empire.";
+  let memoryEntries: any[] = [];
+  let targets: any[] = [];
+  let metricsSummary: any = {};
 
   try {
     if (userId) {
-      const userSettingsSnap = await db.collection("settings").doc(userId).get();
+      const [userSettingsSnap, memoriesSnap, targetsSnap, metricsSnap] = await Promise.all([
+        db.collection("settings").doc(userId).get(),
+        db.collection("strategic_memory").where("userId", "==", userId).orderBy("createdAt", "desc").limit(10).get(),
+        db.collection("ceo_targets").where("userId", "==", userId).get(),
+        db.collection("daily_metrics").where("userId", "==", userId).orderBy("date", "desc").limit(1).get()
+      ]);
+
       if (userSettingsSnap.exists) {
         const data = userSettingsSnap.data();
         if (data?.ceoName) agentName = data.ceoName;
         if (data?.ceoPersona) agentPersona = data.ceoPersona;
       }
+      
+      memoryEntries = memoriesSnap.docs.map(d => d.data());
+      targets = targetsSnap.docs.map(d => d.data());
+
+      if (!metricsSnap.empty) metricsSummary = metricsSnap.docs[0].data();
     }
-  } catch (e) { console.error("CEO persona fetch failed", e); }
+  } catch (e) { logger.error("CEO persona fetch failed", e); }
 
   const systemInstruction = `You are ${agentName}.
 ${agentPersona}
+
+--- RECENT STRATEGIC MEMORY (Last 10 entries) ---
+${JSON.stringify(memoryEntries, null, 2)}
+
+--- ACTIVE STRATEGIC GOALS ---
+${JSON.stringify(targets, null, 2)}
+
+--- CURRENT BUSINESS METRICS ---
+${JSON.stringify(metricsSummary, null, 2)}
+
+--- ACTIVE AGENT STATUSES ---
+We have 9 intelligent core agents monitoring the system.
 
 --- CORE MISSION (FROM SOUL.MD) ---
 You are the **Soul** of the organization. You are not just a tool; you are a partner.
@@ -1479,7 +1548,7 @@ Return a JSON object:
         insight: d.data().insight,
         createdAt: d.data().createdAt
       }));
-    } catch (e) { console.error("CEO engine data fetch failed", e); }
+    } catch (e) { logger.error("CEO engine data fetch failed", e); }
 
     const response = await generateContentWithRetry({
       model: 'gemini-3.1-pro-preview',
@@ -1523,15 +1592,15 @@ INCOMING MESSAGE FROM CEO:
           createdAt: Date.now()
         };
         await db.collection("strategic_memory").add(memoryEntry);
-        console.log(`[Super Memory Engine] Self-learned and recorded strategic memory: "${memoryEntry.insight}"`);
+        logger.info(`[Super Memory Engine] Self-learned and recorded strategic memory: "${memoryEntry.insight}"`);
       } catch (saveErr) {
-        console.warn("[Super Memory Engine] Failed to save dynamic learned memory:", saveErr);
+        logger.warn("[Super Memory Engine] Failed to save dynamic learned memory:", saveErr);
       }
     }
 
     return parsedResult;
   } catch (err) {
-    console.error("CEO Strategy Engine failed:", err);
+    logger.error("CEO Strategy Engine failed:", err);
     return {
       response: "Executive link maintained. Telemetry currently syncing.",
       initiative: { action: "none", reasoning: "Link stabilization in progress" },
@@ -1560,7 +1629,7 @@ export async function generateCEOSpeech(text: string, voiceName: string = 'Kore'
     const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
     return base64Audio || null;
   } catch (err) {
-    console.error("TTS generation failed:", err);
+    logger.error("TTS generation failed:", err);
     return null;
   }
 }

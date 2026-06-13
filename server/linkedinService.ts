@@ -1,3 +1,4 @@
+import { logger } from "./lib/logger";
 export interface LinkedInProfileResult {
   success: boolean;
   urn?: string;
@@ -29,7 +30,7 @@ export async function getLinkedInProfile(accessToken: string): Promise<LinkedInP
 
   try {
     // 1. Try modern OpenID Connect userinfo endpoint (Active standard)
-    console.log("[LinkedIn Service] Attempting authentication via OpenID Connect userinfo...");
+    logger.info("[LinkedIn Service] Attempting authentication via OpenID Connect userinfo...");
     const oidcResponse = await fetch("https://api.linkedin.com/v2/userinfo", {
       headers: {
         "Authorization": `Bearer ${accessToken}`,
@@ -47,11 +48,11 @@ export async function getLinkedInProfile(accessToken: string): Promise<LinkedInP
         };
       }
     } else {
-      console.log(`[LinkedIn Service] Userinfo query warning: ${oidcResponse.status}`);
+      logger.info(`[LinkedIn Service] Userinfo query warning: ${oidcResponse.status}`);
     }
 
     // 2. Try classic V2 me profile fallback
-    console.log("[LinkedIn Service] Attempting authentication via classic V2 Profile endpoint...");
+    logger.info("[LinkedIn Service] Attempting authentication via classic V2 Profile endpoint...");
     const profileResponse = await fetch("https://api.linkedin.com/v2/me", {
       headers: {
         "Authorization": `Bearer ${accessToken}`,
@@ -80,7 +81,7 @@ export async function getLinkedInProfile(accessToken: string): Promise<LinkedInP
     };
 
   } catch (err: any) {
-    console.error("[LinkedIn Service] Profile authentication diagnostics failed:", err);
+    logger.error("[LinkedIn Service] Profile authentication diagnostics failed:", err);
     return {
       success: false,
       error: err.message || "Failed to make HTTP handshake to LinkedIn servers."
@@ -105,7 +106,7 @@ export async function publishToLinkedInFeed(accessToken: string, commentaryText:
   const targetUrn = profile.success && profile.urn ? profile.urn : "urn:li:person:me";
 
   try {
-    console.log(`[LinkedIn Service] Initiating ugcPost build for target URN: "${targetUrn}"`);
+    logger.info(`[LinkedIn Service] Initiating ugcPost build for target URN: "${targetUrn}"`);
     const response = await fetch("https://api.linkedin.com/v2/ugcPosts", {
       method: "POST",
       headers: {
@@ -149,7 +150,7 @@ export async function publishToLinkedInFeed(accessToken: string, commentaryText:
     }
 
     // Try modern Posts API legacy-redirect fallback as insurance
-    console.log("[LinkedIn Service] ugcPost API failed or was rejected. Trying fallback /v2/posts container...");
+    logger.info("[LinkedIn Service] ugcPost API failed or was rejected. Trying fallback /v2/posts container...");
     const fallbackResponse = await fetch("https://api.linkedin.com/v2/posts", {
       method: "POST",
       headers: {
@@ -191,7 +192,7 @@ export async function publishToLinkedInFeed(accessToken: string, commentaryText:
     };
 
   } catch (err: any) {
-    console.error("[LinkedIn Service] Live publishing error:", err);
+    logger.error("[LinkedIn Service] Live publishing error:", err);
     return {
       success: false,
       error: err.message || "Failed to establish socket connection with LinkedIn REST API servers."

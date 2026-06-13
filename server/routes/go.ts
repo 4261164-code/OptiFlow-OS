@@ -1,3 +1,4 @@
+import { logger } from "../lib/logger";
 import { Router } from "express";
 import { db } from "../firebaseAdmin";
 import { processClick } from "../services/clickTracking";
@@ -56,11 +57,11 @@ goRouter.get("/smart/:userId", async (req, res) => {
         // Optimistically apply a negative reward (failure/click). If it converts later, postback updates with a positive reward.
         await BanditEngine.updateReward(userId, context, selectedOfferId, 0, false);
         
-        console.log(JSON.stringify({ event: "smart_click_redirect", clickId, selectedOfferId, latencyMs: Date.now() - startTime }));
+        logger.info(JSON.stringify({ event: "smart_click_redirect", clickId, selectedOfferId, latencyMs: Date.now() - startTime }));
         return res.redirect(302, destinationUrl);
 
     } catch (e: any) {
-        console.error("Smart routing failed:", e);
+        logger.error("Smart routing failed:", e);
         return res.redirect(302, "/");
     }
 });
@@ -82,7 +83,7 @@ goRouter.get("/:offerId", async (req, res) => {
         // a. Validate offerId exists
         const offerSnap = await db.collection("offers").doc(offerId).get();
         if (!offerSnap.exists) {
-            console.warn(JSON.stringify({ event: "click_error", offerId, errorMessage: "Offer not found" }));
+            logger.warn(JSON.stringify({ event: "click_error", offerId, errorMessage: "Offer not found" }));
             return res.redirect(302, "/");
         }
 
@@ -90,14 +91,14 @@ goRouter.get("/:offerId", async (req, res) => {
         destinationUrl = offerData?.link;
 
         if (!destinationUrl || !destinationUrl.startsWith("https://")) {
-            console.error(JSON.stringify({ event: "click_error", offerId, errorMessage: "Invalid or non-HTTPS destination URL" }));
+            logger.error(JSON.stringify({ event: "click_error", offerId, errorMessage: "Invalid or non-HTTPS destination URL" }));
             return res.redirect(302, "/");
         }
 
         clickId = await processClick(offerId, articleId, source, userAgent, ip, referer, pinId);
 
     } catch (e: any) {
-        console.error(JSON.stringify({ event: "click_error", offerId, errorMessage: e.message }));
+        logger.error(JSON.stringify({ event: "click_error", offerId, errorMessage: e.message }));
         try {
             db.collection("click_errors").add({
                 clickId,
@@ -110,6 +111,6 @@ goRouter.get("/:offerId", async (req, res) => {
     }
 
     // Always redirect
-    console.log(JSON.stringify({ event: "click_redirect", clickId, offerId, latencyMs: Date.now() - startTime }));
+    logger.info(JSON.stringify({ event: "click_redirect", clickId, offerId, latencyMs: Date.now() - startTime }));
     return res.redirect(302, destinationUrl);
 });

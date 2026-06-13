@@ -1,0 +1,166 @@
+server/pipeline.ts:9:    await db.collection("agent_logs").doc(logId).set({
+server/pipeline.ts:86:    if (jobId) await db.collection("jobs").doc(jobId).update({ status: "research", updatedAt: Date.now() });
+server/pipeline.ts:102:  if (jobId) await db.collection("jobs").doc(jobId).update({ status: "writing", updatedAt: Date.now() });
+server/pipeline.ts:139:      const offersQuery = await db.collection("offers").where("userId", "==", userId).get();
+server/pipeline.ts:162:    if (jobId) await db.collection("jobs").doc(jobId).update({ status: "pinterest", updatedAt: Date.now() });
+server/routes/api/clicks.ts:11:        let query: any = db.collection("affiliate_clicks").where("userId", "==", userId);
+server/routes/api/clicks.ts:48:        let errorQuery: any = db.collection("click_errors").where("userId", "==", userId);
+server/routes/api/maxbounty.ts:60:    let campaignsSnap = await db.collection("maxbounty_campaigns").get();
+server/routes/api/executive.ts:21:        const snap = await db.collection("settings").doc(userId).get();
+server/routes/api/executive.ts:68:        const snap = await db.collection("strategic_memory")
+server/routes/api/executive.ts:92:        const ref = await db.collection("strategic_memory").add(entry);
+server/routes/api/executive.ts:102:        const snap = await db.collection("ceo_targets")
+server/routes/api/executive.ts:127:        const ref = await db.collection("ceo_targets").add(target);
+server/routes/api/executive.ts:142:        await db.collection("ceo_targets").doc(req.params.id).update(update);
+server/routes/api/executive.ts:173:        const dailyMetricsSnap = await db.collection("daily_metrics")
+server/routes/api/executive.ts:206:        const revSnap = await db.collection("revenue_events").where("timestamp", ">=", fromDate).get();
+server/routes/api/executive.ts:207:        const clicksSnap = await db.collection("affiliate_clicks").where("timestamp", ">=", fromDate).get();
+server/routes/api/executive.ts:208:        const convSnap = await db.collection("affiliate_conversions").where("status", "==", "confirmed").where("timestamp", ">=", fromDate).get();
+server/routes/api/executive.ts:260:            const metricsSnap = await db.collection("cluster_metrics").get();
+server/routes/api/executive.ts:278:            const snap = await db.collection("topic_clusters").limit(10).get();
+server/routes/api/executive.ts:294:            const metricsSnap = await db.collection("article_metrics").get();
+server/routes/api/executive.ts:312:            const clicksSnap = await db.collection("affiliate_clicks").orderBy("timestamp", "desc").limit(5000).get();
+server/routes/api/executive.ts:319:            const convSnap = await db.collection("affiliate_conversions").orderBy("timestamp", "desc").limit(5000).get();
+server/routes/api/executive.ts:338:            const metricsSnap = await db.collection("offer_metrics").get();
+server/routes/api/executive.ts:356:            const offersSnap = await db.collection("offers").get();
+server/routes/api/executive.ts:360:            const convSnap = await db.collection("affiliate_conversions").where("status", "==", "confirmed").get();
+server/routes/api/executive.ts:368:            const clicksSnap = await db.collection("affiliate_clicks").get();
+server/routes/api/ops.ts:25:        const clusterRef = db.collection("topic_clusters").doc(clusterId);
+server/routes/api/ops.ts:66:        const jobRef = db.collection("jobs").doc(jobId);
+server/routes/api/ops.ts:143:        const summarySnap = await db.collection("system_health_metrics").doc("summary").get();
+server/routes/api/ops.ts:159:        const costsSnap = await db.collection("cost_events").orderBy("timestamp", "desc").limit(30).get();
+server/routes/api/ops.ts:162:        const profitsSnap = await db.collection("profit_metrics").orderBy("profit", "desc").limit(10).get();
+server/routes/api/ops.ts:181:        const snap = await db.collection("api_health").doc("summary").get();
+server/routes/api/ops.ts:212:        const snap = await db.collection("system_health_metrics")
+server/routes/api/ops.ts:229:        const snap = await db.collection("error_logs")
+server/routes/api/ops.ts:246:        const snap = await db.collection("immutable_audit_logs")
+server/routes/api/ops.ts:262:        const snap = await db.collection("pending_approvals")
+server/routes/api/ops.ts:282:        const docRef = db.collection("pending_approvals").doc(id);
+server/routes/api/ops.ts:297:            await db.collection("immutable_audit_logs").add({
+server/routes/api/ops.ts:413:            await db.collection("error_logs").add({
+server/routes/api/postback.ts:30:        const convSnap = await db.collection("affiliate_conversions").doc(conversionId).get();
+server/routes/api/postback.ts:39:        const pendingSnap = await db.collection("unreconciled_conversions").doc(conversionId).get();
+server/routes/api/postback.ts:49:        const clickSnap = await db.collection("affiliate_clicks").doc(activeClickId).get();
+server/routes/api/postback.ts:100:            await db.collection("revenue_events").doc(revenueEventId).set({
+server/routes/api/postback.ts:112:            await db.collection("affiliate_conversions").doc(conversionId).set({
+server/routes/api/postback.ts:133:            await db.collection("unreconciled_conversions").doc(conversionId).set({
+server/routes/go.ts:41:        const userOffersSnap = await db.collection("offers").where("userId", "==", userId).limit(10).get();
+server/routes/go.ts:51:        const offerSnap = await db.collection("offers").doc(selectedOfferId).get();
+server/routes/go.ts:83:        const offerSnap = await db.collection("offers").doc(offerId).get();
+server/routes/go.ts:102:            db.collection("click_errors").add({
+server/services/healthMonitor.ts:50:      await db.collection("error_logs").add(logDoc);
+server/services/healthMonitor.ts:134:      const testSnap = await db.collection("jobs").limit(1).get();
+server/services/healthMonitor.ts:155:      await db.collection("api_health").doc("summary").set({
+server/services/healthMonitor.ts:175:      await db.collection("jobs").limit(1).get();
+server/services/healthMonitor.ts:180:      const errorsSnap = await db.collection("error_logs")
+server/services/healthMonitor.ts:187:      const clicksSnap = await db.collection("affiliate_clicks").limit(100).get();
+server/services/healthMonitor.ts:189:      const conversionsSnap = await db.collection("affiliate_conversions").limit(20).get();
+server/services/healthMonitor.ts:205:      await db.collection("system_health_metrics").add(metricDoc);
+server/services/healthMonitor.ts:208:      const oldMetrics = await db.collection("system_health_metrics")
+server/services/healthMonitor.ts:233:      const errorsSnap = await db.collection("error_logs")
+server/services/healthMonitor.ts:247:          const retryQueue = await db.collection("image_retry_queue")
+server/services/healthMonitor.ts:266:        await db.collection("strategic_memory").add({
+server/services/eventLedger.ts:49:    await db.collection("event_ledger").doc(eventId).set(eventData);
+server/services/costTracking.ts:43:    await db.collection("cost_events").doc(costId).set(costData);
+server/services/backgroundWorker.ts:33:    const snap = await db.collection("pending_click_events")
+server/services/backgroundWorker.ts:64:        await db.collection("affiliate_clicks").doc(clickId).set(finalClickData);
+server/services/backgroundWorker.ts:78:        await db.collection("pending_click_events").doc(clickId).update({
+server/services/backgroundWorker.ts:87:        await db.collection("click_errors").add({
+server/services/backgroundWorker.ts:95:        await db.collection("pending_click_events").doc(clickId).update({
+server/services/backgroundWorker.ts:118:    const snap = await db.collection("unreconciled_conversions")
+server/services/backgroundWorker.ts:136:        const clickDoc = await db.collection("affiliate_clicks").doc(clickId).get();
+server/services/backgroundWorker.ts:171:          await db.collection("revenue_events").doc(revenueEventId).set({
+server/services/backgroundWorker.ts:183:          await db.collection("affiliate_conversions").doc(conversionId).set({
+server/services/backgroundWorker.ts:196:          await db.collection("unreconciled_conversions").doc(conversionId).update({
+server/services/backgroundWorker.ts:208:            await db.collection("unreconciled_conversions").doc(conversionId).update({
+server/services/backgroundWorker.ts:214:            await db.collection("click_errors").add({
+server/services/backgroundWorker.ts:221:            await db.collection("unreconciled_conversions").doc(conversionId).update({
+server/services/backgroundWorker.ts:252:    const clicksSnap = await db.collection("affiliate_clicks").get();
+server/services/backgroundWorker.ts:253:    const convSnap = await db.collection("affiliate_conversions").where("status", "==", "confirmed").get();
+server/services/backgroundWorker.ts:254:    const revSnap = await db.collection("revenue_events").get();
+server/services/backgroundWorker.ts:257:    const offersSnap = await db.collection("offers").get();
+server/services/backgroundWorker.ts:264:    const articlesSnap = await db.collection("articles").get();
+server/services/backgroundWorker.ts:276:    const clustersSnap = await db.collection("topic_clusters").get();
+server/services/backgroundWorker.ts:406:      await db.collection("daily_metrics").doc(id).set({
+server/services/backgroundWorker.ts:425:      await db.collection("article_metrics").doc(id).set({
+server/services/backgroundWorker.ts:446:      await db.collection("offer_metrics").doc(id).set({
+server/services/backgroundWorker.ts:467:      await db.collection("cluster_metrics").doc(id).set({
+server/services/backgroundWorker.ts:503:    const costEventsSnap = await db.collection("cost_events").get();
+server/services/backgroundWorker.ts:512:    const articlesSnap = await db.collection("articles").get();
+server/services/backgroundWorker.ts:518:    const clustersSnap = await db.collection("topic_clusters").get();
+server/services/backgroundWorker.ts:524:    const offersSnap = await db.collection("offers").get();
+server/services/backgroundWorker.ts:531:    const artMetricsSnap = await db.collection("article_metrics").get();
+server/services/backgroundWorker.ts:540:      db.collection("profit_metrics").doc(doc.id).set({
+server/services/backgroundWorker.ts:553:    const offerMetricsSnap = await db.collection("offer_metrics").get();
+server/services/backgroundWorker.ts:562:      db.collection("profit_metrics").doc(doc.id).set({
+server/services/backgroundWorker.ts:575:    const clMetricsSnap = await db.collection("cluster_metrics").get();
+server/services/backgroundWorker.ts:585:      db.collection("profit_metrics").doc(doc.id).set({
+server/services/backgroundWorker.ts:618:    const jobsSnap = await db.collection("jobs").get();
+server/services/backgroundWorker.ts:630:    const clicksSnap = await db.collection("affiliate_clicks").get();
+server/services/backgroundWorker.ts:631:    const clickErrorsSnap = await db.collection("click_errors").get();
+server/services/backgroundWorker.ts:637:    const unconSnap = await db.collection("unreconciled_conversions").get();
+server/services/backgroundWorker.ts:660:    await db.collection("system_health_metrics").doc("summary").set({
+server/services/backgroundWorker.ts:688:    const healthSnap = await db.collection("system_health_metrics").doc("summary").get();
+server/services/backgroundWorker.ts:700:    const stuckJobsSnap = await db.collection("jobs")
+server/services/backgroundWorker.ts:731:    const snap = await db.collection("image_retry_queue")
+server/services/backgroundWorker.ts:745:          await db.collection("pins").doc(pinId).update({ imageUrl });
+server/services/backgroundWorker.ts:749:          const quotaRef = db.collection("system_quotas").doc(userId || "system_global");
+server/services/imageService.ts:25:  const ref = db.collection("system_quotas").doc(docId);
+server/services/imageService.ts:37:  const ref = db.collection("system_quotas").doc(docId);
+server/services/imageService.ts:58:    await db.collection("notifications").add({
+server/services/imageService.ts:68:    await db.collection("telemetry").add({
+server/services/imageService.ts:162:  await db.collection("image_retry_queue").doc(pinId).set({
+server/services/clickTracking.ts:25:            const offerDoc = await db.collection("offers").doc(offerId).get();
+server/services/clickTracking.ts:29:                const articleDoc = await db.collection("articles").doc(articleId).get();
+server/services/clickTracking.ts:50:            await db.collection("pending_click_events").doc(clickId).set(clickData);
+server/services/clickTracking.ts:55:                await db.collection("click_errors").add({
+server/services/banditEngine.ts:57:    const banditRef = db.collection(`users/${userId}/bandit_models`);
+server/services/banditEngine.ts:126:    const docRef = db.collection(`users/${userId}/bandit_models`).doc(contextKey);
+server/services/revenueEngine.ts:41:    const doc = await db.collection(`users/${userId}/traffic_sources`).doc(sourceId).get();
+server/services/revenueEngine.ts:101:    await db.collection(`users/${userId}/traffic_sources`).doc(economics.sourceId).set(economics, { merge: true });
+server/services/revenueEngine.ts:108:    const snapshot = await db.collection(`users/${userId}/traffic_sources`).get();
+server/services/architectureLayers.ts:66:      await db.collection("edge_response_cache").doc(encodeURIComponent(key)).set({
+server/services/architectureLayers.ts:82:      await db.collection("edge_response_cache").doc(encodeURIComponent(key)).delete();
+server/services/architectureLayers.ts:418:      const existingAudit = await db.collection("immutable_audit_logs")
+server/services/architectureLayers.ts:561:      const pendingRef = await db.collection("pending_approvals").add(approvalDoc);
+server/services/architectureLayers.ts:587:        await db.collection("settings").doc(userId).set({
+server/services/architectureLayers.ts:597:        const queueRef = await db.collection("image_retry_queue")
+server/services/architectureLayers.ts:613:        await db.collection("error_logs").add({
+server/services/architectureLayers.ts:668:      const ref = await db.collection("immutable_audit_logs").add(auditDoc);
+server/services/architectureLayers.ts:681:      const snap = await db.collection("immutable_audit_logs").doc(auditLogId).get();
+server/services/architectureLayers.ts:691:        await db.collection("settings").doc(userId).update({
+server/services/architectureLayers.ts:697:      await db.collection("immutable_audit_logs").doc(auditLogId).update({
+server/integrations/maxbounty/postbacks.ts:37:    await db.collection("postback_processing_queue").doc(taskId).set({
+server/integrations/maxbounty/postbacks.ts:58:    const limitSnap = await db.collection("postback_processing_queue")
+server/integrations/maxbounty/postbacks.ts:73:        const duplicateCheck = await db.collection("affiliate_conversions").doc(`mb-conv-${castPayload.transaction_id}`).get();
+server/integrations/maxbounty/postbacks.ts:76:          await db.collection("postback_processing_queue").doc(id).delete();
+server/integrations/maxbounty/postbacks.ts:93:          const clickDoc = await db.collection("affiliate_clicks").doc(resolvedClickId).get();
+server/integrations/maxbounty/postbacks.ts:128:        await db.collection("revenue_metrics").doc(metricId).set({
+server/integrations/maxbounty/postbacks.ts:144:        await db.collection("affiliate_conversions").doc(conversionId).set({
+server/integrations/maxbounty/postbacks.ts:162:        await db.collection("postback_processing_queue").doc(id).delete();
+server/integrations/maxbounty/postbacks.ts:171:          await db.collection("postback_processing_queue").doc(id).set({
+server/integrations/maxbounty/postbacks.ts:180:          await db.collection("postback_processing_queue").doc(id).set({
+server/integrations/maxbounty/campaigns.ts:220:      await db.collection("maxbounty_campaigns").doc(b.id).set(b);
+server/integrations/maxbounty/campaigns.ts:232:      await db.collection("offers").doc(offerId).set({
+server/integrations/maxbounty/tracking.ts:70:    await db.collection("tracking_links").doc(id).set(docData);
+server/integrations/maxbounty/auth.ts:80:    await db.collection("affiliate_networks").doc(networkId).set({
+server/integrations/maxbounty/auth.ts:89:    await db.collection("network_credentials").doc(credentialsDoc.id).set(credentialsDoc);
+server/integrations/maxbounty/auth.ts:101:    const snap = await db.collection("network_credentials").doc(credId).get();
+server/cache.ts:13:    const snap = await db.collection("settings").doc(userId).get();
+server/agents.ts:65:      const snap = await db.collection("settings").doc(userId).get();
+server/agents.ts:209:      const snap = await db.collection("settings").doc(userId).get();
+server/agents.ts:236:      const snap = await db.collection("settings").doc(userId).get();
+server/agents.ts:262:      const snap = await db.collection("settings").doc(userId).get();
+server/agents.ts:407:             await db.collection("system_faults").add({
+server/agents.ts:580:     await db.collection("agent_messages").add({
+server/agents.ts:645:          const snap = await db.collection("settings").doc(userId).get();
+server/agents.ts:707:          const snap = await db.collection("settings").doc(userId).get();
+server/agents.ts:743:          const snap = await db.collection("settings").doc(userId).get();
+server/agents.ts:1396:      const userSettingsSnap = await db.collection("settings").doc(userId).get();
+server/agents.ts:1463:        db.collection("system_health_metrics").doc("summary").get(),
+server/agents.ts:1464:        db.collection("system_faults")
+server/agents.ts:1469:        db.collection("strategic_memory")
+server/agents.ts:1525:        await db.collection("strategic_memory").add(memoryEntry);
+server/seoLinkAgent.ts:27:  const articleDoc = await db.collection("articles").doc(articleId).get();
+server/seoLinkAgent.ts:50:  const offersQuery = await db.collection("offers").where("userId", "==", userId).get();
+server/seoLinkAgent.ts:70:  await db.collection("articles").doc(articleId).update({

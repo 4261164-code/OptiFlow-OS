@@ -1,10 +1,7 @@
+import { apiFetch } from '../../lib/auth';
+
 export async function fetchRankings(type: 'clusters' | 'articles' | 'offers') {
-    const token = localStorage.getItem("admin_token") || "mock_token"; // fallback
-    const res = await fetch(`/api/executive/rankings?type=${type}`, {
-        headers: {
-            'Authorization': `Bearer ${token}`
-        }
-    });
+    const res = await apiFetch(`/api/executive/rankings?type=${type}`);
     if (!res.ok) {
         throw new Error("Failed to fetch rankings");
     }
@@ -12,12 +9,7 @@ export async function fetchRankings(type: 'clusters' | 'articles' | 'offers') {
 }
 
 export async function fetchCharts(days: number = 30) {
-    const token = localStorage.getItem("admin_token") || "mock_token"; // fallback
-    const res = await fetch(`/api/executive/charts?days=${days}`, {
-        headers: {
-            'Authorization': `Bearer ${token}`
-        }
-    });
+    const res = await apiFetch(`/api/executive/charts?days=${days}`);
     if (!res.ok) {
         throw new Error("Failed to fetch charts");
     }

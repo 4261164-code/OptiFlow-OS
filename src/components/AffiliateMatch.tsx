@@ -4,6 +4,7 @@ import { db, auth } from '../lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { Loader2, DollarSign, Search, Award, Shield, CheckCircle2, ChevronRight, Calculator, FileText } from 'lucide-react';
 import { BubblyAppleIcon } from './CustomIcons';
+import { apiFetch } from '../lib/auth';
 
 interface Program {
   name: string;
@@ -109,7 +110,7 @@ export function AffiliateMatch() {
     if (!keywordToRun.trim()) return;
     setLoading(true);
     try {
-      const resp = await fetch('/api/affiliate-match', {
+      const resp = await apiFetch('/api/affiliate-match', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

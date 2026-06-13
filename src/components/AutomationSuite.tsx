@@ -25,6 +25,7 @@ import { db, auth } from '../lib/firebase';
 import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { useNotifications } from './NotificationContext';
 import { addNotification } from '../lib/notifications';
+import { apiFetch } from '../lib/auth';
 
 interface AutomationLog {
   id: string;
@@ -168,7 +169,7 @@ export function AutomationSuite() {
 
     try {
       // Call background immediate run trigger API
-      const response = await fetch('/api/automation/trigger', {
+      const response = await apiFetch('/api/automation/trigger', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

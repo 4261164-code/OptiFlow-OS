@@ -17,6 +17,7 @@ import {
   TrendingDown
 } from 'lucide-react';
 import { BrandingHexIcon } from './CustomIcons';
+import { apiFetch } from '../lib/auth';
 
 export function SEOClusters() {
   const [pillarTopic, setPillarTopic] = useState('');
@@ -101,7 +102,7 @@ export function SEOClusters() {
     setError(null);
 
     try {
-      const response = await fetch('/api/clusters/create', {
+      const response = await apiFetch('/api/clusters/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

@@ -1,3 +1,4 @@
+import { logger } from "../../lib/logger";
 import { db } from "../../firebaseAdmin";
 import { MaxBountyCampaign, DiscoveryEngineWeights } from "./types";
 
@@ -84,7 +85,7 @@ export class MaxBountyCampaigns {
    */
   async fetchFromNetwork(endpoint: "top" | "trending" | "popular" | "suggested" = "top"): Promise<MaxBountyCampaign[]> {
     try {
-      console.log(`[MaxBountyCampaigns] Requesting campaign data from endpoint: /campaigns/${endpoint}...`);
+      logger.info(`[MaxBountyCampaigns] Requesting campaign data from endpoint: /campaigns/${endpoint}...`);
       const response = await fetch(`https://api.maxbounty.com/campaigns/${endpoint}`, {
         method: "GET",
         headers: {
@@ -97,11 +98,11 @@ export class MaxBountyCampaigns {
         const body = await response.json();
         return (body.campaigns || []).map((c: any) => this.mapApiToCampaign(c));
       } else {
-        console.warn(`[MaxBountyCampaigns] API returned status ${response.status}. Fetching mock dataset.`);
+        logger.warn(`[MaxBountyCampaigns] API returned status ${response.status}. Fetching mock dataset.`);
         return this.getMockCampaigns(endpoint);
       }
     } catch (err: any) {
-      console.warn(`[MaxBountyCampaigns] Connection failed (${err.message}). Retrieving local mock dataset.`);
+      logger.warn(`[MaxBountyCampaigns] Connection failed (${err.message}). Retrieving local mock dataset.`);
       return this.getMockCampaigns(endpoint);
     }
   }
@@ -201,7 +202,7 @@ export class MaxBountyCampaigns {
    * Also pipes these campaigns into the global 'offers' collection, which enables seamless injection.
    */
   async syncToDb(userId: string): Promise<MaxBountyCampaign[]> {
-    console.log(`[MaxBountyCampaigns] Commencing multi-source synchronization for user: ${userId}`);
+    logger.info(`[MaxBountyCampaigns] Commencing multi-source synchronization for user: ${userId}`);
     
     // Pull from multiple channels
     const topOffers = await this.fetchFromNetwork("top");
@@ -247,7 +248,7 @@ export class MaxBountyCampaigns {
       });
     }
 
-    console.log(`[MaxBountyCampaigns] Synchronized ${scoredCampaigns.length} campaigns into datastore successfully.`);
+    logger.info(`[MaxBountyCampaigns] Synchronized ${scoredCampaigns.length} campaigns into datastore successfully.`);
     return scoredCampaigns;
   }
 }

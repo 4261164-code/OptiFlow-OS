@@ -4,6 +4,7 @@ import { Loader2, CheckCircle2, XCircle, AlertTriangle, Trash2 } from 'lucide-re
 import { db, auth } from '../lib/firebase';
 import { doc, getDoc, setDoc, collection, query, where, getDocs, deleteDoc } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/errorHandler';
+import { apiFetch } from '../lib/auth';
 
 export function SettingsPage() {
   const [loading, setLoading] = useState(false);
@@ -133,10 +134,9 @@ export function SettingsPage() {
       // First, auto-save settings to capture any live field inputs
       await setDoc(doc(db, 'settings', auth.currentUser.uid), settings);
 
-      const response = await fetch('/api/test-integration', {
+      const response = await apiFetch('/api/test-integration', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ integrationId, userId: auth.currentUser.uid })
+        body: JSON.stringify({ integrationId })
       });
       const data = await response.json();
       if (response.ok && data.success) {

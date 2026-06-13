@@ -1,3 +1,4 @@
+import { logger } from "../lib/logger";
 import { db } from "../firebaseAdmin";
 import { GoogleGenAI } from "@google/genai";
 import OpenAI from "openai";
@@ -48,9 +49,9 @@ export class GlobalErrorManager {
       };
 
       await db.collection("error_logs").add(logDoc);
-      console.log(`[GlobalErrorManager] Logged [${severity}] ${category} error: ${errorMessage}`);
+      logger.info(`[GlobalErrorManager] Logged [${severity}] ${category} error: ${errorMessage}`);
     } catch (e) {
-      console.error("Failed to write error log to Firestore:", e);
+      logger.error("Failed to write error log to Firestore:", e);
     }
   }
 }
@@ -157,7 +158,7 @@ export class ApiHealthMonitor {
         timestamp: Date.now()
       });
     } catch (e) {
-      console.error("Could not persist api_health summary:", e);
+      logger.error("Could not persist api_health summary:", e);
     }
 
     return results;
@@ -194,10 +195,8 @@ export class SystemHealthCenter {
         cpuPercent: Math.min(99, Number(((cpuUsage.user + cpuUsage.system) / 1000000).toFixed(2))),
         memoryMB: Number((memoryUsage.heapUsed / 1024 / 1024).toFixed(1)),
         databaseLatencyMs: firestoreLatency,
-        apiLatencyMs: Math.floor(Math.random() * 80) + 120, // baseline simulated API delay
         errorRate15m: errorRate,
         conversionRatePercent: Number(conversionRate.toFixed(2)),
-        revenueRateHourly: Number((convCount * 12.5).toFixed(2)), // dynamic mock estimation
         timestamp: Date.now()
       };
 
@@ -216,9 +215,9 @@ export class SystemHealthCenter {
         await batch.commit();
       }
 
-      console.log(`[SystemHealthCenter] Stats recorded. Heap: ${metricDoc.memoryMB}MB | DB Latency: ${metricDoc.databaseLatencyMs}ms`);
+      logger.info(`[SystemHealthCenter] Stats recorded. Heap: ${metricDoc.memoryMB}MB | DB Latency: ${metricDoc.databaseLatencyMs}ms`);
     } catch (e) {
-      console.error("Failed to log system health stats:", e);
+      logger.error("Failed to log system health stats:", e);
     }
   }
 }
@@ -226,7 +225,7 @@ export class SystemHealthCenter {
 export class CEOAgent {
   static async runSelfHealingAudit() {
     try {
-      console.log("[CEOAgent] Initiating proactive diagnostic auto-repair cycle...");
+      logger.info("[CEOAgent] Initiating proactive diagnostic auto-repair cycle...");
 
       // 1. Pull recent critical/high errors
       const hourAgo = Date.now() - (60 * 60 * 1000);
@@ -241,7 +240,7 @@ export class CEOAgent {
         
         // Handle image generation errors specifically
         if (data.message && data.message.includes("generate") && (data.message.includes("undefined") || data.message.includes("quota"))) {
-          console.log("[CEOAgent] Diagnostic match: Image generation failure found. Resetting retry indexes...");
+          logger.info("[CEOAgent] Diagnostic match: Image generation failure found. Resetting retry indexes...");
           
           // Self healing: check for high amount of pending regenerations and flush stuck queues
           const retryQueue = await db.collection("image_retry_queue")
@@ -272,9 +271,9 @@ export class CEOAgent {
         });
       }
 
-      console.log(`[CEOAgent] Auto-repair checks finalized. Healed count: ${healsRegistered}`);
+      logger.info(`[CEOAgent] Auto-repair checks finalized. Healed count: ${healsRegistered}`);
     } catch (e) {
-      console.error("CEOAgent execution failed:", e);
+      logger.error("CEOAgent execution failed:", e);
     }
   }
 }

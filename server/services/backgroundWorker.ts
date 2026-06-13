@@ -1,3 +1,4 @@
+import { logger } from "../lib/logger";
 import { db } from "../firebaseAdmin";
 import { FEATURE_FLAGS } from "./featureFlags";
 import { logLedgerEvent } from "./eventLedger";
@@ -40,7 +41,7 @@ export async function runClickBufferWorker() {
       return;
     }
 
-    console.log(`[Click Buffer Worker] Processing ${snap.docs.length} pending clicks...`);
+    logger.info(`[Click Buffer Worker] Processing ${snap.docs.length} pending clicks...`);
 
     for (const doc of snap.docs) {
       const data = doc.data();
@@ -81,7 +82,7 @@ export async function runClickBufferWorker() {
         });
 
       } catch (err: any) {
-        console.error(`[Click Buffer Worker] Failed click ${clickId}:`, err.message);
+        logger.error(`[Click Buffer Worker] Failed click ${clickId}:`, err.message);
         
         // Log to click_errors
         await db.collection("click_errors").add({
@@ -99,7 +100,7 @@ export async function runClickBufferWorker() {
       }
     }
   } catch (err: any) {
-    console.error("[Click Buffer Worker] Run failed:", err);
+    logger.error("[Click Buffer Worker] Run failed:", err);
   } finally {
     clickBufferRunning = false;
   }
@@ -125,7 +126,7 @@ export async function runConversionReconciliationWorker() {
       return;
     }
 
-    console.log(`[Reconciliation Worker] Auditing ${snap.docs.length} unmatched conversions...`);
+    logger.info(`[Reconciliation Worker] Auditing ${snap.docs.length} unmatched conversions...`);
 
     for (const doc of snap.docs) {
       const data = doc.data();
@@ -198,13 +199,13 @@ export async function runConversionReconciliationWorker() {
             updatedAt: Date.now()
           });
 
-          console.log(`[Reconciliation Worker] Successfully Matched Conversion: ${conversionId} with Click ID ${clickId}`);
+          logger.info(`[Reconciliation Worker] Successfully Matched Conversion: ${conversionId} with Click ID ${clickId}`);
 
         } else {
           // Retry logic
           const newRetry = retryCount + 1;
           if (newRetry >= 5) {
-            console.warn(`[Reconciliation Worker] Conversion ${conversionId} hit max retries. Unmatched orphan.`);
+            logger.warn(`[Reconciliation Worker] Conversion ${conversionId} hit max retries. Unmatched orphan.`);
             await db.collection("unreconciled_conversions").doc(conversionId).update({
               status: "failed_unmatched",
               retryCount: newRetry,
@@ -225,11 +226,11 @@ export async function runConversionReconciliationWorker() {
           }
         }
       } catch (err: any) {
-        console.error(`[Reconciliation Worker] Failed matching ${conversionId}:`, err.message);
+        logger.error(`[Reconciliation Worker] Failed matching ${conversionId}:`, err.message);
       }
     }
   } catch (err: any) {
-    console.error("[Reconciliation Worker] Run failed:", err);
+    logger.error("[Reconciliation Worker] Run failed:", err);
   } finally {
     reconciliationRunning = false;
   }
@@ -246,7 +247,7 @@ export async function runMetricsAggregationWorker() {
   aggregationRunning = true;
 
   try {
-    console.log("[Metrics Aggregation Worker] Rebuilding pre-aggregated metric views...");
+    logger.info("[Metrics Aggregation Worker] Rebuilding pre-aggregated metric views...");
 
     // Gather raw ingredients
     const clicksSnap = await db.collection("affiliate_clicks").get();
@@ -477,10 +478,10 @@ export async function runMetricsAggregationWorker() {
       });
     }
 
-    console.log(`[Metrics Aggregation Worker] Pre-aggregated views successfully synced.`);
+    logger.info(`[Metrics Aggregation Worker] Pre-aggregated views successfully synced.`);
 
   } catch (err: any) {
-    console.error("[Metrics Aggregation Worker] Run failed:", err);
+    logger.error("[Metrics Aggregation Worker] Run failed:", err);
   } finally {
     aggregationRunning = false;
   }
@@ -497,7 +498,7 @@ export async function runCostProfitWorker() {
   profitRunning = true;
 
   try {
-    console.log("[Profit Worker] Running Profit Calculations...");
+    logger.info("[Profit Worker] Running Profit Calculations...");
 
     // Load cost events
     const costEventsSnap = await db.collection("cost_events").get();
@@ -596,7 +597,7 @@ export async function runCostProfitWorker() {
     });
 
   } catch (err: any) {
-    console.error("[Profit Worker] Run failed:", err);
+    logger.error("[Profit Worker] Run failed:", err);
   } finally {
     profitRunning = false;
   }
@@ -612,7 +613,7 @@ export async function runFailureIntelligenceWorker() {
   healthRunning = true;
 
   try {
-    console.log("[Failure Intel Worker] Compiling system wellness scores...");
+    logger.info("[Failure Intel Worker] Compiling system wellness scores...");
 
     // Get jobs and count failed ones
     const jobsSnap = await db.collection("jobs").get();
@@ -667,10 +668,10 @@ export async function runFailureIntelligenceWorker() {
       timestamp: Date.now()
     });
 
-    console.log("[Failure Intel Worker] Health overview updated successfully.");
+    logger.info("[Failure Intel Worker] Health overview updated successfully.");
 
   } catch (err: any) {
-    console.error("[Failure Intel Worker] Health compilation failed:", err);
+    logger.error("[Failure Intel Worker] Health compilation failed:", err);
   } finally {
     healthRunning = false;
   }
@@ -683,7 +684,7 @@ export async function runFailureIntelligenceWorker() {
  */
 export async function runCEOSelfHealingWorker() {
   try {
-    console.log("[CEO Self-Healing] Analyzing system anomalies and initiating proactive measures...");
+    logger.info("[CEO Self-Healing] Analyzing system anomalies and initiating proactive measures...");
 
     const healthSnap = await db.collection("system_health_metrics").doc("summary").get();
     if (!healthSnap.exists) return;
@@ -704,7 +705,7 @@ export async function runCEOSelfHealingWorker() {
       .get();
     
     if (!stuckJobsSnap.empty) {
-      console.log(`[CEO Self-Healing] Found ${stuckJobsSnap.size} ghost jobs. Terminating...`);
+      logger.info(`[CEO Self-Healing] Found ${stuckJobsSnap.size} ghost jobs. Terminating...`);
       const batch = db.batch();
       stuckJobsSnap.forEach(doc => {
         batch.update(doc.ref, { 
@@ -717,7 +718,7 @@ export async function runCEOSelfHealingWorker() {
     }
 
   } catch (err: any) {
-    console.error("[CEO Self-Healing] Worker failed:", err);
+    logger.error("[CEO Self-Healing] Worker failed:", err);
   }
 }
 
@@ -753,12 +754,12 @@ export async function runImageRetryWorker() {
             await quotaRef.update({ pendingRegeneration: Math.max(0, currentPending - 1) });
           }
           
-          console.log(`[Image Retry Worker] Successfully regenerated image for ${pinId}`);
+          logger.info(`[Image Retry Worker] Successfully regenerated image for ${pinId}`);
         } else {
           throw new Error("No image returned");
         }
       } catch (err) {
-        console.error(`[Image Retry Worker] Retry failed for ${pinId}, attempt ${currentAttempt + 1}`, err);
+        logger.error(`[Image Retry Worker] Retry failed for ${pinId}, attempt ${currentAttempt + 1}`, err);
         
         const nextAttempt = currentAttempt + 1;
         const delays = [15 * 60 * 1000, 60 * 60 * 1000, 6 * 60 * 60 * 1000, 24 * 60 * 60 * 1000];
@@ -770,7 +771,7 @@ export async function runImageRetryWorker() {
             attempt: nextAttempt,
             status: "IMAGE_PENDING"
           });
-          console.log(`[Image Retry Worker] Pin ${pinId} has failed 4 times. Marked as IMAGE_PENDING.`);
+          logger.info(`[Image Retry Worker] Pin ${pinId} has failed 4 times. Marked as IMAGE_PENDING.`);
         } else {
           await doc.ref.update({
             attempt: nextAttempt,
@@ -780,69 +781,82 @@ export async function runImageRetryWorker() {
       }
     }
   } catch (err) {
-    console.error("[Image Retry Worker] Error:", err);
+    logger.error("[Image Retry Worker] Error:", err);
   }
 }
 
 /**
  * START ALL CYCLICAL SYSTEM HARDENING WORKERS
  */
+const WORKER_INTERVALS = {
+  metricsAggregation: 120_000,   // 2 minutes
+  profitCalculation:  120_000,   // 2 minutes
+  failureIntel:       180_000,   // 3 minutes
+  ceoSelfHealing:     300_000,   // 5 minutes
+  systemHealth:       60_000,    // 1 minute
+} as const;
+
+// Add run-lock to prevent overlapping executions
+const running = new Set<string>();
+
+function guardedInterval(name: string, fn: () => Promise<void>, ms: number) {
+  return setInterval(async () => {
+    if (running.has(name)) return;
+    running.add(name);
+    try { 
+      await fn(); 
+    } catch (e) { 
+      logger.error(`Worker ${name} failed`, { error: e }); 
+    } finally { 
+      running.delete(name); 
+    }
+  }, ms);
+}
+
+/**
+ * Starts all system hardening background routines
+ */
 export function startSystemHardeningWorkers() {
-  console.log("[System Hardening Workers] Initializing scheduled routines...");
+  logger.info("[System Hardening Workers] Initializing scheduled routines...");
 
-  // Click buffering (Task 1) - Runs every 5 seconds for snappy evaluation
-  setInterval(() => {
-    runClickBufferWorker().catch(err => console.error("Click worker exception:", err));
-  }, 5000);
+  // Metrics aggregation (Task 4) - Runs every 2 minutes
+  guardedInterval("metricsAggregation", async () => {
+    await runMetricsAggregationWorker();
+  }, WORKER_INTERVALS.metricsAggregation);
 
-  // Conversion reconciliation (Task 3) - Runs every 10 seconds
-  setInterval(() => {
-    runConversionReconciliationWorker().catch(err => console.error("Recon worker exception:", err));
-  }, 10000);
+  // Profit computations tracker (Task 5) - Runs every 2 minutes
+  guardedInterval("profitCalculation", async () => {
+    await runCostProfitWorker();
+  }, WORKER_INTERVALS.profitCalculation);
 
-  // Analytics aggregate compiler (Task 4) - Runs every 15 seconds
-  setInterval(() => {
-    runMetricsAggregationWorker().catch(err => console.error("Metrics worker exception:", err));
-  }, 15000);
+  // System intelligence reporter (Task 6) - Runs every 3 minutes
+  guardedInterval("failureIntel", async () => {
+    await runFailureIntelligenceWorker();
+  }, WORKER_INTERVALS.failureIntel);
 
-  // Profit computations tracker (Task 5) - Runs every 20 seconds
-  setInterval(() => {
-    runCostProfitWorker().catch(err => console.error("Profit worker exception:", err));
-  }, 20000);
-
-  // System intelligence reporter (Task 6) - Runs every 25 seconds
-  setInterval(() => {
-    runFailureIntelligenceWorker().catch(err => console.error("Health worker exception:", err));
-  }, 25000);
-
-  // CEO Self-Healing (Task 7) - Runs every 60 seconds
-  setInterval(() => {
-    runCEOSelfHealingWorker().catch(err => console.error("Healing worker exception:", err));
-  }, 60000);
-  
-  // Image Retry Worker (Task 8) - Runs every 5 minutes
-  setInterval(() => {
-    runImageRetryWorker().catch(err => console.error("Image retry worker exception:", err));
-  }, 300000);
+  // CEO Self-Healing (Task 7) - Runs every 5 minutes
+  guardedInterval("ceoSelfHealing", async () => {
+    await runCEOSelfHealingWorker();
+  }, WORKER_INTERVALS.ceoSelfHealing);
 
   // API Key Health Monitor (Task 9) - Checks every 15 minutes
-  setInterval(() => {
-    ApiHealthMonitor.runDiagnostics().catch(err => console.error("API check exception:", err));
+  guardedInterval("apiKeyHealth", async () => {
+    await ApiHealthMonitor.runDiagnostics();
   }, 15 * 60 * 1000);
   // Run once on startup
-  ApiHealthMonitor.runDiagnostics().catch(err => console.error("API check initial run exception:", err));
+  ApiHealthMonitor.runDiagnostics().catch(err => logger.error("API check initial run exception:", err));
 
   // System Observability Center (Task 10) - Record metrics every minute
-  setInterval(() => {
-    SystemHealthCenter.logMetrics().catch(err => console.error("System health logger exception:", err));
-  }, 60000);
+  guardedInterval("systemHealth", async () => {
+    await SystemHealthCenter.logMetrics();
+  }, WORKER_INTERVALS.systemHealth);
   // Run once on startup
-  SystemHealthCenter.logMetrics().catch(err => console.error("System health logger initial run exception:", err));
+  SystemHealthCenter.logMetrics().catch(err => logger.error("System health logger initial run exception:", err));
 
-  // CEO Self-Healing Audit Daemon (Task 11) - Runs every 10 minutes
-  setInterval(() => {
-    CEOAgent.runSelfHealingAudit().catch(err => console.error("CEO audit exception:", err));
-  }, 10 * 60 * 1000);
+  // CEO Self-Healing Audit Daemon (Task 11) - Runs every 5 minutes
+  guardedInterval("ceoSelfHealingAudit", async () => {
+    await CEOAgent.runSelfHealingAudit();
+  }, 300000);
   // Run once on startup
-  CEOAgent.runSelfHealingAudit().catch(err => console.error("CEO audit initial run exception:", err));
+  CEOAgent.runSelfHealingAudit().catch(err => logger.error("CEO audit initial run exception:", err));
 }

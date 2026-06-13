@@ -8,6 +8,7 @@ import { ChevronDown, ChevronUp, Loader2, Link2, CheckCircle, AlertCircle, Refre
 import ReactMarkdown from 'react-markdown';
 import { Link } from 'react-router-dom';
 import { BubblyAppleIcon } from './CustomIcons';
+import { apiFetch } from '../lib/auth';
 
 export function ArticlesPage() {
   const [articles, setArticles] = useState<Article[]>([]);
@@ -57,7 +58,7 @@ export function ArticlesPage() {
       }
 
       // Call the centralized stateless server-side SEOLinkAgent
-      const response = await fetch('/api/seo-link-agent', {
+      const response = await apiFetch('/api/seo-link-agent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

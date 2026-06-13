@@ -6,7 +6,7 @@
 import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { auth } from './lib/firebase';
-import { loginWithGoogle } from './lib/auth';
+import { loginWithGoogle, loginAnonymously } from './lib/auth';
 import { onAuthStateChanged, User } from 'firebase/auth';
 
 import { AppLayout } from './components/AppLayout';
@@ -64,7 +64,6 @@ export default function App() {
     setAuthError(null);
     setGuestLoading(true);
     try {
-      const { loginAnonymously } = await import('./lib/auth');
       await loginAnonymously();
     } catch (error: any) {
       console.error("Guest login failed:", error);

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Button, Card, Input } from './ui';
 import ReactMarkdown from 'react-markdown';
+import { apiFetch } from '../lib/auth';
 
 export function EbookCreator() {
   const [topic, setTopic] = useState('');
@@ -28,7 +29,7 @@ export function EbookCreator() {
     setEbook(null);
 
     try {
-      const response = await fetch('/api/ebook-creator', {
+      const response = await apiFetch('/api/ebook-creator', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

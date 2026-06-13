@@ -1,3 +1,4 @@
+import { logger } from "../lib/logger";
 import { db } from "../firebaseAdmin";
 
 export interface QuotaState {
@@ -73,7 +74,7 @@ async function triggerCEOPriorityAlert(userId: string, message: string) {
       timestamp: Date.now()
     });
   } catch (err) {
-    console.error("Failed to trigger alert", err);
+    logger.error("Failed to trigger alert", err);
   }
 }
 
@@ -116,7 +117,7 @@ export async function getProviderResilient(concept: string, userId?: string): Pr
   
   // Rule 6: If quota is 0%, automatically disable image generation and continue with static placeholder (Provider 3)
   if (state.quotaRemaining <= 0) {
-    console.warn(`[Quota Exceeded] Quota is 0%. Image generation is disabled. Using Provider 3.`);
+    logger.warn(`[Quota Exceeded] Quota is 0%. Image generation is disabled. Using Provider 3.`);
     return await staticPlaceholderProvider.generate(concept, userId) || "";
   }
 
@@ -131,7 +132,7 @@ export async function getProviderResilient(concept: string, userId?: string): Pr
       return img;
     }
   } catch (err) {
-    console.error("[Provider 1 Blocked] Falling back to Provider 2.", err);
+    logger.error("[Provider 1 Blocked] Falling back to Provider 2.", err);
   }
 
   // Fallback to Provider 2
@@ -145,7 +146,7 @@ export async function getProviderResilient(concept: string, userId?: string): Pr
       return img;
     }
   } catch (err) {
-    console.error("[Provider 2 Failed] Final fallback to Provider 3.", err);
+    logger.error("[Provider 2 Failed] Final fallback to Provider 3.", err);
   }
 
   // Provider 3 (Static placeholder)

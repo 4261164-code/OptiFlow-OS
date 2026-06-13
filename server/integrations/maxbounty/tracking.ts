@@ -1,3 +1,4 @@
+import { logger } from "../../lib/logger";
 import { db } from "../../firebaseAdmin";
 import { MaxBountyTrackingLink } from "./types";
 
@@ -68,7 +69,7 @@ export class MaxBountyTracking {
     };
 
     await db.collection("tracking_links").doc(id).set(docData);
-    console.log(`[MaxBountyTracking] Generated unique link: ${id} redirecting to ${trackingUrl}`);
+    logger.info(`[MaxBountyTracking] Generated unique link: ${id} redirecting to ${trackingUrl}`);
 
     return docData;
   }

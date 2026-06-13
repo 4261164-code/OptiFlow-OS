@@ -1,3 +1,4 @@
+import { logger } from "../../lib/logger";
 import crypto from "crypto";
 import { db } from "../../firebaseAdmin";
 import { logLedgerEvent } from "../../services/eventLedger";
@@ -10,7 +11,7 @@ export class MaxBountyPostbacks {
    */
   static verifySignature(reqBody: any, signature: string | string[] | undefined, secret: string): boolean {
     if (!signature) {
-      console.warn("[MaxBountyPostbacks] Missing validation signature. Running in unsecured sandbox bypass.");
+      logger.warn("[MaxBountyPostbacks] Missing validation signature. Running in unsecured sandbox bypass.");
       return true; // Bypass in dev/sandbox unless strict auth is locked in env
     }
 
@@ -21,7 +22,7 @@ export class MaxBountyPostbacks {
       
       return crypto.timingSafeEqual(Buffer.from(computed), Buffer.from(activeSig));
     } catch (err) {
-      console.error("[MaxBountyPostbacks] Cryptographic validation crash:", err);
+      logger.error("[MaxBountyPostbacks] Cryptographic validation crash:", err);
       return false;
     }
   }
@@ -43,10 +44,10 @@ export class MaxBountyPostbacks {
       error: null
     });
 
-    console.log(`[MaxBountyPostbacks] Conversion enqueued for processing thread background worker: ${taskId}`);
+    logger.info(`[MaxBountyPostbacks] Conversion enqueued for processing thread background worker: ${taskId}`);
     
     // Kickoff background execution asynchronously to prevent blocking the HTTP responder
-    this.triggerQueueWorker().catch(e => console.error("[MaxBountyPostbacks] Worker trigger background error:", e));
+    this.triggerQueueWorker().catch(e => logger.error("[MaxBountyPostbacks] Worker trigger background error:", e));
 
     return taskId;
   }
@@ -67,12 +68,12 @@ export class MaxBountyPostbacks {
       const castPayload = payload as MaxBountyPostbackPayload;
 
       try {
-        console.log(`[MaxBountyPostbacks Worker] Processing queue task: ${id}`);
+        logger.info(`[MaxBountyPostbacks Worker] Processing queue task: ${id}`);
         
         // 1. Double Spending & Fraud Prevention: Idempotency gate
         const duplicateCheck = await db.collection("affiliate_conversions").doc(`mb-conv-${castPayload.transaction_id}`).get();
         if (duplicateCheck.exists) {
-          console.log(`[MaxBountyPostbacks Worker] Transaction ${castPayload.transaction_id} is already processed. Removing task.`);
+          logger.info(`[MaxBountyPostbacks Worker] Transaction ${castPayload.transaction_id} is already processed. Removing task.`);
           await db.collection("postback_processing_queue").doc(id).delete();
           continue;
         }
@@ -160,14 +161,14 @@ export class MaxBountyPostbacks {
 
         // Successful completion! Sweep task from the queue.
         await db.collection("postback_processing_queue").doc(id).delete();
-        console.log(`[MaxBountyPostbacks Worker] Fully reconciled conversion: ${conversionId}`);
+        logger.info(`[MaxBountyPostbacks Worker] Fully reconciled conversion: ${conversionId}`);
 
       } catch (err: any) {
-        console.error(`[MaxBountyPostbacks Worker] Queue failure parsing ${id}:`, err);
+        logger.error(`[MaxBountyPostbacks Worker] Queue failure parsing ${id}:`, err);
         const newRetry = retryCount + 1;
         
         if (newRetry >= 5) {
-          console.error(`[MaxBountyPostbacks Worker] Maximum retries reached for ${id}. Logging poison task.`);
+          logger.error(`[MaxBountyPostbacks Worker] Maximum retries reached for ${id}. Logging poison task.`);
           await db.collection("postback_processing_queue").doc(id).set({
             id,
             payload,

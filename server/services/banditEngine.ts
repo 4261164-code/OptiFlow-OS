@@ -1,3 +1,4 @@
+import { logger } from "../lib/logger";
 import { db } from "../firebaseAdmin";
 
 /**
@@ -135,7 +136,7 @@ export class BanditEngine {
       updatedAt: Date.now(),
       arms: dbData
     }, { merge: true }).catch(err => {
-      console.error("[BanditEngine] Error persisting bandit model reward", err);
+      logger.error("[BanditEngine] Error persisting bandit model reward", err);
     });
   }
 }

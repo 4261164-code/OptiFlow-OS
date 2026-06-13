@@ -1,3 +1,4 @@
+import { logger } from "./lib/logger";
 import { db } from "./firebaseAdmin";
 import { runSEOLinkAgent } from "./agents";
 
@@ -21,7 +22,7 @@ export async function runSEOLinkAgentPipeline(opts: SEOLinkAgentOpts): Promise<{
     throw new Error("Missing userId in pipeline parameters");
   }
 
-  console.log(`[SEOLinkAgent Pipeline] Running link optimization for article: ${articleId}, user: ${userId}`);
+  logger.info(`[SEOLinkAgent Pipeline] Running link optimization for article: ${articleId}, user: ${userId}`);
 
   // Fetch article from Firestore
   const articleDoc = await db.collection("articles").doc(articleId).get();
@@ -61,7 +62,7 @@ export async function runSEOLinkAgentPipeline(opts: SEOLinkAgentOpts): Promise<{
     throw new Error(`No offers found in your index. Please add offers under the 'Affiliate Offers' tab first.`);
   }
 
-  console.log(`[SEOLinkAgent Pipeline] Retrieved ${offers.length} active offers for matching.`);
+  logger.info(`[SEOLinkAgent Pipeline] Retrieved ${offers.length} active offers for matching.`);
 
   // Pass generated article and active offers to the Gemini scanning model
   const optimizedContent = await runSEOLinkAgent(originalContent, offers);
@@ -72,7 +73,7 @@ export async function runSEOLinkAgentPipeline(opts: SEOLinkAgentOpts): Promise<{
     updatedAt: Date.now()
   });
 
-  console.log(`[SEOLinkAgent Pipeline] Updated article '${articleId}' content successfully inside Firestore.`);
+  logger.info(`[SEOLinkAgent Pipeline] Updated article '${articleId}' content successfully inside Firestore.`);
 
   // Simple metric estimation for feedback
   const originalLinkCount = (originalContent.match(/\[([^\]]+)\]\(([^)]+)\)/g) || []).length;

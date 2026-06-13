@@ -1,4 +1,4 @@
-import { signInWithPopup, GoogleAuthProvider, signOut, signInAnonymously } from 'firebase/auth';
+import { signInWithPopup, GoogleAuthProvider, signOut, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { auth } from './firebase';
 
 export async function loginWithGoogle() {
@@ -34,14 +34,42 @@ export async function getAuthToken() {
   return await user.getIdToken(true);
 }
 
-export async function apiFetch(url: string, options: RequestInit = {}) {
-  const token = await getAuthToken();
-  if (!token) throw new Error("Not authenticated");
-  
-  const headers = {
-    ...options.headers,
-    "Authorization": `Bearer ${token}`
-  };
-
-  return fetch(url, { ...options, headers });
+function waitForUser(): Promise<import('firebase/auth').User> {
+  return new Promise((resolve, reject) => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      unsubscribe();
+      if (user) resolve(user);
+      else reject(new Error('No authenticated user'));
+    });
+  });
 }
+
+export async function apiFetch(endpoint: string, options: RequestInit = {}) {
+  const user = await waitForUser();
+  const token = await user.getIdToken(true);
+
+  // Use robust standard Headers API to merge headers safely
+  const headers = new Headers();
+  headers.set('Content-Type', 'application/json');
+  
+  if (options.headers) {
+    const passedHeaders = new Headers(options.headers);
+    passedHeaders.forEach((value, name) => {
+      headers.set(name, value);
+    });
+  }
+  
+  headers.set('Authorization', `Bearer ${token}`);
+
+  const response = await fetch(endpoint, {
+    ...options,
+    headers,
+  });
+
+  if (response.status === 401) {
+    throw new Error('Unauthorized — token rejected by server');
+  }
+
+  return response;
+}
+

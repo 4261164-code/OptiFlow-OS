@@ -1,3 +1,4 @@
+import { logger } from "../../lib/logger";
 import express from "express";
 import { db } from "../../firebaseAdmin";
 import { runPipeline } from "../../pipeline";
@@ -39,7 +40,7 @@ opsRouter.post("/cluster/pause-resume", async (req: any, res: any) => {
             updatedAt: Date.now()
         });
 
-        console.log(`[SaaS Ops] Cluster ${clusterId} status updated to: ${nextStatus}`);
+        logger.info(`[SaaS Ops] Cluster ${clusterId} status updated to: ${nextStatus}`);
 
         return res.json({
             success: true,
@@ -88,7 +89,7 @@ opsRouter.post("/job/retry", async (req: any, res: any) => {
         // Trigger asynchronously to avoid hanging request
         (async () => {
             try {
-                console.log(`[SaaS Ops] Retrying failed pipeline job: ${jobId} (Keyword: ${jobData.keyword})`);
+                logger.info(`[SaaS Ops] Retrying failed pipeline job: ${jobId} (Keyword: ${jobData.keyword})`);
                 await runPipeline({
                     userId: userId,
                     jobId: jobId,
@@ -96,7 +97,7 @@ opsRouter.post("/job/retry", async (req: any, res: any) => {
                     forceRebuild: true
                 } as any);
             } catch (retryErr: any) {
-                console.error(`[SaaS Ops] Async retry of Job ${jobId} failed:`, retryErr);
+                logger.error(`[SaaS Ops] Async retry of Job ${jobId} failed:`, retryErr);
             }
         })();
 
@@ -116,7 +117,7 @@ opsRouter.post("/job/retry", async (req: any, res: any) => {
  */
 opsRouter.post("/recovery/ledger-sync", async (req: any, res: any) => {
     try {
-        console.log("[SaaS Ops] Manual ledger synchronization and metric compile triggered.");
+        logger.info("[SaaS Ops] Manual ledger synchronization and metric compile triggered.");
 
         // Sequentially execute all workers to compile pristine, real-time pre-aggregations
         await runClickBufferWorker();
@@ -140,7 +141,11 @@ opsRouter.post("/recovery/ledger-sync", async (req: any, res: any) => {
  */
 opsRouter.get("/health-digest", async (req: any, res: any) => {
     try {
-        const summarySnap = await db.collection("system_health_metrics").doc("summary").get();
+        const [summarySnap, costsSnap, profitsSnap] = await Promise.all([
+          db.collection("system_health_metrics").doc("summary").get(),
+          db.collection("cost_events").orderBy("timestamp", "desc").limit(30).get(),
+          db.collection("profit_metrics").orderBy("profit", "desc").limit(10).get()
+        ]);
         
         let overview = {
             agentFailureRate: 0.05,
@@ -155,11 +160,8 @@ opsRouter.get("/health-digest", async (req: any, res: any) => {
             overview = summarySnap.data() as any;
         }
 
-        // Fetch cost logs for profit dashboard widgets
-        const costsSnap = await db.collection("cost_events").orderBy("timestamp", "desc").limit(30).get();
         const costs = costsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-        const profitsSnap = await db.collection("profit_metrics").orderBy("profit", "desc").limit(10).get();
         const profits = profitsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
         return res.json({
