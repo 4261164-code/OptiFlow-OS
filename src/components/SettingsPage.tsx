@@ -51,7 +51,7 @@ export function SettingsPage() {
     }
   };
 
-  const [settings, setSettings] = useState({
+  const [settings, setSettings] = useState<any>({
     geminiApiKey: '',
     openaiApiKey: '',
     nvidiaApiKey: '',
@@ -66,7 +66,13 @@ export function SettingsPage() {
     telegramChatId: '',
     twitterToken: '',
     linkedinToken: '',
-    analyticsId: ''
+    analyticsId: '',
+    agentOverrides: {
+      "CEO Strategic Executive": { provider: 'default', customApiKey: '', customModel: '' },
+      "Writer Agent": { provider: 'default', customApiKey: '', customModel: '' },
+      "Pinterest Agent": { provider: 'default', customApiKey: '', customModel: '' },
+      "Research Agent": { provider: 'default', customApiKey: '', customModel: '' }
+    }
   });
 
   useEffect(() => {
@@ -78,7 +84,15 @@ export function SettingsPage() {
         const docRef = doc(db, 'settings', auth.currentUser.uid);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
-          setSettings(docSnap.data() as any);
+          const data = docSnap.data();
+          setSettings((prev: any) => ({
+            ...prev,
+            ...data,
+            agentOverrides: {
+              ...prev.agentOverrides,
+              ...(data.agentOverrides || {})
+            }
+          }));
         }
       } catch (err) {
         console.error("Failed to load settings", err);
@@ -337,6 +351,60 @@ export function SettingsPage() {
                   <p className="text-[10px] text-zinc-500 md:col-span-2">Required for custom Midjourney generation. Supports standard imagineapi/goapi bridges.</p>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Agent Model Overrides</CardTitle>
+              <CardDescription>Assign specific AI providers and models to specialized agent nodes.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {Object.entries(settings.agentOverrides).map(([agentName, override]: [string, any]) => (
+                <div key={agentName} className="p-4 bg-[#1C1D21] border border-white/5 rounded-xl space-y-3">
+                  <h4 className="text-sm font-bold text-white">{agentName}</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-semibold uppercase text-zinc-500">Provider</label>
+                      <select 
+                        value={override.provider}
+                        onChange={e => setSettings({
+                          ...settings, 
+                          agentOverrides: { ...settings.agentOverrides, [agentName]: { ...override, provider: e.target.value } }
+                        })}
+                        className="w-full bg-[#0D1117] border border-white/10 rounded-lg p-2 text-sm text-white"
+                      >
+                        <option value="default">Default</option>
+                        <option value="gemini">Gemini</option>
+                        <option value="openai">OpenAI</option>
+                        <option value="nvidia">NVIDIA NIM</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-semibold uppercase text-zinc-500">Custom API Key</label>
+                      <Input 
+                        type="password" 
+                        value={override.customApiKey} 
+                        onChange={e => setSettings({
+                          ...settings, 
+                          agentOverrides: { ...settings.agentOverrides, [agentName]: { ...override, customApiKey: e.target.value } }
+                        })}
+                        placeholder="Optional"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-semibold uppercase text-zinc-500">Custom Model</label>
+                      <Input 
+                        value={override.customModel} 
+                        onChange={e => setSettings({
+                          ...settings, 
+                          agentOverrides: { ...settings.agentOverrides, [agentName]: { ...override, customModel: e.target.value } }
+                        })}
+                        placeholder="e.g. gpt-4o"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
             </CardContent>
           </Card>
 

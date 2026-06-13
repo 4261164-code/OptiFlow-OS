@@ -172,7 +172,8 @@ async function resolveAIClientAndModel(
       apiKey: apiKeyToUse,
       baseURL: 'https://integrate.api.nvidia.com/v1'
     });
-    if (!modelToUse.includes('nvidia') && !modelToUse.includes('llama')) {
+    // Allow custom nvidia-hosted models (including lllama, qwen, nemotron, etc.)
+    if (!modelToUse.includes('nvidia') && !modelToUse.includes('llama') && !modelToUse.includes('qwen') && !modelToUse.includes('nemotron')) {
       modelToUse = 'nvidia/llama-3.1-405b-instruct';
     }
     return { client, provider: 'nvidia', model: modelToUse };
