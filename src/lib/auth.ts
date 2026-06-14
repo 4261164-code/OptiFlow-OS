@@ -70,6 +70,26 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}) {
     throw new Error('Unauthorized — token rejected by server');
   }
 
+  if (!response.ok) {
+    const clone = response.clone();
+    const contentType = clone.headers.get('content-type');
+    let errorMessage = `Server Error (${response.status})`;
+    
+    try {
+      if (contentType && contentType.includes('application/json')) {
+        const errData = await clone.json();
+        errorMessage = errData.error || errData.message || errorMessage;
+      } else {
+        const text = await clone.text();
+        errorMessage = text.substring(0, 100) || errorMessage;
+      }
+    } catch (e) {
+      // Ignore error parsing issues
+    }
+    
+    throw new Error(errorMessage);
+  }
+
   return response;
 }
 

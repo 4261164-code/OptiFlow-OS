@@ -29,12 +29,11 @@ export function EbookCreator() {
     setEbook(null);
 
     try {
-      const response = await apiFetch('/api/ebook-creator', {
+      const response = await apiFetch('/api/writing/ebook-creator', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          topic, 
-          userId: auth.currentUser?.uid 
+          topic
         })
       });
 

@@ -66,10 +66,17 @@ export class ApiHealthMonitor {
       if (!gKey) {
         results['gemini'] = { status: 'offline', message: 'API key not configured in environment', lastChecked: Date.now() };
       } else {
-        const ai = new GoogleGenAI({ apiKey: gKey });
+        const ai = new GoogleGenAI({ 
+          apiKey: gKey,
+          httpOptions: {
+            headers: {
+              'User-Agent': 'aistudio-build',
+            }
+          }
+        });
         // Tiny content generation to confirm connection
         await ai.models.generateContent({
-          model: 'gemini-3.5-flash',
+          model: 'gemini-3.1-flash-lite',
           contents: 'ping',
           config: { maxOutputTokens: 1 }
         });

@@ -497,7 +497,7 @@ export function PublishingQueue() {
     const opKey = `${id}_gen_social`;
     setOpLoading(prev => ({ ...prev, [opKey]: true }));
     try {
-      const response = await apiFetch('/api/generate-social-copy', {
+      const response = await apiFetch('/api/distro/social-copy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

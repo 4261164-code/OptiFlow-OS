@@ -1,5 +1,6 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { runPipeline } from "./server/pipeline";
 import { db } from "./server/firebaseAdmin";
@@ -48,11 +49,13 @@ export const appPromise = (async () => {
     return verifyToken(req, res, next);
   });
 
+  console.log("[Server] Mounting routers...");
   app.use("/api/clicks", clicksApiRouter);
   app.use("/api/executive", executiveApiRouter);
   app.use("/api/webhooks", postbackRouter);
   app.use("/api/ops", opsRouter);
   app.use("/api/maxbounty", maxbountyRouter);
+  console.log("[Server] Routers mounted.");
 
   // API constraints check
   app.get("/api/health", async (req, res) => {
@@ -63,14 +66,16 @@ export const appPromise = (async () => {
       if (geminiKey) {
         try {
           const ai = new (await import("@google/genai")).GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+          const testModel = "gemini-3.1-flash-lite";
           await ai.models.generateContent({
-             model: 'gemini-flash-latest',
+             model: testModel,
              contents: 'ping',
              config: { maxOutputTokens: 1 }
           });
-          geminiStatus = "Connected";
+          geminiStatus = `Connected (using ${testModel})`;
         } catch (e) {
           geminiStatus = "Failed to reach Gemini: " + (e as Error).message;
+          console.error("[Health Check Failure]", e);
         }
       }
 
@@ -88,137 +93,6 @@ export const appPromise = (async () => {
     }
   });
 
-  app.post("/api/run-pipeline", async (req: any, res) => {
-    try {
-      const userId = req.user.uid;
-      const { 
-        jobId,
-        keyword, 
-        articleLength, 
-        seoLevel, 
-        country, 
-        language, 
-        tone, 
-        numPins, 
-        hasFaq, 
-        internalLinks, 
-        externalLinks, 
-        affiliateOffers,
-        existingArticleTitle,
-        existingArticleContent
-      } = req.body;
-
-      if (!(await hasValidAIKey(userId))) {
-        return res.status(400).json({ error: "No AI API keys configured (Gemini or OpenAI). Please check your settings." });
-      }
-
-      if (!keyword) {
-        return res.status(400).json({ error: "Keyword required" });
-      }
-
-      const targetUserId = userId;
-      const targetJobId = jobId || `fallback-job-${Date.now()}`;
-
-      console.log(`[API] Running runPipeline synchronously for keyword: ${keyword}, job: ${targetJobId}`);
-
-      const result = await runPipeline({
-        userId: targetUserId,
-        jobId: targetJobId,
-        keyword,
-        articleLength: articleLength ? Number(articleLength) : undefined,
-        seoLevel,
-        country,
-        language,
-        tone,
-        numPins: numPins !== undefined ? Number(numPins) : undefined,
-        hasFaq: hasFaq !== undefined ? Boolean(hasFaq) : undefined,
-        internalLinks: internalLinks !== undefined ? Boolean(internalLinks) : undefined,
-        externalLinks: externalLinks !== undefined ? Boolean(externalLinks) : undefined,
-        affiliateOffers,
-        existingArticleTitle,
-        existingArticleContent
-      });
-
-      res.json({
-        success: true,
-        jobId: targetJobId,
-        ...result
-      });
-      
-    } catch (error: any) {
-      console.error("[API Error] Pipeline generation failed:", error);
-      res.status(500).json({ error: error.message || "Pipeline generation failed." });
-    }
-  });
-
-  app.post("/api/affiliate-match", async (req: any, res) => {
-    try {
-      const userId = req.user.uid;
-      const { keyword } = req.body;
-      if (!(await hasValidAIKey(userId))) {
-        return res.status(400).json({ error: "No AI API keys configured (Gemini or OpenAI). Please check your settings." });
-      }
-      if (!keyword) {
-        return res.status(400).json({ error: "Keyword required" });
-      }
-      const rawResult = await runAffiliateMatchAgent(keyword, userId);
-      let data = {};
-      try {
-        data = JSON.parse(rawResult);
-      } catch (e) {
-        data = { error: "Failed to parse JSON", raw: rawResult };
-      }
-      res.json(data);
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  app.post("/api/traffic-engine", async (req: any, res) => {
-    try {
-      const userId = req.user.uid;
-      const { keyword } = req.body;
-      if (!(await hasValidAIKey(userId))) {
-        return res.status(400).json({ error: "No AI API keys configured (Gemini or OpenAI). Please check your settings." });
-      }
-      if (!keyword) {
-        return res.status(400).json({ error: "Keyword required" });
-      }
-      const rawResult = await runTrafficEngineAgent(keyword, userId);
-      let data = {};
-      try {
-        data = JSON.parse(rawResult);
-      } catch (e) {
-        data = { error: "Failed to parse JSON", raw: rawResult };
-      }
-      res.json(data);
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  app.post("/api/seo-link-agent", async (req: any, res) => {
-    try {
-      const userId = req.user.uid;
-      const { articleContent, offers } = req.body;
-      if (!(await hasValidAIKey(userId))) {
-        return res.status(400).json({ error: "No AI API keys configured (Gemini or OpenAI). Please check your settings." });
-      }
-      if (!articleContent) {
-        return res.status(400).json({ error: "Article content is required" });
-      }
-      if (!offers || !Array.isArray(offers)) {
-        return res.status(400).json({ error: "Offers array is required" });
-      }
-
-      console.log(`Running SEOLinkAgent optimization with ${offers.length} offers`);
-      const optimizedContent = await runSEOLinkAgent(articleContent, offers, userId);
-      res.json({ optimizedContent });
-    } catch (error: any) {
-      console.error("SEOLinkAgent error:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
 
   // Route removed to avoid server-side firebase auth issues.
 
@@ -431,45 +305,6 @@ export const appPromise = (async () => {
     }
   });
 
-  app.post("/api/generate-social-copy", async (req: any, res) => {
-    try {
-      const userId = req.user.uid;
-      const { id, collection: colName } = req.body;
-      if (!id || !colName) {
-        return res.status(400).json({ error: "Missing required parameters: id, collection" });
-      }
-
-      const docRef = db.collection(colName).doc(id);
-      const docSnap = await docRef.get();
-      if (!docSnap.exists) {
-        return res.status(404).json({ error: "Document not found" });
-      }
-
-      const item = docSnap.data();
-      const title = item?.title || item?.keyword || "Affiliate Masterclass";
-      const keyword = item?.keyword || "affiliate marketing";
-      const content = item?.content || item?.description || "";
-
-      // Call Gemini Social Media copy agent
-      const copy = await runSocialCopyAgent(title, keyword, content, userId);
-
-      // Save to document
-      await docRef.set({
-        twitterPostContent: copy.twitterPost,
-        linkedinPostContent: copy.linkedinPost,
-        updatedAt: Date.now()
-      }, { merge: true });
-
-      res.json({
-        success: true,
-        twitterPost: copy.twitterPost,
-        linkedinPost: copy.linkedinPost
-      });
-    } catch (err: any) {
-      console.error("Generate social copy error:", err);
-      res.status(500).json({ error: err.message });
-    }
-  });
 
   app.post("/api/publish-twitter", async (req: any, res) => {
     try {
@@ -779,47 +614,6 @@ export const appPromise = (async () => {
     }
   });
 
-  app.post("/api/generate-seo-cluster", async (req: any, res) => {
-    try {
-      const userId = req.user.uid;
-      const { pillarTopic } = req.body;
-      if (!pillarTopic) {
-        return res.status(400).json({ error: "Pillar Topic is required" });
-      }
-
-      const clusterList = await runSEOClusterAgent(pillarTopic, userId);
-      res.json({
-        success: true,
-        cluster: clusterList
-      });
-    } catch (err: any) {
-      console.error("Generate SEO cluster error:", err);
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  app.post("/api/report-digest", async (req: any, res) => {
-    try {
-      const userId = req.user.uid;
-      const { documentText, docType } = req.body;
-      if (!documentText) {
-        return res.status(400).json({ error: "Document text to digest is required" });
-      }
-      if (!(await hasValidAIKey(userId))) {
-        return res.status(400).json({ error: "No AI API keys configured (Gemini or OpenAI). Please check your settings." });
-      }
-
-      console.log(`[API] Processing Report Digest of type: \${docType || "unspecified"}`);
-      const analysis = await runReportDigestAgent(documentText, docType || "weekly-report", userId);
-      res.json({
-        success: true,
-        analysis
-      });
-    } catch (err: any) {
-      console.error("Report Digest Endpoint error:", err);
-      res.status(500).json({ error: err.message });
-    }
-  });
 
   app.post("/api/executive-summary", async (req: any, res) => {
     try {
@@ -827,12 +621,25 @@ export const appPromise = (async () => {
       const { recentActivities } = req.body;
       const activitiesStr = recentActivities && Array.isArray(recentActivities) ? JSON.stringify(recentActivities) : "[]";
 
-      // If key is missing, runExecutiveSummaryAgent's internal catch block handles it and yields a high-fidelity visual fallback
+      const { Layer2Brain, Layer3Execution } = await import("./server/services/architectureLayers");
+      const idempotencyKey = `ex-sum-${userId}-${Date.now().toString().substring(0, 8)}`;
+      const plan = Layer2Brain.formulateActionPlan({
+         action: "EXECUTIVE_SUMMARY",
+         target: "dashboard_insights",
+         impact: "low",
+         reversibility: "high",
+         factors: ["api_cost", "cache_only"]
+      });
+      
+      const topoResult = await Layer3Execution.executeActionPlan(userId, plan, idempotencyKey);
+      if (!topoResult.success) return res.status(500).json({ error: topoResult.error });
+
       console.log(`[API] Processing Executive Portfolio Summary for user: ${userId}`);
       const summary = await runExecutiveSummaryAgent(activitiesStr, userId);
       res.json({
         success: true,
-        summary
+        summary,
+        auditLogId: topoResult.auditLogId
       });
     } catch (err: any) {
       console.error("Executive Portfolio Summary Endpoint error:", err);
@@ -840,122 +647,24 @@ export const appPromise = (async () => {
     }
   });
 
-  app.post("/api/regenerate-pin-image", async (req: any, res) => {
-    try {
-      const userId = req.user.uid;
-      const { concept } = req.body;
-      console.log(`[API] Received regenerate-pin-image request:`, { concept, userId });
-      if (!concept) {
-        return res.status(400).json({ error: "Concept is required." });
-      }
-      if (!(await hasValidAIKey(userId))) {
-        return res.status(400).json({ error: "No AI API keys configured (Gemini or OpenAI). Please check your settings." });
-      }
-
-      console.log(`[API] Regenerating Pin Image for concept: ${concept}`);
-      const imageUrl = await runImageGenerationAgent(concept, userId);
-      console.log(`[API] Image generated successfully:`, imageUrl);
-      res.json({ success: true, imageUrl });
-    } catch (err: any) {
-      console.error("Regenerate Pin Image error:", err);
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  app.post("/api/generate-custom-pin", async (req: any, res) => {
-    try {
-      const userId = req.user.uid;
-      const { concept, title, description } = req.body;
-      if (!concept) {
-        return res.status(400).json({ error: "A visual idea or style prompt concept is required." });
-      }
-
-      if (!(await hasValidAIKey(userId))) {
-        return res.status(400).json({ error: "AI API keys (Gemini or OpenAI) are not configured. Check your settings tab." });
-      }
-
-      console.log(`[API] Creating Custom AI Generated Pin for user: ${userId || "anonymous"} based on concept: ${concept}`);
-      const result = await runCustomPinAgent(concept, title, description, userId);
-      res.json({
-        success: true,
-        pin: result
-      });
-    } catch (err: any) {
-      console.error("Custom Pin Generation Endpoint error:", err);
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  app.post("/api/keyword-research", async (req: any, res) => {
-    try {
-      const userId = req.user.uid;
-      const { keyword, country, language } = req.body;
-      if (!keyword) {
-        return res.status(400).json({ error: "A keyword search query is required." });
-      }
-
-      const hasKey = await hasValidAIKey(userId);
-      console.log(`[API] Triggering Deep Keyword Research for "${keyword}" (Country: ${country || 'US'}, Language: ${language || 'EN'}). Key status: ${hasKey}`);
-      
-      const analysis = await runDeepKeywordExplorerAgent(keyword, country, language, userId);
-      res.json({
-         success: true,
-         analysis
-      });
-    } catch (err: any) {
-      console.error("[API] Keyword research endpoint error:", err);
-      res.status(500).json({ error: err?.message || "Internal keyword indexing failure" });
-    }
-  });
-
-  app.post("/api/keywords/audit-competitor", async (req: any, res) => {
-    try {
-      const userId = req.user.uid;
-      const { keyword, competitorDomain } = req.body;
-      if (!keyword || !competitorDomain) {
-        return res.status(400).json({ error: "Keyword and competitor domain are required." });
-      }
-
-      console.log(`[API] Auditing competitor "${competitorDomain}" for keyword: "${keyword}"`);
-      const auditResult = await runCompetitorAuditAgent(keyword, competitorDomain, userId);
-
-      res.json({
-        success: true,
-        auditResult
-      });
-    } catch (err: any) {
-      console.error("[API] Competitor audit endpoint error:", err);
-      res.status(500).json({ error: err?.message || "Internal competitor auditing failure" });
-    }
-  });
-
-  app.post("/api/ebook-creator", async (req: any, res) => {
-    try {
-      const userId = req.user.uid;
-      const { topic } = req.body;
-      if (!topic) {
-        return res.status(400).json({ error: "Topic is required." });
-      }
-      if (!(await hasValidAIKey(userId))) {
-        return res.status(400).json({ error: "No AI API keys configured (Gemini or OpenAI). Please check your settings." });
-      }
-
-      console.log(`[API] Triggering EBook Creation for: "${topic}"`);
-      const ebook = await runEbookCreatorAgent(topic, userId);
-      res.json({ success: true, ebook });
-    } catch (err: any) {
-      console.error("EBook Creator error:", err);
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-
-  // Simulate trend API removed
 
   app.post("/api/automation/trigger", async (req: any, res) => {
     try {
       const userId = req.user.uid;
       const { keywords, autoPublishWordpress, autoPublishSocial } = req.body;
+
+      const { Layer2Brain, Layer3Execution } = await import("./server/services/architectureLayers");
+      const idempotencyKey = `auto-${userId}-${Date.now().toString().substring(0, 8)}`;
+      const plan = Layer2Brain.formulateActionPlan({
+         action: "AUTOPILOT_TRIGGER",
+         target: "multi_agent_pipeline",
+         impact: "high",
+         reversibility: "high",
+         factors: ["api_cost", "payment_impact"]
+      });
+      
+      const topoResult = await Layer3Execution.executeActionPlan(userId, plan, idempotencyKey);
+      if (!topoResult.success) return res.status(500).json({ error: topoResult.error });
 
       if (!(await hasValidAIKey(userId))) {
         return res.status(400).json({ error: "No AI API keys configured (Gemini or OpenAI). Please check your settings." });
@@ -1340,7 +1049,60 @@ export const appPromise = (async () => {
   });
 
   // SEO Clusters isolation
-  app.use("/api/clusters", (await import("./modules/seo-clusters/router")).default);
+  try {
+    console.log("[Server] Importing clusters router...");
+    const { clustersRouter } = await import("./modules/seo-clusters/router");
+    app.use("/api/clusters", clustersRouter);
+    console.log("[Server] Clusters router mounted.");
+  } catch (err) {
+    console.error("[Server] Failed to mount clusters router:", err);
+  }
+
+  // Global Error Handler for API routes
+  app.use("/api", (err: any, req: any, res: any, next: any) => {
+    console.error("[API Error Handler]", err);
+    
+    // Write detailed error to a file that the agent can read
+    try {
+      const errorLog = `
+--- ERROR ${new Date().toISOString()} ---
+Path: ${req.path}
+Method: ${req.method}
+User: ${req.user?.uid || 'anonymous'}
+Message: ${err.message}
+Stack: ${err.stack}
+Details: ${JSON.stringify(err, (key, value) => key === 'apiKey' ? '***HIDDEN***' : value, 2)}
+---------------------------------------
+`;
+      fs.appendFileSync(path.join(process.cwd(), "SYSTEM_ERROR_LOG.txt"), errorLog);
+    } catch (e) {
+      console.error("Failed to write to SYSTEM_ERROR_LOG.txt:", e);
+    }
+
+    res.status(err.status || 500).json({
+      success: false,
+      error: err.message || "Internal Server Error",
+      code: err.code
+    });
+  });
+
+  try {
+    const { strategyRouter } = await import("./server/routes/api/strategy");
+    const { writingRouter } = await import("./server/routes/api/writing");
+    const { intelRouter } = await import("./server/routes/api/intel");
+    const { distroRouter } = await import("./server/routes/api/distro");
+    const { pipelineRouter } = await import("./server/routes/api/pipeline");
+    
+    app.use("/api/strategy", strategyRouter);
+    app.use("/api/writing", writingRouter);
+    app.use("/api/intel", intelRouter);
+    app.use("/api/distro", distroRouter);
+    app.use("/api/pipeline", pipelineRouter);
+    
+    console.log("[Server] Mounted all topological AI routers.");
+  } catch (err) {
+    console.error("[Server] Failed to mount routers:", err);
+  }
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
@@ -1353,6 +1115,10 @@ export const appPromise = (async () => {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
+      // Avoid serving index.html for API routes that weren't caught
+      if (req.path.startsWith('/api/') || req.path.startsWith('/go/')) {
+        return res.status(404).json({ error: "API endpoint not found" });
+      }
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }

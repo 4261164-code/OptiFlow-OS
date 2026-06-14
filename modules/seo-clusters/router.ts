@@ -17,4 +17,4 @@ router.get("/:id/nodes", getNodes);
 router.get("/:id/jobs", getJobs);
 router.patch("/:id", updateCluster);
 
-export default router;
+export const clustersRouter = router;

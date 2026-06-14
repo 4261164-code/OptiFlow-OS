@@ -120,7 +120,7 @@ Matched Bounties with CTR limits:
     });
 
     try {
-      const response = await apiFetch('/api/report-digest', {
+      const response = await apiFetch('/api/intel/digest', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

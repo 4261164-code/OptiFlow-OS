@@ -102,11 +102,11 @@ export function SEOClusters() {
     setError(null);
 
     try {
-      const response = await apiFetch('/api/clusters/create', {
+      const response = await apiFetch('/api/clusters', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          keyword: pillarTopic.trim(),
+          rootKeyword: pillarTopic.trim(),
           userId: auth.currentUser.uid
         })
       });

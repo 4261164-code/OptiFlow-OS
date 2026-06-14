@@ -62,7 +62,7 @@ export function PinsPage() {
         userId: auth.currentUser.uid
       };
 
-      const response = await apiFetch('/api/generate-custom-pin', {
+      const response = await apiFetch('/api/distro/pins/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -124,7 +124,7 @@ export function PinsPage() {
     setRegeneratingId(pin.id);
     
     try {
-      const response = await apiFetch('/api/regenerate-pin-image', {
+      const response = await apiFetch('/api/distro/pins/regenerate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ concept: pin.concept, userId: auth.currentUser.uid })

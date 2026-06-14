@@ -114,8 +114,8 @@ export class Layer2Brain {
   static selectModel(taskComplexity: 'simple' | 'medium' | 'complex'): string {
     // Model Selection Rules Hierarchy
     if (taskComplexity === 'simple') return 'gemini-3.1-flash-lite';
-    if (taskComplexity === 'medium') return 'gemini-3.5-flash';
-    return 'gemini-3.5-flash'; // Avoid paid quota limits by using Gemini 3.5 Flash for complex backend orchestration unless requested
+    if (taskComplexity === 'medium') return 'gemini-3.1-flash-lite';
+    return 'gemini-3.1-flash-lite'; // Use Pro-grade availability for complex backend orchestration
   }
 
   /**
@@ -587,7 +587,7 @@ export class Layer3Execution {
         // Mock rotation failover setting update
         await db.collection("settings").doc(userId).set({
           fallbackModelActive: true,
-          activeModelSelected: plan.normalized.params?.fallbackModel || "gemini-3.5-flash",
+          activeModelSelected: plan.normalized.params?.fallbackModel || 'gemini-3.1-flash-lite',
           lastRotatedAt: now
         }, { merge: true });
         execResult = { updated: true, currentModel: plan.normalized.params?.fallbackModel };

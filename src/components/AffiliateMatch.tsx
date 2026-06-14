@@ -110,7 +110,7 @@ export function AffiliateMatch() {
     if (!keywordToRun.trim()) return;
     setLoading(true);
     try {
-      const resp = await apiFetch('/api/affiliate-match', {
+      const resp = await apiFetch('/api/distro/affiliate/match', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

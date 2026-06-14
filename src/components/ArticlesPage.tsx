@@ -58,7 +58,7 @@ export function ArticlesPage() {
       }
 
       // Call the centralized stateless server-side SEOLinkAgent
-      const response = await apiFetch('/api/seo-link-agent', {
+      const response = await apiFetch('/api/writing/seo-link-agent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

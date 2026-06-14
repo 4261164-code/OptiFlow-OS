@@ -104,7 +104,7 @@ export function CampaignBuilder() {
       });
 
       // 3. Call backend pipeline orchestrator to run agents (returns full generated payload on success)
-      const response = await apiFetch('/api/run-pipeline', {
+      const response = await apiFetch('/api/pipeline/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)

@@ -3,14 +3,28 @@ import { Router } from "express";
 import { db } from "../../firebaseAdmin";
 import { runCEOSoul, runSEOSoul, generateCEOSpeech } from "../../agents";
 import { RevenueEngine } from "../../services/revenueEngine";
+import { Layer2Brain, Layer3Execution } from "../../services/architectureLayers";
 
 export const executiveApiRouter = Router();
 
 executiveApiRouter.post("/revenue/compound", async (req: any, res: any) => {
     try {
         const userId = req.user.uid;
+        
+        const idempotencyKey = `compound-${userId}-${Date.now().toString().substring(0, 10)}`;
+        const plan = Layer2Brain.formulateActionPlan({
+            action: "COMPOUND_PROFIT",
+            target: "revenue_engine",
+            impact: "medium",
+            reversibility: "low",
+            factors: ["api_cost", "payment_impact"]
+        });
+        
+        const topoResult = await Layer3Execution.executeActionPlan(userId, plan, idempotencyKey);
+        if (!topoResult.success) return res.status(500).json({ error: topoResult.error });
+
         await RevenueEngine.executeCompoundingCycle(userId);
-        res.json({ success: true, message: "Profit compounding cycle executed" });
+        res.json({ success: true, message: "Profit compounding cycle executed", auditLogId: topoResult.auditLogId });
     } catch (e: any) {
         res.status(500).json({ error: e.message });
     }
@@ -31,8 +45,21 @@ executiveApiRouter.post("/soul/chat", async (req: any, res: any) => {
     try {
         const { message, history } = req.body;
         const userId = req.user.uid;
+
+        const idempotencyKey = `ceo-chat-${userId}-${Date.now()}`;
+        const plan = Layer2Brain.formulateActionPlan({
+            action: "EXECUTIVE_CHAT",
+            target: "ceo_soul",
+            impact: "low",
+            reversibility: "high",
+            factors: ["api_cost", "cache_only"]
+        });
+        
+        const topoResult = await Layer3Execution.executeActionPlan(userId, plan, idempotencyKey);
+        if (!topoResult.success) return res.status(500).json({ error: topoResult.error });
+
         const result = await runCEOSoul(message, history || [], userId);
-        res.json(result);
+        res.json({ ...result, auditLogId: topoResult.auditLogId });
     } catch (e: any) {
         res.status(500).json({ error: e.message });
     }
@@ -42,8 +69,21 @@ executiveApiRouter.post("/soul/seo-chat", async (req: any, res: any) => {
     try {
         const { message, history } = req.body;
         const userId = req.user.uid;
+
+        const idempotencyKey = `seo-chat-${userId}-${Date.now()}`;
+        const plan = Layer2Brain.formulateActionPlan({
+            action: "EXECUTIVE_CHAT",
+            target: "seo_soul",
+            impact: "low",
+            reversibility: "high",
+            factors: ["api_cost", "cache_only"]
+        });
+        
+        const topoResult = await Layer3Execution.executeActionPlan(userId, plan, idempotencyKey);
+        if (!topoResult.success) return res.status(500).json({ error: topoResult.error });
+
         const result = await runSEOSoul(message, history || [], userId);
-        res.json(result);
+        res.json({ ...result, auditLogId: topoResult.auditLogId });
     } catch (e: any) {
         res.status(500).json({ error: e.message });
     }
@@ -53,9 +93,22 @@ executiveApiRouter.post("/soul/tts", async (req: any, res: any) => {
     try {
         const { text, voice } = req.body;
         const userId = req.user.uid;
+
+        const idempotencyKey = `ceo-tts-${userId}-${Date.now()}`;
+        const plan = Layer2Brain.formulateActionPlan({
+            action: "EXECUTIVE_TTS",
+            target: "ceo_soul",
+            impact: "low",
+            reversibility: "high",
+            factors: ["api_cost", "cache_only"]
+        });
+        
+        const topoResult = await Layer3Execution.executeActionPlan(userId, plan, idempotencyKey);
+        if (!topoResult.success) return res.status(500).json({ error: topoResult.error });
+
         const audio = await generateCEOSpeech(text, voice || 'Kore', userId);
         if (!audio) return res.status(500).json({ error: "Failed to generate speech" });
-        res.json({ audio });
+        res.json({ audio, auditLogId: topoResult.auditLogId });
     } catch (e: any) {
         res.status(500).json({ error: e.message });
     }

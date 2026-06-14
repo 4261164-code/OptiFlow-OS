@@ -1,7 +1,10 @@
 import { GoogleGenAI } from "@google/genai";
 
 export async function generateClusterNodes(keyword: string, targetCount = 20, intent?: string): Promise<{ keyword: string; searchIntent: string; searchVolume?: number; isPillar: boolean }[]> {
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+  const ai = new GoogleGenAI({ 
+    apiKey: process.env.GEMINI_API_KEY!,
+    httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
+  });
   const prompt = `You are an expert SEO Architect.
   The primary Root Keyword is: "${keyword}".
   Target Intent focus: ${intent || "mixed"}.
@@ -18,7 +21,7 @@ export async function generateClusterNodes(keyword: string, targetCount = 20, in
   ]`;
   
   const response = await ai.models.generateContent({
-    model: 'gemini-flash-latest',
+    model: 'gemini-3.1-flash-lite',
     contents: prompt,
   });
   

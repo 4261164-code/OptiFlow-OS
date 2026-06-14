@@ -74,15 +74,15 @@ async function resolveAIClientAndModel(
 
   // 1a. Apply matrix mapping if user overrides are absent or empty
   const matrix: Record<string, { model: string; provider: 'gemini' | 'openai' | 'nvidia' }> = {
-    'CEO': { model: 'nvidia/nemotron-3-super-120b-a12b', provider: 'nvidia' },
-    'Research': { model: 'qwen/qwen3.5-122b-a10b', provider: 'nvidia' },
-    'SEO': { model: 'qwen/qwen3-next-80b-a3b', provider: 'nvidia' },
-    'Writer': { model: 'gemini-2.5-pro', provider: 'gemini' },
-    'Ebook': { model: 'gemini-2.5-pro', provider: 'gemini' },
-    'Pinterest': { model: 'gemini-flash', provider: 'gemini' },
-    'Diagnostics': { model: 'gpt-4o', provider: 'openai' },
-    'Analytics': { model: 'gemini-flash', provider: 'gemini' },
-    'Operations': { model: 'gemini-flash', provider: 'gemini' }
+    'CEO': { model: 'gemini-3.1-flash-lite', provider: 'gemini' },
+    'Research': { model: 'gemini-3.1-flash-lite', provider: 'gemini' },
+    'SEO': { model: 'gemini-3.1-flash-lite', provider: 'gemini' },
+    'Writer': { model: 'gemini-3.1-flash-lite', provider: 'gemini' },
+    'Ebook': { model: 'gemini-3.1-flash-lite', provider: 'gemini' },
+    'Pinterest': { model: 'gemini-3.1-flash-lite', provider: 'gemini' },
+    'Diagnostics': { model: 'gemini-3.1-flash-lite', provider: 'gemini' },
+    'Analytics': { model: 'gemini-3.1-flash-lite', provider: 'gemini' },
+    'Operations': { model: 'gemini-3.1-flash-lite', provider: 'gemini' }
   };
 
   // normalize agentName to exact case from matrix if it has different casing
@@ -168,24 +168,22 @@ async function resolveAIClientAndModel(
   // 3. Ensure AI APIs are interchangeable and robust: Map deprecated/invalid models to modern supported versions
   if (providerToUse === 'gemini' && modelToUse) {
     const lowerModel = modelToUse.toLowerCase();
-    const isDeprecated = 
+    
+    // We detected that gemini-1.5, gemini-2.0, gemini-3.5-flash (quota 20), gemini-3.1-pro (quota 0) are problematic.
+    // Force everything to gemini-3.1-flash-lite for stability.
+    const isProblematic = 
       lowerModel.includes('gemini-1.5') || 
-      lowerModel.includes('gemini-2.0') || 
+      lowerModel.includes('gemini-2.0') ||
+      lowerModel.includes('gemini-1.0') || 
       lowerModel === 'gemini-pro' ||
-      lowerModel === 'gemini-pro-vision';
+      lowerModel === 'gemini-pro-vision' ||
+      lowerModel.includes('3.5') ||
+      lowerModel.includes('pro');
 
-    if (isDeprecated) {
+    if (isProblematic || !modelToUse) {
       const oldModel = modelToUse;
-      if (lowerModel.includes('pro')) {
-        modelToUse = 'gemini-2.5-pro';
-      } else if (lowerModel.includes('image')) {
-        modelToUse = 'gemini-3.1-flash-image';
-      } else if (lowerModel.includes('tts')) {
-        modelToUse = 'gemini-3.1-flash-tts-preview';
-      } else {
-        modelToUse = 'gemini-flash';
-      }
-      logger.info(`[Model Auto-Correct] Remapped deprecated model "${oldModel}" to "${modelToUse}" for seamless execution.`);
+      modelToUse = 'gemini-3.1-flash-lite';
+      logger.info(`[Model Auto-Correct] Remapped "${oldModel || 'empty'}" to "${modelToUse}" for stable execution. (isProblematic: ${isProblematic})`);
     }
   }
 
@@ -591,13 +589,13 @@ async function createInteractionWithRetry(
              continue;
           }
           
-          if (modelToUse === 'gemini-3.1-flash-lite' && (msg.includes('503') || msg.includes('UNAVAILABLE') || msg.includes('overloaded') || msg.includes('high demand'))) {
+          if (modelToUse === 'gemini-3.5-flash' && (msg.includes('503') || msg.includes('UNAVAILABLE') || msg.includes('overloaded') || msg.includes('high demand'))) {
             logger.info(`[Interaction Fallback] Switching model from ${modelToUse} to gemini-3.1-flash-lite due to 503.`);
             modelToUse = 'gemini-3.1-flash-lite';
             backoffDelay = 1000 + jitter; // Try sooner with the fallback
-          } else if (modelToUse !== 'gemini-3.1-flash-lite' && !msg.includes('429') && !msg.includes('quota') && !msg.includes('RESOURCE_EXHAUSTED')) {
-            logger.info(`[Interaction Fallback] Switching model from ${modelToUse} to gemini-3.1-flash-lite.`);
-            modelToUse = 'gemini-3.1-flash-lite';
+          } else if (modelToUse !== 'gemini-3.5-flash' && !msg.includes('429') && !msg.includes('quota') && !msg.includes('RESOURCE_EXHAUSTED')) {
+            logger.info(`[Interaction Fallback] Switching model from ${modelToUse} to gemini-3.5-flash.`);
+            modelToUse = 'gemini-3.5-flash';
           }
           logger.info(`[Retry] Backing off for ${Math.round(backoffDelay)}ms before retry...`);
           await new Promise(r => setTimeout(r, backoffDelay));
@@ -1089,7 +1087,7 @@ ${articleContent}`;
 
   try {
     const response = await generateContentWithRetry({
-      model: 'gemini-3.1-flash-lite',
+      model: 'gemini-3.5-flash',
       contents: prompt,
       config: {
         temperature: 0.5
@@ -1122,7 +1120,7 @@ Return ONLY a rich JSON object conforming to this schema (no markdown wrapping, 
 
   try {
     const response = await generateContentWithRetry({
-      model: 'gemini-3.1-flash-lite',
+      model: 'gemini-3.5-flash',
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -1166,7 +1164,7 @@ Return ONLY a JSON array containing these 5 subtopics (conform to the schema per
 
   try {
     const response = await generateContentWithRetry({
-      model: 'gemini-3.1-flash-lite',
+      model: 'gemini-3.5-flash',
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -1206,7 +1204,7 @@ Conform strictly to this format so the UI can construct gorgeous, premium intera
 
   try {
     const response = await generateContentWithRetry({
-      model: 'gemini-3.1-flash-lite',
+      model: 'gemini-3.5-flash',
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -1240,11 +1238,11 @@ Your response must be in strict JSON format containing:
    - "category": "connection" | "seo" | "creative" | "general"
 5. "milestonesReached": An array of 1-3 visual milestone strings highlighting successful campaign logs or traffic indicators.
 
-Ensure the final output is parsed strictly into this JSON structure, with no wrapper code blocks or conversational prefixes. Use "gemini-3.1-flash-lite" to compose the content.`;
+Ensure the final output is parsed strictly into this JSON structure, with no wrapper code blocks or conversational prefixes. Use "gemini-3.5-flash" to compose the content.`;
 
   try {
     const response = await generateContentWithRetry({
-      model: 'gemini-3.1-flash-lite',
+      model: 'gemini-3.5-flash',
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -1339,7 +1337,7 @@ Do not include any markdown block wrappers around the JSON.`;
 
     try {
       const gRes = await generateContentWithRetry({
-        model: 'gemini-3.1-flash-lite',
+        model: 'gemini-3.5-flash',
         contents: prompt,
         config: {
           responseMimeType: "application/json",
@@ -1416,7 +1414,11 @@ LATEST USER MESSAGE: ${message}`
 
     try {
       if (!response.text) throw new Error("Empty response");
-      return JSON.parse(response.text);
+      return safeParseJSON(response.text, {
+        response: "I'm having trouble analyzing that. Could you clarify your niche?",
+        initiative: { action: "question", details: {} },
+        mood: "analytical"
+      });
     } catch {
       return {
         response: response.text || "I'm having trouble analyzing that. Could you clarify your niche?",
@@ -1709,7 +1711,7 @@ You must return ONLY the raw valid JSON payload. Do NOT wrap it in backticks, \`
 
   try {
     const rawRes = await generateContentWithRetry({
-      model: 'gemini-3.1-flash-lite',
+      model: MODEL_PRIMARY,
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -1750,7 +1752,7 @@ You must return ONLY the raw valid JSON payload. Do NOT wrap it in backticks, \`
 
   try {
     const rawRes = await generateContentWithRetry({
-      model: 'gemini-3.1-flash-lite',
+      model: MODEL_PRIMARY,
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -1766,9 +1768,58 @@ You must return ONLY the raw valid JSON payload. Do NOT wrap it in backticks, \`
 }
 
 /**
- * EBook Creator Agent
- * Generates a full EBook structure including title, outline, and detailed chapter content.
+ * Strategy Adoption Agent
+ * Analyzes successful competitor moves and converts them into an internal execution blueprint.
  */
+export async function runStrategyAdoptionAgent(
+  competitorData: any,
+  marketContext: string,
+  userId?: string
+): Promise<any> {
+  const prompt = `You are an elite Digital Growth Hacker and Strategy Architect.
+Analyze the following competitor intelligence and market context to formulate a superior "Adoption & Leapfrog" strategy for our system.
+
+Competitor Audit Data:
+${JSON.stringify(competitorData, null, 2)}
+
+Market Context / Goal:
+"${marketContext}"
+
+Your task is to:
+1. Identify the TOP 3 highest-ROI strategies the competitor is using.
+2. Outline exactly HOW our autonomous agents can adopt and improve upon these strategies.
+3. Provide a step-by-step Execution Blueprint.
+4. Estimate the "Time to Impact" and "Revenue Potential".
+
+Return a strictly valid JSON object with:
+{
+  "summary": "High-level overview of the adoption move",
+  "keyStrategiesToAdopt": [
+    { "name": "Strategy Name", "whyItWorks": "Logic", "ourImprovements": "How we leapfrog them" }
+  ],
+  "executionBlueprint": [
+    { "step": 1, "task": "Specific task for our agents", "targetAgent": "e.g. SEO Agent, Writer Agent" }
+  ],
+  "impactAnalysis": { "timeToImpact": "e.g. 14 days", "revenueScore": 9.5 }
+}
+
+Return ONLY raw JSON.`;
+
+  try {
+    const rawRes = await generateContentWithRetry({
+      model: MODEL_PRIMARY,
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        temperature: 0.4
+      }
+    }, 5, userId, "CEO", "executive");
+
+    return safeParseJSON(rawRes.text, {});
+  } catch (e) {
+    throw e;
+  }
+}
 export async function runEbookCreatorAgent(topic: string, userId?: string): Promise<any> {
   const prompt = `You are an elite EBook author and content architect.
 Your task is to create a comprehensive, high-value EBook based on the topic: "${topic}".
@@ -1800,7 +1851,7 @@ Ensure the content is engaging, authoritative, and professionally formatted.`;
 
   try {
     const response = await generateContentWithRetry({
-      model: 'gemini-3.1-flash-lite',
+      model: MODEL_PRIMARY,
       contents: prompt,
       config: {
         responseMimeType: "application/json",

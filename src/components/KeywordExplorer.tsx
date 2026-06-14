@@ -199,7 +199,7 @@ export function KeywordExplorer() {
     setAlertTracked(false);
 
     try {
-      const response = await apiFetch('/api/keyword-research', {
+      const response = await apiFetch('/api/intel/keywords', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -349,7 +349,7 @@ export function KeywordExplorer() {
 
     try {
       const targetDomain = customCompetitor.trim().replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
-      const response = await apiFetch('/api/keywords/audit-competitor', {
+      const response = await apiFetch('/api/strategy/audit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

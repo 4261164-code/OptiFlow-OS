@@ -109,7 +109,7 @@ export function TrafficEngine() {
     if (!keywordToRun.trim()) return;
     setLoading(true);
     try {
-      const resp = await apiFetch('/api/traffic-engine', {
+      const resp = await apiFetch('/api/distro/traffic/engine', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

@@ -26,6 +26,7 @@ import { TrafficEngine } from './components/TrafficEngine';
 import { CreatorNetwork } from './components/CreatorNetwork';
 import { SEOClusters } from './components/SEOClusters';
 import { IntelligenceCenter } from './components/IntelligenceCenter';
+import { StrategyHub } from './components/StrategyHub';
 import { KeywordExplorer } from './components/KeywordExplorer';
 import { AutomationSuite } from './components/AutomationSuite';
 import { NotificationProvider } from './components/NotificationContext';
@@ -111,6 +112,7 @@ export default function App() {
             <Route path="/traffic-engine" element={<TrafficEngine />} />
             <Route path="/creator-network" element={<CreatorNetwork />} />
             <Route path="/intel-digest" element={<IntelligenceCenter />} />
+            <Route path="/strategy" element={<StrategyHub />} />
             <Route path="/agents" element={<AgentManagement />} />
             <Route path="/settings" element={<SettingsPage />} />
 

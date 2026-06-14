@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { Plus, LogOut, Lock, Search, Bell, Network, Brain, Activity, Shield, Book, MessageSquare, X, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, LogOut, Lock, Search, Bell, Network, Brain, Activity, Shield, Book, MessageSquare, X, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, TrendingUp } from "lucide-react";
 import { cn } from "../lib/utils";
 import { Button } from "./ui";
 import { logout } from "../lib/auth";
@@ -49,6 +49,7 @@ export function AppLayout() {
       items: [
         { label: "Dashboard", href: "/", icon: DashboardIcon },
         { label: "CEO Command Center", href: "/executive", icon: Shield },
+        { label: "Strategy Hub", href: "/strategy", icon: TrendingUp },
         { label: "Autopilot Console", href: "/automation", icon: Activity },
         { label: "Agents Control", href: "/agents", icon: AgentsIcon },
       ]

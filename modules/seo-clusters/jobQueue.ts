@@ -11,9 +11,12 @@ function generateId() {
 
 // Implement isolated, independent article generation logic to prevent crossing boundaries
 async function isolatedGenerateArticle(keyword: string): Promise<{ title: string, content: string }> {
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+  const ai = new GoogleGenAI({ 
+    apiKey: process.env.GEMINI_API_KEY!,
+    httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
+  });
   const p = `Write a comprehensive, SEO-optimized article about "${keyword}". Output in markdown.`;
-  const res = await ai.models.generateContent({ model: "gemini-flash-latest", contents: p });
+  const res = await ai.models.generateContent({ model: "gemini-3.1-flash-lite", contents: p });
   const text = res.text || "";
   return { title: keyword, content: text };
 }
