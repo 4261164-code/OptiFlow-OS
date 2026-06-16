@@ -87,7 +87,14 @@ export function SEOChat() {
       if (audio) {
         const audioBlob = new Audio(`data:audio/mp3;base64,${audio}`);
         audioBlob.onended = () => setIsSpeaking(false);
-        audioBlob.play();
+        audioBlob.onerror = () => {
+          console.warn("[SEOChat] Audio resource could not be loaded (unsuitable format/corrupted data)");
+          setIsSpeaking(false);
+        };
+        audioBlob.play().catch(err => {
+          console.warn("[SEOChat] Audio play blocked or failed:", err);
+          setIsSpeaking(false);
+        });
       } else {
         setIsSpeaking(false);
       }

@@ -2,15 +2,289 @@ import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
 import { getAuth, Auth } from 'firebase-admin/auth';
 import { getAppletConfig } from './config';
+import { handleAll, circuitBreaker, ConsecutiveBreaker } from 'cockatiel';
+
+export class FirestoreUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'FirestoreUnavailableError';
+  }
+}
+
+// Circuit breaker trips after 5 consecutive failures, with cool down of 10s
+export const dbCircuitBreaker = circuitBreaker(handleAll, {
+  halfOpenAfter: 10000,
+  breaker: new ConsecutiveBreaker(5)
+});
+
+function captureMockSentryException(error: any, extra?: any) {
+  console.error(JSON.stringify({
+    timestamp: new Date().toISOString(),
+    event: "Sentry.captureException",
+    level: "ERROR",
+    error: error?.message || String(error),
+    stack: error?.stack,
+    ...extra
+  }));
+}
 
 let adminApp: App | undefined;
-let db: Firestore | undefined;
+let db: any;
 let auth: Auth | undefined;
 
-export const hasServiceAccount = !!(process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY);
+export const hasServiceAccount = !!(
+  (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) ||
+  process.env.GOOGLE_APPLICATION_CREDENTIALS
+);
+
+function shouldBypassProxy(obj: any): boolean {
+  if (obj === null || obj === undefined) return true;
+  if (typeof obj !== 'object' && typeof obj !== 'function') return true;
+  
+  if (
+    obj instanceof Map || 
+    obj instanceof Set || 
+    obj instanceof Date || 
+    obj instanceof RegExp || 
+    obj instanceof Promise ||
+    obj instanceof WeakMap ||
+    obj instanceof WeakSet
+  ) {
+    return true;
+  }
+
+  const name = obj.constructor?.name;
+  if (
+    name === 'Timestamp' || 
+    name === 'FieldValue' || 
+    name === 'FieldPath' || 
+    name === 'GeoPoint'
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function makeSafeFirestoreProxy(target: any, path = "db"): any {
+  if (target === null || target === undefined) return target;
+
+  const proxyCache = new WeakMap<any, any>();
+
+  async function executeWithRetry<T>(fn: () => Promise<T>, currentPath: string, propName: string, attempt = 1): Promise<T> {
+    const isProd = process.env.NODE_ENV === "production";
+    
+    try {
+      // Execute the operation within the cockatiel circuit breaker
+      return await dbCircuitBreaker.execute(fn);
+    } catch (err: any) {
+      if (err.name === 'BrokenCircuitException' || err.message?.includes('circuit breaker')) {
+        const breakerMsg = "Firestore circuit breaker triggered. Database calls are temporarily halted to prevent cascading failures.";
+        console.error(JSON.stringify({
+          timestamp: new Date().toISOString(),
+          level: "ERROR",
+          message: breakerMsg,
+          path: currentPath,
+          operation: propName,
+          alert: "FIRESTORE_CIRCUIT_BREAKER_ACTIVE"
+        }));
+        throw new FirestoreUnavailableError(breakerMsg);
+      }
+
+      const errStr = String(err?.message || err).toLowerCase();
+      const code = err.code;
+
+      const isTransient = 
+        code === 4 || // DEADLINE_EXCEEDED
+        code === 14 || // UNAVAILABLE
+        code === 10 || // ABORTED
+        errStr.includes("deadline exceeded") ||
+        errStr.includes("unavailable") ||
+        errStr.includes("aborted") ||
+        errStr.includes("socket") ||
+        errStr.includes("timeout");
+
+      const isPermissionDenied = 
+        code === 7 || 
+        code === 'permission-denied' || 
+        errStr.includes("permission") ||
+        errStr.includes("denied") ||
+        errStr.includes("missing or insufficient permissions");
+
+      const isFailedPrecondition = 
+        code === 9 || 
+        code === 'failed-precondition' || 
+        errStr.includes("precondition") ||
+        errStr.includes("index") ||
+        errStr.includes("composite index");
+
+      const isUnauthenticated = 
+        code === 16 || 
+        code === 'unauthenticated' || 
+        errStr.includes("unauthenticated");
+
+      // 1. Log the failure structurally with audit/alert metrics
+      const logEntry = {
+        timestamp: new Date().toISOString(),
+        level: isPermissionDenied || isUnauthenticated || isFailedPrecondition ? "ERROR" : "WARN",
+        message: `[Firestore Safe Guard] Error occurred during invocation of ${currentPath}.${propName}()`,
+        path: currentPath,
+        operation: propName,
+        code,
+        error: err.message || err,
+        isTransient,
+        attempt,
+        hasServiceAccount,
+        isProduction: isProd
+      };
+      
+      console.error(JSON.stringify({
+        ...logEntry,
+        alert: isPermissionDenied || isUnauthenticated || isFailedPrecondition ? "CRITICAL_DATABASE_ISSUE" : "DATABASE_WARN"
+      }));
+
+      // Trigger Sentry Exception Capture Telemetry (Item 1 / 6)
+      captureMockSentryException(err, { currentPath, propName, code });
+
+      // 2. Exponential retry for transient issues (up to 3 times)
+      if (isTransient && attempt < 3) {
+        const delay = Math.pow(2, attempt) * 100; // 200ms, 400ms, etc.
+        console.log(`[Firestore Safe Guard] Retrying ${currentPath}.${propName}() in ${delay}ms... (Attempt ${attempt}/3)`);
+        await sleep(delay);
+        return executeWithRetry(fn, currentPath, propName, attempt + 1);
+      }
+
+      // 3. Fallback or strict propagation strategy
+      const configMissingOrDev = !hasServiceAccount || !isProd;
+
+      if (configMissingOrDev) {
+        // In local sandbox development, gracefully fall back to prevent complete lockouts
+        if (isPermissionDenied || isUnauthenticated || isFailedPrecondition || !hasServiceAccount) {
+          console.warn(`[Firestore Safe Guard][DEGRADED_MODE] Local/Dev mode fallback enabled. Returning dummy mock payload.`);
+          
+          if (propName === 'get') {
+            return {
+              exists: false,
+              empty: true,
+              docs: [],
+              id: "mock_" + Math.random().toString(36).substring(2, 10),
+              data: () => ({}),
+              forEach: (cb: any) => {},
+              ref: createProxy({}, `${currentPath}.ref`),
+            } as any;
+          }
+          if (propName === 'add') {
+            return {
+              id: "mock_" + Math.random().toString(36).substring(2, 10),
+              path: `${currentPath}/mock_id`,
+              get: async () => ({ exists: false, data: () => ({}) }),
+            } as any;
+          }
+          if (propName === 'set' || propName === 'update' || propName === 'delete') {
+            return { writeTime: Date.now() } as any;
+          }
+          if (propName === 'commit') {
+            return [{ writeTime: Date.now() }] as any;
+          }
+          return { success: true, mock: true } as any;
+        }
+      }
+
+      // In production, strictly throw the FirestoreUnavailableError per requirements
+      throw new FirestoreUnavailableError(`Firestore operation failed: ${err.message || err}`);
+    }
+  }
+
+  function createProxy(obj: any, currentPath: string): any {
+    if (shouldBypassProxy(obj)) {
+      return obj;
+    }
+    if (proxyCache.has(obj)) {
+      return proxyCache.get(obj);
+    }
+
+    const proxy = new Proxy(obj, {
+      get(targetObj, prop, receiver) {
+        if (typeof prop === 'symbol') {
+          return Reflect.get(targetObj, prop, receiver);
+        }
+
+        const value = Reflect.get(targetObj, prop, receiver);
+
+        if (typeof value === 'function') {
+          return function(this: any, ...args: any[]) {
+            try {
+              const context = (this === proxy) ? targetObj : (this || targetObj);
+              const res = value.apply(context, args);
+
+              if (res instanceof Promise) {
+                // Prevent unhandled promise rejection if this first execution is swept aside 
+                // by the circuit breaker or fails during a retry.
+                res.catch(() => {});
+
+                let isFirstCall = true;
+                const fn = () => {
+                  if (isFirstCall) {
+                    isFirstCall = false;
+                    return res;
+                  }
+                  return value.apply(context, args);
+                };
+
+                return executeWithRetry(fn, currentPath, String(prop));
+              }
+
+              if (res && (typeof res === 'object' || typeof res === 'function')) {
+                return createProxy(res, `${currentPath}.${String(prop)}`);
+              }
+
+              return res;
+            } catch (err: any) {
+              const errStr = String(err?.message || err).toLowerCase();
+              const isPermissionDenied = 
+                err.code === 7 || 
+                err.code === 'permission-denied' || 
+                errStr.includes("permission") ||
+                errStr.includes("denied") ||
+                errStr.includes("missing or insufficient permissions");
+
+              if (isPermissionDenied) {
+                console.error(JSON.stringify({
+                  timestamp: new Date().toISOString(),
+                  level: "ERROR",
+                  message: `[Firestore Safe Guard] Sync invocation PERMISSION_DENIED at ${currentPath}.${String(prop)}()`,
+                  error: err.message || err
+                }));
+                if (!hasServiceAccount || process.env.NODE_ENV !== "production") {
+                  return createProxy({}, `${currentPath}.${String(prop)}`);
+                }
+              }
+              throw err;
+            }
+          };
+        }
+
+        if (value && typeof value === 'object') {
+          return createProxy(value, `${currentPath}.${String(prop)}`);
+        }
+
+        return value;
+      }
+    });
+
+    proxyCache.set(obj, proxy);
+    return proxy;
+  }
+
+  return createProxy(target, path);
+}
 
 export function initFirebaseAdmin() {
-  if (adminApp) return { db: db!, auth: auth!, adminApp, hasServiceAccount };
+  if (adminApp) return { db, auth: auth!, adminApp, hasServiceAccount };
 
   const config = getAppletConfig();
   const projectId = process.env.FIREBASE_PROJECT_ID;
@@ -41,7 +315,8 @@ export function initFirebaseAdmin() {
     adminApp = getApps()[0];
   }
 
-  db = getFirestore(adminApp, config.firestoreDatabaseId);
+  const actualDb = getFirestore(adminApp, config.firestoreDatabaseId);
+  db = makeSafeFirestoreProxy(actualDb);
   auth = getAuth(adminApp);
 
   return { db, auth, adminApp };

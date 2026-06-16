@@ -15,6 +15,35 @@ function sanitizeDate(val: any): Date {
 }
 
 /**
+ * Generic pagination helper for Firestore collections to completely bypass OOM errors
+ */
+export async function getAllDocsPaginated(queryRef: any, chunkSize = 500): Promise<{ docs: any[], forEach: (cb: any) => void, empty: boolean, size: number }> {
+  const allDocs: any[] = [];
+  let lastDoc: any = null;
+  while (true) {
+    let query = queryRef.limit(chunkSize);
+    if (lastDoc) {
+      query = query.startAfter(lastDoc);
+    }
+    const snap = await query.get();
+    if (snap.empty) {
+      break;
+    }
+    allDocs.push(...snap.docs);
+    lastDoc = snap.docs[snap.docs.length - 1];
+    if (snap.size < chunkSize) {
+      break;
+    }
+  }
+  return {
+    docs: allDocs,
+    forEach: (cb: any) => allDocs.forEach(cb),
+    empty: allDocs.length === 0,
+    size: allDocs.length
+  };
+}
+
+/**
  * ==========================================
  * WORKER 1: CLICK BUFFER QUEUE WORKER
  * ==========================================
@@ -232,19 +261,19 @@ export async function runMetricsAggregationWorker() {
     logger.info("[Metrics Aggregation Worker] Rebuilding pre-aggregated metric views...");
 
     // Gather raw ingredients
-    const clicksSnap = await db.collection("affiliate_clicks").get();
-    const convSnap = await db.collection("affiliate_conversions").where("status", "==", "confirmed").get();
-    const revSnap = await db.collection("revenue_events").get();
+    const clicksSnap = await getAllDocsPaginated(db.collection("affiliate_clicks"));
+    const convSnap = await getAllDocsPaginated(db.collection("affiliate_conversions").where("status", "==", "confirmed"));
+    const revSnap = await getAllDocsPaginated(db.collection("revenue_events"));
 
     // Map offers to brand name for display lookup
-    const offersSnap = await db.collection("offers").get();
+    const offersSnap = await getAllDocsPaginated(db.collection("offers"));
     const offerNames: Record<string, string> = {};
     offersSnap.forEach(o => {
       offerNames[o.id] = o.data().brand || o.id;
     });
 
     // Map articles
-    const articlesSnap = await db.collection("articles").get();
+    const articlesSnap = await getAllDocsPaginated(db.collection("articles"));
     const articleTitles: Record<string, string> = {};
     const articleToCluster: Record<string, string> = {}; // keyword mapping
     articlesSnap.forEach(a => {
@@ -256,7 +285,7 @@ export async function runMetricsAggregationWorker() {
     });
 
     // Map clusters
-    const clustersSnap = await db.collection("topic_clusters").get();
+    const clustersSnap = await getAllDocsPaginated(db.collection("topic_clusters"));
     const clusterNames: Record<string, string> = {};
     clustersSnap.forEach(c => {
       clusterNames[c.id] = c.data().title || c.id;
@@ -480,7 +509,7 @@ export async function runCostProfitWorker() {
     logger.info("[Profit Worker] Running Profit Calculations...");
 
     // Load cost events
-    const costEventsSnap = await db.collection("cost_events").get();
+    const costEventsSnap = await getAllDocsPaginated(db.collection("cost_events"));
     const costs: Record<string, number> = {};
     costEventsSnap.forEach(doc => {
       const d = doc.data();
@@ -489,26 +518,26 @@ export async function runCostProfitWorker() {
     });
 
     // Map entity names
-    const articlesSnap = await db.collection("articles").get();
+    const articlesSnap = await getAllDocsPaginated(db.collection("articles"));
     const articleMap: Record<string, { name: string; userId: string }> = {};
     articlesSnap.forEach(a => {
       articleMap[a.id] = { name: a.data().title || a.id, userId: a.data().userId || "system" };
     });
 
-    const clustersSnap = await db.collection("topic_clusters").get();
+    const clustersSnap = await getAllDocsPaginated(db.collection("topic_clusters"));
     const clusterMap: Record<string, { name: string; userId: string }> = {};
     clustersSnap.forEach(c => {
       clusterMap[c.id] = { name: c.data().title || c.id, userId: c.data().userId || "system" };
     });
 
-    const offersSnap = await db.collection("offers").get();
+    const offersSnap = await getAllDocsPaginated(db.collection("offers"));
     const offerMap: Record<string, { name: string; userId: string }> = {};
     offersSnap.forEach(o => {
       offerMap[o.id] = { name: o.data().brand || o.id, userId: o.data().userId || "system" };
     });
 
     // Get pre-aggregated revenues so we can compute: profit = revenue - cost
-    const artMetricsSnap = await db.collection("article_metrics").get();
+    const artMetricsSnap = await getAllDocsPaginated(db.collection("article_metrics"));
     artMetricsSnap.forEach(doc => {
       const d = doc.data();
       const entityId = d.articleId;
@@ -530,7 +559,7 @@ export async function runCostProfitWorker() {
       });
     });
 
-    const offerMetricsSnap = await db.collection("offer_metrics").get();
+    const offerMetricsSnap = await getAllDocsPaginated(db.collection("offer_metrics"));
     offerMetricsSnap.forEach(doc => {
       const d = doc.data();
       const entityId = d.offerId;
@@ -552,7 +581,7 @@ export async function runCostProfitWorker() {
       });
     });
 
-    const clMetricsSnap = await db.collection("cluster_metrics").get();
+    const clMetricsSnap = await getAllDocsPaginated(db.collection("cluster_metrics"));
     clMetricsSnap.forEach(doc => {
       const d = doc.data();
       const entityId = d.clusterId;
@@ -591,7 +620,7 @@ export async function runFailureIntelligenceWorker() {
     logger.info("[Failure Intel Worker] Compiling system wellness scores...");
 
     // Get jobs and count failed ones
-    const jobsSnap = await db.collection("jobs").get();
+    const jobsSnap = await getAllDocsPaginated(db.collection("jobs"));
     let totalJobs = 0;
     let failedJobs = 0;
     jobsSnap.forEach(doc => {
@@ -603,14 +632,14 @@ export async function runFailureIntelligenceWorker() {
     const pipelineFailureRate = totalJobs > 0 ? (failedJobs / totalJobs) : 0;
 
     // Click errors versus confirmed events
-    const clicksSnap = await db.collection("affiliate_clicks").get();
-    const clickErrorsSnap = await db.collection("click_errors").get();
+    const clicksSnap = await getAllDocsPaginated(db.collection("affiliate_clicks"));
+    const clickErrorsSnap = await getAllDocsPaginated(db.collection("click_errors"));
     const totalClicks = clicksSnap.docs.length;
     const totalClickErrors = clickErrorsSnap.docs.length;
     const clickFailureRate = totalClicks > 0 ? (totalClickErrors / totalClicks) : 0;
 
     // Retry success rates (matched orphans vs total pending_conversions)
-    const unconSnap = await db.collection("unreconciled_conversions").get();
+    const unconSnap = await getAllDocsPaginated(db.collection("unreconciled_conversions"));
     let totalOrphans = 0;
     let reconciledOrphans = 0;
     unconSnap.forEach(doc => {

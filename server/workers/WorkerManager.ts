@@ -2,6 +2,7 @@ import { logger } from "../lib/logger";
 import { HealthManager } from "./HealthManager";
 import { JobScheduler } from "./JobScheduler";
 import { RetryFramework, RetryPolicy } from "./RetryFramework";
+import { LockManager } from "../lib/lockManager";
 
 export interface WorkerDefinition {
   name: string;
@@ -32,11 +33,13 @@ export class WorkerManager {
       HealthManager.reportStart(worker.name);
 
       try {
-        if (worker.retryPolicy) {
-          await RetryFramework.withRetry(worker.name, worker.task, worker.retryPolicy);
-        } else {
-          await worker.task();
-        }
+        await LockManager.withLock(`worker-${worker.name}`, async () => {
+          if (worker.retryPolicy) {
+            await RetryFramework.withRetry(worker.name, worker.task, worker.retryPolicy);
+          } else {
+            await worker.task();
+          }
+        });
         HealthManager.reportSuccess(worker.name);
       } catch (error: any) {
         HealthManager.reportError(worker.name, error);
@@ -45,6 +48,14 @@ export class WorkerManager {
     });
 
     logger.info(`[WorkerManager] Registered worker ${worker.name}`);
+  }
+
+  static getWorker(name: string): WorkerDefinition | undefined {
+    return this.workers.get(name);
+  }
+
+  static getWorkerNames(): string[] {
+    return Array.from(this.workers.keys());
   }
 
   static async startAll() {

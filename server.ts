@@ -12,6 +12,7 @@ import { executiveApiRouter } from "./server/routes/api/executive";
 import { postbackRouter } from "./server/routes/api/postback";
 import { opsRouter } from "./server/routes/api/ops";
 import { maxbountyRouter } from "./server/routes/api/maxbounty";
+import { workersRouter } from "./server/routes/api/workers";
 import { runResearchAgent, runWriterAgent, runMonetizationAgent, runPinterestAgent, runImageGenerationAgent, runAffiliateMatchAgent, runTrafficEngineAgent, runSEOLinkAgent, runSocialCopyAgent, runSEOClusterAgent, runReportDigestAgent, runExecutiveSummaryAgent, runCustomPinAgent, runDeepKeywordExplorerAgent, runCompetitorAuditAgent, runEbookCreatorAgent } from "./server/agents";
 import { getLinkedInProfile, publishToLinkedInFeed } from "./server/linkedinService";
 
@@ -43,7 +44,7 @@ export const appPromise = (async () => {
   // Secure all API routes except public ones
   app.use("/api", (req, res, next) => {
     // Public routes
-    if (req.path === "/health" || req.path === "/postback" || req.path.startsWith("/webhooks")) {
+    if (req.path === "/health" || req.path === "/postback" || req.path.startsWith("/webhooks") || req.path.startsWith("/workers")) {
       return next();
     }
     return verifyToken(req, res, next);
@@ -55,6 +56,7 @@ export const appPromise = (async () => {
   app.use("/api/webhooks", postbackRouter);
   app.use("/api/ops", opsRouter);
   app.use("/api/maxbounty", maxbountyRouter);
+  app.use("/api/workers", workersRouter);
   console.log("[Server] Routers mounted.");
 
   // API constraints check
