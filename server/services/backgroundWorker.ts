@@ -1,17 +1,10 @@
 import { logger } from "../lib/logger";
-import { db } from "../firebaseAdmin";
+import { db, hasServiceAccount } from "../firebaseAdmin";
 import { FEATURE_FLAGS } from "./featureFlags";
 import { logLedgerEvent } from "./eventLedger";
 import { runImageGenerationAgent } from "../agents";
 import { ApiHealthMonitor, SystemHealthCenter, CEOAgent } from "./healthMonitor";
 
-
-// Worker execution lock
-let clickBufferRunning = false;
-let reconciliationRunning = false;
-let aggregationRunning = false;
-let profitRunning = false;
-let healthRunning = false;
 
 // Helpers to avoid double run and handle Firestore dates properly
 function sanitizeDate(val: any): Date {
@@ -27,9 +20,7 @@ function sanitizeDate(val: any): Date {
  * ==========================================
  */
 export async function runClickBufferWorker() {
-  if (clickBufferRunning) return;
-  clickBufferRunning = true;
-
+  if (!hasServiceAccount) return;
   try {
     const snap = await db.collection("pending_click_events")
       .where("status", "==", "pending")
@@ -37,7 +28,6 @@ export async function runClickBufferWorker() {
       .get();
 
     if (snap.empty) {
-      clickBufferRunning = false;
       return;
     }
 
@@ -101,8 +91,6 @@ export async function runClickBufferWorker() {
     }
   } catch (err: any) {
     logger.error("[Click Buffer Worker] Run failed:", err);
-  } finally {
-    clickBufferRunning = false;
   }
 }
 
@@ -112,9 +100,7 @@ export async function runClickBufferWorker() {
  * ==========================================
  */
 export async function runConversionReconciliationWorker() {
-  if (reconciliationRunning) return;
-  reconciliationRunning = true;
-
+  if (!hasServiceAccount) return;
   try {
     const snap = await db.collection("unreconciled_conversions")
       .where("status", "==", "pending")
@@ -122,7 +108,6 @@ export async function runConversionReconciliationWorker() {
       .get();
 
     if (snap.empty) {
-      reconciliationRunning = false;
       return;
     }
 
@@ -231,8 +216,6 @@ export async function runConversionReconciliationWorker() {
     }
   } catch (err: any) {
     logger.error("[Reconciliation Worker] Run failed:", err);
-  } finally {
-    reconciliationRunning = false;
   }
 }
 
@@ -242,9 +225,8 @@ export async function runConversionReconciliationWorker() {
  * ==========================================
  */
 export async function runMetricsAggregationWorker() {
+  if (!hasServiceAccount) return;
   if (!FEATURE_FLAGS.ENABLE_AGGREGATION_WORKERS) return;
-  if (aggregationRunning) return;
-  aggregationRunning = true;
 
   try {
     logger.info("[Metrics Aggregation Worker] Rebuilding pre-aggregated metric views...");
@@ -482,8 +464,6 @@ export async function runMetricsAggregationWorker() {
 
   } catch (err: any) {
     logger.error("[Metrics Aggregation Worker] Run failed:", err);
-  } finally {
-    aggregationRunning = false;
   }
 }
 
@@ -493,9 +473,8 @@ export async function runMetricsAggregationWorker() {
  * ==========================================
  */
 export async function runCostProfitWorker() {
+  if (!hasServiceAccount) return;
   if (!FEATURE_FLAGS.ENABLE_COST_TRACKING) return;
-  if (profitRunning) return;
-  profitRunning = true;
 
   try {
     logger.info("[Profit Worker] Running Profit Calculations...");
@@ -598,8 +577,6 @@ export async function runCostProfitWorker() {
 
   } catch (err: any) {
     logger.error("[Profit Worker] Run failed:", err);
-  } finally {
-    profitRunning = false;
   }
 }
 
@@ -609,9 +586,7 @@ export async function runCostProfitWorker() {
  * ==========================================
  */
 export async function runFailureIntelligenceWorker() {
-  if (healthRunning) return;
-  healthRunning = true;
-
+  if (!hasServiceAccount) return;
   try {
     logger.info("[Failure Intel Worker] Compiling system wellness scores...");
 
@@ -672,8 +647,6 @@ export async function runFailureIntelligenceWorker() {
 
   } catch (err: any) {
     logger.error("[Failure Intel Worker] Health compilation failed:", err);
-  } finally {
-    healthRunning = false;
   }
 }
 
@@ -683,6 +656,7 @@ export async function runFailureIntelligenceWorker() {
  * ==========================================
  */
 export async function runCEOSelfHealingWorker() {
+  if (!hasServiceAccount) return;
   try {
     logger.info("[CEO Self-Healing] Analyzing system anomalies and initiating proactive measures...");
 
@@ -728,6 +702,7 @@ export async function runCEOSelfHealingWorker() {
  * ==========================================
  */
 export async function runImageRetryWorker() {
+  if (!hasServiceAccount) return;
   try {
     const snap = await db.collection("image_retry_queue")
       .where("status", "==", "PENDING")
@@ -785,78 +760,77 @@ export async function runImageRetryWorker() {
   }
 }
 
-/**
- * START ALL CYCLICAL SYSTEM HARDENING WORKERS
- */
-const WORKER_INTERVALS = {
-  metricsAggregation: 120_000,   // 2 minutes
-  profitCalculation:  120_000,   // 2 minutes
-  failureIntel:       180_000,   // 3 minutes
-  ceoSelfHealing:     300_000,   // 5 minutes
-  systemHealth:       60_000,    // 1 minute
-} as const;
-
-// Add run-lock to prevent overlapping executions
-const running = new Set<string>();
-
-function guardedInterval(name: string, fn: () => Promise<void>, ms: number) {
-  return setInterval(async () => {
-    if (running.has(name)) return;
-    running.add(name);
-    try { 
-      await fn(); 
-    } catch (e) { 
-      logger.error(`Worker ${name} failed`, { error: e }); 
-    } finally { 
-      running.delete(name); 
-    }
-  }, ms);
-}
+import { WorkerManager } from "../workers/WorkerManager";
 
 /**
  * Starts all system hardening background routines
  */
 export function startSystemHardeningWorkers() {
-  logger.info("[System Hardening Workers] Initializing scheduled routines...");
+  logger.info("[System Hardening Workers] Initializing scheduled routines via WorkerManager...");
 
-  // Metrics aggregation (Task 4) - Runs every 2 minutes
-  guardedInterval("metricsAggregation", async () => {
-    await runMetricsAggregationWorker();
-  }, WORKER_INTERVALS.metricsAggregation);
+  WorkerManager.registerWorker({
+    name: "clickBuffer",
+    intervalMs: 15_000,
+    task: runClickBufferWorker,
+    retryPolicy: { maxRetries: 3, backoffMs: 1000, backoffMultiplier: 2, maxBackoffMs: 10000 }
+  });
 
-  // Profit computations tracker (Task 5) - Runs every 2 minutes
-  guardedInterval("profitCalculation", async () => {
-    await runCostProfitWorker();
-  }, WORKER_INTERVALS.profitCalculation);
+  WorkerManager.registerWorker({
+    name: "conversionReconciliation",
+    intervalMs: 30_000,
+    task: runConversionReconciliationWorker,
+    retryPolicy: { maxRetries: 3, backoffMs: 1000, backoffMultiplier: 2, maxBackoffMs: 10000 }
+  });
 
-  // System intelligence reporter (Task 6) - Runs every 3 minutes
-  guardedInterval("failureIntel", async () => {
-    await runFailureIntelligenceWorker();
-  }, WORKER_INTERVALS.failureIntel);
+  WorkerManager.registerWorker({
+    name: "imageRetry",
+    intervalMs: 60_000,
+    task: runImageRetryWorker,
+  });
 
-  // CEO Self-Healing (Task 7) - Runs every 5 minutes
-  guardedInterval("ceoSelfHealing", async () => {
-    await runCEOSelfHealingWorker();
-  }, WORKER_INTERVALS.ceoSelfHealing);
+  WorkerManager.registerWorker({
+    name: "metricsAggregation",
+    intervalMs: 120_000,
+    task: runMetricsAggregationWorker,
+    retryPolicy: { maxRetries: 2, backoffMs: 2000, backoffMultiplier: 2, maxBackoffMs: 10000 }
+  });
 
-  // API Key Health Monitor (Task 9) - Checks every 15 minutes
-  guardedInterval("apiKeyHealth", async () => {
-    await ApiHealthMonitor.runDiagnostics();
-  }, 15 * 60 * 1000);
-  // Run once on startup
-  ApiHealthMonitor.runDiagnostics().catch(err => logger.error("API check initial run exception:", err));
+  WorkerManager.registerWorker({
+    name: "profitCalculation",
+    intervalMs: 120_000,
+    task: runCostProfitWorker,
+    retryPolicy: { maxRetries: 2, backoffMs: 2000, backoffMultiplier: 2, maxBackoffMs: 10000 }
+  });
 
-  // System Observability Center (Task 10) - Record metrics every minute
-  guardedInterval("systemHealth", async () => {
-    await SystemHealthCenter.logMetrics();
-  }, WORKER_INTERVALS.systemHealth);
-  // Run once on startup
-  SystemHealthCenter.logMetrics().catch(err => logger.error("System health logger initial run exception:", err));
+  WorkerManager.registerWorker({
+    name: "failureIntel",
+    intervalMs: 180_000,
+    task: runFailureIntelligenceWorker,
+  });
 
-  // CEO Self-Healing Audit Daemon (Task 11) - Runs every 5 minutes
-  guardedInterval("ceoSelfHealingAudit", async () => {
-    await CEOAgent.runSelfHealingAudit();
-  }, 300000);
-  // Run once on startup
-  CEOAgent.runSelfHealingAudit().catch(err => logger.error("CEO audit initial run exception:", err));
+  WorkerManager.registerWorker({
+    name: "ceoSelfHealing",
+    intervalMs: 300_000,
+    task: runCEOSelfHealingWorker,
+  });
+
+  WorkerManager.registerWorker({
+    name: "apiKeyHealth",
+    intervalMs: 15 * 60 * 1000,
+    task: async () => { await ApiHealthMonitor.runDiagnostics(); },
+  });
+
+  WorkerManager.registerWorker({
+    name: "systemHealth",
+    intervalMs: 60_000,
+    task: async () => { await SystemHealthCenter.logMetrics(); },
+  });
+
+  WorkerManager.registerWorker({
+    name: "ceoSelfHealingAudit",
+    intervalMs: 300_000,
+    task: async () => { await CEOAgent.runSelfHealingAudit(); },
+  });
+
+  WorkerManager.startAll().catch(e => logger.error("Worker start failure", e));
 }

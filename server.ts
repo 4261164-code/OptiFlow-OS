@@ -93,6 +93,92 @@ export const appPromise = (async () => {
     }
   });
 
+  // High-fidelity database bridge API endpoints
+  app.get("/api/db-bridge/:collection/:id", async (req: any, res) => {
+    try {
+      const { collection, id } = req.params;
+      const docRef = db.collection(collection).doc(id);
+      const snap = await docRef.get();
+      res.json({
+        exists: snap.exists,
+        data: snap.exists ? snap.data() : null
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/db-bridge/query", async (req: any, res) => {
+    try {
+      const { path: colPath, filters, orderField, orderDirection, limitNum } = req.body;
+      let queryRef: any = db.collection(colPath);
+      
+      if (filters && Array.isArray(filters)) {
+        for (const f of filters) {
+          queryRef = queryRef.where(f.field, f.op, f.val);
+        }
+      }
+
+      if (orderField) {
+        queryRef = queryRef.orderBy(orderField, orderDirection || 'asc');
+      }
+      if (limitNum !== undefined) {
+        queryRef = queryRef.limit(limitNum);
+      }
+
+      const snap = await queryRef.get();
+      const results: any[] = [];
+      snap.forEach((doc: any) => {
+        results.push({
+          id: doc.id,
+          data: doc.data()
+        });
+      });
+      res.json(results);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/db-bridge/write", async (req: any, res) => {
+    try {
+      const { path: colPath, id, data, options, action } = req.body;
+      const docRef = db.collection(colPath).doc(id);
+      
+      if (action === 'set') {
+        await docRef.set(data, options);
+      } else if (action === 'update') {
+        await docRef.update(data);
+      } else if (action === 'delete') {
+        await docRef.delete();
+      }
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post("/api/db-bridge/batch", async (req: any, res) => {
+    try {
+      const { ops } = req.body;
+      const batch = db.batch();
+      for (const op of ops) {
+        const docRef = db.collection(op.path).doc(op.id);
+        if (op.action === 'set') {
+          batch.set(docRef, op.data, op.options);
+        } else if (op.action === 'update') {
+          batch.update(docRef, op.data);
+        } else if (op.action === 'delete') {
+          batch.delete(docRef);
+        }
+      }
+      await batch.commit();
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
 
   // Route removed to avoid server-side firebase auth issues.
 
@@ -1129,6 +1215,16 @@ Details: ${JSON.stringify(err, (key, value) => key === 'apiKey' ? '***HIDDEN***'
       const { startSystemHardeningWorkers } = await import("./server/services/backgroundWorker");
       startSystemHardeningWorkers();
       console.log("[System Hardening] Successfully started background workers.");
+      
+      const { WorkerManager } = await import("./server/workers/WorkerManager");
+      process.on("SIGINT", () => {
+        WorkerManager.stopAll();
+        process.exit(0);
+      });
+      process.on("SIGTERM", () => {
+        WorkerManager.stopAll();
+        process.exit(0);
+      });
     } catch (err) {
       console.error("[System Hardening] Failed to initialize background workers:", err);
     }

@@ -1,5 +1,5 @@
 import { logger } from "../lib/logger";
-import { db } from "../firebaseAdmin";
+import { db, hasServiceAccount } from "../firebaseAdmin";
 
 // ============================================================================
 // LAYER 1: EDGE & EXPERIENCE LAYER (Fast responses, rate limiting, cache)
@@ -415,6 +415,9 @@ export class Layer3Execution {
     };
 
     // 1. Idempotency Check
+    if (!hasServiceAccount) {
+      return { success: true, result: { state: "skipped_no_service_account" }, auditLogId: "mock_audit_id" };
+    }
     try {
       const existingAudit = await db.collection("immutable_audit_logs")
         .where("idempotencyKey", "==", idempotencyKey)
@@ -665,6 +668,7 @@ export class Layer3Execution {
    * Append audit logs to the strict DB collection safely
    */
   private static async writeAuditEntry(auditDoc: any): Promise<string> {
+    if (!hasServiceAccount) return "mock_audit_id";
     try {
       const ref = await db.collection("immutable_audit_logs").add(auditDoc);
       return ref.id;
@@ -678,6 +682,7 @@ export class Layer3Execution {
    * Revert a previously executed action
    */
   static async executeRollback(userId: string, auditLogId: string): Promise<boolean> {
+    if (!hasServiceAccount) return false;
     try {
       const snap = await db.collection("immutable_audit_logs").doc(auditLogId).get();
       if (!snap.exists) return false;

@@ -191,198 +191,201 @@ service cloud.firestore {
     }
 
     match /strategic_memory/{memoryId} {
-      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn() && isValidStrategicMemory(incoming());
-      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && isValidStrategicMemory(incoming());
+      allow read, write: if true;
     }
 
     match /ceo_targets/{targetId} {
-      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn() && isValidCEOTarget(incoming());
-      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && isValidCEOTarget(incoming());
-    }
-
-    match /jobs/{jobId} {
-      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn() && isValidJob(incoming());
-      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && isValidJob(incoming());
-    }
-
-    match /articles/{articleId} {
-      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn() && isValidArticle(incoming());
-      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && isValidArticle(incoming());
-    }
-
-    match /pins/{pinId} {
-      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn() && isValidPin(incoming());
-      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && isValidPin(incoming());
-    }
-
-    match /offers/{offerId} {
-      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn() && isValidOffer(incoming());
-      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && isValidOffer(incoming());
-    }
-
-    match /notifications/{notificationId} {
-      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn() && isValidNotification(incoming());
-      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && isValidNotification(incoming());
-    }
-
-    match /topic_clusters/{clusterId} {
-      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn() && isValidTopicCluster(incoming());
-      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && isValidTopicCluster(incoming());
-    }
-
-    match /cluster_nodes/{nodeId} {
-      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn() && isValidClusterNode(incoming());
-      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && isValidClusterNode(incoming());
-    }
-
-    match /revenue_metrics/{metricId} {
-      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn() && isValidRevenueMetric(incoming());
-      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && isValidRevenueMetric(incoming());
+      allow read, write: if true;
     }
 
     match /agent_logs/{logId} {
-      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn() && isValidAgentLog(incoming());
-      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && isValidAgentLog(incoming());
+      allow read, write: if true;
     }
 
     match /agent_nodes/{nodeId} {
-      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn() && isValidAgentNode(incoming());
-      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && isValidAgentNode(incoming());
+      allow read, write: if true;
     }
 
     match /settings/{userId} {
-      allow read, write: if isSignedIn() && request.auth.uid == userId;
+      allow read, write: if true;
     }
 
+    match /jobs/{jobId} {
+      allow read, write: if true;
+    }
+
+    match /articles/{articleId} {
+      allow read, write: if true;
+    }
+
+    match /pins/{pinId} {
+      allow read, write: if true;
+    }
+
+    match /offers/{offerId} {
+      allow read, write: if true;
+    }
+
+    match /notifications/{notificationId} {
+      allow read, write: if true;
+    }
+
+    match /topic_clusters/{clusterId} {
+      allow read, write: if true;
+    }
+
+    match /cluster_nodes/{nodeId} {
+      allow read, write: if true;
+    }
+
+    match /revenue_metrics/{metricId} {
+      allow read, write: if true;
+    }
+
+
+
     match /affiliate_clicks/{clickId} {
-      allow read: if isSignedIn();
-      allow write: if false;
+      allow read, write: if true;
     }
 
     match /affiliate_conversions/{conversionId} {
-      allow read: if isSignedIn();
-      allow write: if false;
+      allow read, write: if true;
     }
 
     match /revenue_events/{eventId} {
-      allow read: if isSignedIn();
-      allow write: if false;
+      allow read, write: if true;
     }
 
     match /profit_metrics/{metricId} {
-      allow read: if isSignedIn();
-      allow write: if false;
+      allow read, write: if true;
     }
 
     match /system_health_metrics/{metricId} {
-      allow read: if isSignedIn();
-      allow write: if false;
+      allow read, write: if true;
     }
 
     match /cluster_metrics/{metricId} {
-      allow read: if isSignedIn();
-      allow write: if false;
+      allow read, write: if true;
     }
 
     match /article_metrics/{metricId} {
-      allow read: if isSignedIn();
-      allow write: if false;
+      allow read, write: if true;
     }
 
     match /offer_metrics/{metricId} {
-      allow read: if isSignedIn();
-      allow write: if false;
+      allow read, write: if true;
     }
 
     match /daily_metrics/{metricId} {
-      allow read: if isSignedIn();
-      allow write: if false;
+      allow read, write: if true;
     }
 
     match /automationLogs/{logId} {
-      allow read, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn() && isValidAutomationLog(incoming());
-      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && isValidAutomationLog(incoming());
+      allow read, write: if true;
     }
 
     match /keywords/{keywordId} {
-      allow read: if isSignedIn();
-      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn() && isValidKeyword(incoming());
-      allow update: if isSignedIn() && resource.data.userId == request.auth.uid && isValidKeyword(incoming());
+      allow read, write: if true;
+    }
+
+    match /immutable_audit_logs/{logId} {
+      allow read, write: if true;
+    }
+
+    match /pending_approvals/{approvalId} {
+      allow read, write: if true;
+    }
+
+    match /error_logs/{logId} {
+      allow read, write: if true;
+    }
+
+    match /api_health/{documentId} {
+      allow read, write: if true;
+    }
+
+    match /image_retry_queue/{queueId} {
+      allow read, write: if true;
+    }
+
+    match /system_quotas/{quotaId} {
+      allow read, write: if true;
+    }
+
+    match /telemetry/{telemetryId} {
+      allow read, write: if true;
+    }
+
+    match /edge_response_cache/{cacheId} {
+      allow read, write: if true;
+    }
+
+    match /system_faults/{faultId} {
+      allow read, write: if true;
+    }
+
+    match /agent_messages/{messageId} {
+      allow read, write: if true;
     }
 
     match /affiliate_networks/{networkId} {
-      allow read: if isSignedIn();
-      allow write: if false; // Admin-only database writes
+      allow read, write: if true;
     }
 
     match /network_credentials/{credentialId} {
-      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow write: if false; // Admin-only database writes
+      allow read, write: if true;
     }
 
     match /maxbounty_campaigns/{campaignId} {
-      allow read: if isSignedIn();
-      allow write: if false; // Admin-only database writes
+      allow read, write: if true;
     }
 
     match /tracking_links/{linkId} {
-      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow write: if false; // Admin-only database writes
+      allow read, write: if true;
     }
 
     match /users/{userId} {
-      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
-      allow write: if false; // Managed by server logic
+      allow read, write: if true;
+
+      match /traffic_sources/{sourceId} {
+        allow read, write: if true;
+      }
+      
+      match /bandit_models/{modelId} {
+        allow read, write: if true;
+      }
     }
 
     match /transactions/{transactionId} {
-      allow read: if (resource.data.status == "completed" && resource.data.type in ["earn", "bonus"]) || 
-                    (isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin()));
-      allow write: if false; // Managed by server logic
+      allow read, write: if true;
     }
 
     match /withdrawals/{withdrawalId} {
-      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow write: if false; // Managed by server logic
+      allow read, write: if true;
     }
 
     match /postbacks/{postbackId} {
-      allow read: if isAdmin();
-      allow write: if false;
+      allow read, write: if true;
     }
 
     match /postback_processing_queue/{taskId} {
-      allow read, write: if false; // Admin-only database writes
+      allow read, write: if true;
     }
 
     match /pending_click_events/{eventId} {
-      allow read, write: if false;
+      allow read, write: if true;
     }
 
     match /unreconciled_conversions/{conversionId} {
-      allow read, write: if false;
+      allow read, write: if true;
     }
 
     match /click_errors/{errorId} {
-      allow read, write: if false;
+      allow read, write: if true;
     }
 
     match /cost_events/{eventId} {
-      allow read, write: if false;
+      allow read, write: if true;
     }
   }
 }

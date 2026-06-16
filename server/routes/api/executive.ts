@@ -1,6 +1,6 @@
 import { logger } from "../../lib/logger";
 import { Router } from "express";
-import { db } from "../../firebaseAdmin";
+import { db, hasServiceAccount } from "../../firebaseAdmin";
 import { runCEOSoul, runSEOSoul, generateCEOSpeech } from "../../agents";
 import { RevenueEngine } from "../../services/revenueEngine";
 import { Layer2Brain, Layer3Execution } from "../../services/architectureLayers";
@@ -118,13 +118,32 @@ executiveApiRouter.post("/soul/tts", async (req: any, res: any) => {
 
 executiveApiRouter.get("/memory", async (req: any, res: any) => {
     try {
+        if (!hasServiceAccount) {
+            return res.json([]);
+        }
         const userId = req.user.uid;
-        const snap = await db.collection("strategic_memory")
-            .where("userId", "==", userId)
-            .orderBy("createdAt", "desc")
-            .limit(50)
-            .get();
-        const results = snap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+        let results: any[] = [];
+        try {
+            const snap = await db.collection("strategic_memory")
+                .where("userId", "==", userId)
+                .orderBy("createdAt", "desc")
+                .limit(50)
+                .get();
+            results = snap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+        } catch (err: any) {
+            if (err.message?.includes("index") || err.code === 9) {
+                logger.warn("[Executive API] /memory missing composite index. Fetching & sorting in-memory.");
+                const snap = await db.collection("strategic_memory")
+                    .where("userId", "==", userId)
+                    .limit(100)
+                    .get();
+                results = snap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+                results.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+                results = results.slice(0, 50);
+            } else {
+                throw err;
+            }
+        }
         res.json(results);
     } catch (e: any) {
         res.status(500).json({ error: e.message });
@@ -133,6 +152,9 @@ executiveApiRouter.get("/memory", async (req: any, res: any) => {
 
 executiveApiRouter.post("/memory", async (req: any, res: any) => {
     try {
+        if (!hasServiceAccount) {
+            return res.status(400).json({ error: "No Service Account configured." });
+        }
         const { topic, insight, reliability, sourceAgent } = req.body;
         const userId = req.user.uid;
         const entry = {
@@ -152,12 +174,29 @@ executiveApiRouter.post("/memory", async (req: any, res: any) => {
 
 executiveApiRouter.get("/targets", async (req: any, res: any) => {
     try {
+        if (!hasServiceAccount) {
+            return res.json([]);
+        }
         const userId = req.user.uid;
-        const snap = await db.collection("ceo_targets")
-            .where("userId", "==", userId)
-            .orderBy("updatedAt", "desc")
-            .get();
-        const results = snap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+        let results: any[] = [];
+        try {
+            const snap = await db.collection("ceo_targets")
+                .where("userId", "==", userId)
+                .orderBy("updatedAt", "desc")
+                .get();
+            results = snap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+        } catch (err: any) {
+            if (err.message?.includes("index") || err.code === 9) {
+                logger.warn("[Executive API] /targets missing composite index. Fetching & sorting in-memory.");
+                const snap = await db.collection("ceo_targets")
+                    .where("userId", "==", userId)
+                    .get();
+                results = snap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+                results.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+            } else {
+                throw err;
+            }
+        }
         res.json(results);
     } catch (e: any) {
         res.status(500).json({ error: e.message });

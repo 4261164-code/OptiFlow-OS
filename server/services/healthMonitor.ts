@@ -1,5 +1,5 @@
 import { logger } from "../lib/logger";
-import { db } from "../firebaseAdmin";
+import { db, hasServiceAccount } from "../firebaseAdmin";
 import { GoogleGenAI } from "@google/genai";
 import OpenAI from "openai";
 
@@ -16,6 +16,7 @@ export class GlobalErrorManager {
     severityInput?: 'Critical' | 'High' | 'Medium' | 'Low',
     details?: any
   ) {
+    if (!hasServiceAccount) return;
     try {
       const errorMessage = error?.message || String(error);
       const errorStack = error?.stack || "";
@@ -139,6 +140,7 @@ export class ApiHealthMonitor {
 
     // 5. Check Firestore & Admin SDK Connection
     try {
+      if (!hasServiceAccount) throw new Error("No Service Account Provided");
       const testSnap = await db.collection("jobs").limit(1).get();
       results['firestore'] = { status: 'online', message: `Connected. Accessed ${testSnap.size} documents`, lastChecked: Date.now() };
     } catch (err: any) {
@@ -160,6 +162,7 @@ export class ApiHealthMonitor {
 
     // Persist checks summary
     try {
+      if (!hasServiceAccount) return results;
       await db.collection("api_health").doc("summary").set({
         checks: results,
         timestamp: Date.now()
@@ -174,6 +177,7 @@ export class ApiHealthMonitor {
 
 export class SystemHealthCenter {
   static async logMetrics() {
+    if (!hasServiceAccount) return;
     try {
       const cpuUsage = process.cpuUsage();
       const memoryUsage = process.memoryUsage();
@@ -231,6 +235,7 @@ export class SystemHealthCenter {
 
 export class CEOAgent {
   static async runSelfHealingAudit() {
+    if (!hasServiceAccount) return;
     try {
       logger.info("[CEOAgent] Initiating proactive diagnostic auto-repair cycle...");
 

@@ -1,6 +1,6 @@
 import { logger } from "./lib/logger";
 import { GoogleGenAI, Modality } from '@google/genai';
-import { db } from "./firebaseAdmin";
+import { db, hasServiceAccount } from "./firebaseAdmin";
 import OpenAI from "openai";
 import { MODEL_PRIMARY, MODEL_FALLBACK } from "./config/models";
 
@@ -1440,24 +1440,83 @@ export async function runCEOSoul(message: string, history: any[], userId?: strin
   let metricsSummary: any = {};
 
   try {
-    if (userId) {
-      const [userSettingsSnap, memoriesSnap, targetsSnap, metricsSnap] = await Promise.all([
-        db.collection("settings").doc(userId).get(),
-        db.collection("strategic_memory").where("userId", "==", userId).orderBy("createdAt", "desc").limit(10).get(),
-        db.collection("ceo_targets").where("userId", "==", userId).get(),
-        db.collection("daily_metrics").where("userId", "==", userId).orderBy("date", "desc").limit(1).get()
-      ]);
+    if (userId && hasServiceAccount) {
+      let userSettingsSnap: any = null;
+      try {
+        userSettingsSnap = await db.collection("settings").doc(userId).get();
+      } catch (err) {
+        logger.error("Failed to fetch user settings:", err);
+      }
 
-      if (userSettingsSnap.exists) {
+      if (userSettingsSnap && userSettingsSnap.exists) {
         const data = userSettingsSnap.data();
         if (data?.ceoName) agentName = data.ceoName;
         if (data?.ceoPersona) agentPersona = data.ceoPersona;
       }
-      
-      memoryEntries = memoriesSnap.docs.map(d => d.data());
-      targets = targetsSnap.docs.map(d => d.data());
 
-      if (!metricsSnap.empty) metricsSummary = metricsSnap.docs[0].data();
+      // Safe memories query fallback
+      try {
+        const memoriesSnap = await db.collection("strategic_memory")
+          .where("userId", "==", userId)
+          .orderBy("createdAt", "desc")
+          .limit(10)
+          .get();
+        memoryEntries = memoriesSnap.docs.map((d: any) => d.data());
+      } catch (err: any) {
+        if (err.message?.includes("index") || err.code === 9) {
+          logger.warn("runCEOSoul memories query missing index, falling back to in-memory sort.");
+          try {
+            const memoriesSnap = await db.collection("strategic_memory")
+              .where("userId", "==", userId)
+              .limit(50)
+              .get();
+            const docs = memoriesSnap.docs.map((d: any) => d.data());
+            docs.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            memoryEntries = docs.slice(0, 10);
+          } catch (e) {
+            logger.error("Memories fallback query failed:", e);
+          }
+        } else {
+          logger.error("Failed to fetch memories:", err);
+        }
+      }
+
+      // Safe targets query
+      try {
+        const targetsSnap = await db.collection("ceo_targets")
+          .where("userId", "==", userId)
+          .get();
+        targets = targetsSnap.docs.map((d: any) => d.data());
+      } catch (err) {
+        logger.error("Failed to fetch targets:", err);
+      }
+
+      // Safe daily metrics query fallback
+      try {
+        const metricsSnap = await db.collection("daily_metrics")
+          .where("userId", "==", userId)
+          .orderBy("date", "desc")
+          .limit(1)
+          .get();
+        if (!metricsSnap.empty) metricsSummary = metricsSnap.docs[0].data();
+      } catch (err: any) {
+        if (err.message?.includes("index") || err.code === 9) {
+          logger.warn("runCEOSoul daily_metrics query missing index, falling back to in-memory sort.");
+          try {
+            const metricsSnap = await db.collection("daily_metrics")
+              .where("userId", "==", userId)
+              .limit(10)
+              .get();
+            const docs = metricsSnap.docs.map((d: any) => d.data());
+            docs.sort((a, b) => b.date.localeCompare(a.date));
+            if (docs.length > 0) metricsSummary = docs[0];
+          } catch (e) {
+            logger.error("Daily metrics fallback query failed:", e);
+          }
+        } else {
+          logger.error("Failed to fetch daily metrics:", err);
+        }
+      }
     }
   } catch (e) { logger.error("CEO persona fetch failed", e); }
 

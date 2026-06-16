@@ -1,5 +1,5 @@
 import { logger } from "../lib/logger";
-import { db } from "../firebaseAdmin";
+import { db, hasServiceAccount } from "../firebaseAdmin";
 import { FEATURE_FLAGS } from "./featureFlags";
 import crypto from "crypto";
 
@@ -24,7 +24,7 @@ export async function logCostEvent(params: {
   userId: string;
   description?: string;
 }) {
-  if (!FEATURE_FLAGS.ENABLE_COST_TRACKING) {
+  if (!FEATURE_FLAGS.ENABLE_COST_TRACKING || !hasServiceAccount) {
     return;
   }
 
