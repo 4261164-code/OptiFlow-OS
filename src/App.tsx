@@ -33,6 +33,7 @@ import { NotificationProvider } from './components/NotificationContext';
 import { NotificationToast } from './components/NotificationToast';
 import { NotificationDrawer } from './components/NotificationDrawer';
 import { LandingPage } from './components/LandingPage';
+import { WebOpsDashboard } from './components/WebOpsDashboard';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -115,6 +116,7 @@ export default function App() {
             <Route path="/strategy" element={<StrategyHub />} />
             <Route path="/agents" element={<AgentManagement />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/webops" element={<WebOpsDashboard />} />
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>

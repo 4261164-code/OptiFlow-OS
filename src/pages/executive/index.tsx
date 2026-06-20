@@ -8,12 +8,13 @@ import { OpsBoard } from '../../components/executive/OperationsBoard';
 import { MaxBountyPanel } from '../../components/executive/MaxBountyPanel';
 import { CommandCenter } from '../../components/executive/CommandCenter';
 import { DiagnosticsBoard } from '../../components/executive/DiagnosticsBoard';
+import { GovernanceBoard } from '../../components/executive/GovernanceBoard';
 
 const Charts = lazy(() => import('../../components/executive/Charts').then(m => ({ default: m.Charts })));
 
 export default function ExecutiveDashboard() {
     const { status } = useExecutiveMetrics();
-    const [activeTab, setActiveTab] = useState<'analytics' | 'operations' | 'maxbounty' | 'command' | 'diagnostics'>('command');
+    const [activeTab, setActiveTab] = useState<'analytics' | 'operations' | 'maxbounty' | 'command' | 'diagnostics' | 'governance'>('command');
     const [darkMode, setDarkMode] = useState(() => {
         return localStorage.getItem('theme') === 'dark' || 
                (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -127,6 +128,17 @@ export default function ExecutiveDashboard() {
                                 <Activity className="w-3.5 h-3.5 mr-1.5" />
                                 Systems Diagnostics
                             </button>
+                            <button
+                                onClick={() => setActiveTab('governance')}
+                                className={`inline-flex items-center px-4 py-2 text-xs font-semibold rounded-md transition-all duration-200 cursor-pointer ${
+                                    activeTab === 'governance'
+                                        ? 'bg-white dark:bg-[#111] text-emerald-600 dark:text-emerald-400 shadow-sm'
+                                        : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
+                                }`}
+                            >
+                                <Shield className="w-3.5 h-3.5 mr-1.5" />
+                                Governance
+                            </button>
                         </div>
 
                         <button 
@@ -160,6 +172,10 @@ export default function ExecutiveDashboard() {
                     ) : activeTab === 'diagnostics' ? (
                         <ErrorBoundary>
                             <DiagnosticsBoard />
+                        </ErrorBoundary>
+                    ) : activeTab === 'governance' ? (
+                        <ErrorBoundary>
+                            <GovernanceBoard />
                         </ErrorBoundary>
                     ) : (
                         <ErrorBoundary>

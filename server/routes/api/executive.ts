@@ -107,7 +107,6 @@ executiveApiRouter.post("/soul/tts", async (req: any, res: any) => {
         if (!topoResult.success) return res.status(500).json({ error: topoResult.error });
 
         const audio = await generateCEOSpeech(text, voice || 'Kore', userId);
-        if (!audio) return res.status(500).json({ error: "Failed to generate speech" });
         res.json({ audio, auditLogId: topoResult.auditLogId });
     } catch (e: any) {
         res.status(500).json({ error: e.message });
@@ -241,13 +240,11 @@ executiveApiRouter.patch("/targets/:id", async (req: any, res: any) => {
 
 executiveApiRouter.get("/nodes", async (req: any, res: any) => {
     try {
-        // Mock organization state for UI visualization
-        const nodes = [
-            { id: '1', name: 'SEO Agent 01', role: 'Content Generator', type: 'agent', status: 'online', efficiency: 0.94, lastActive: Date.now() },
-            { id: '2', name: 'Traffic Engine', role: 'Link Management', type: 'agent', status: 'online', efficiency: 0.88, lastActive: Date.now() - 5000 },
-            { id: '3', name: 'Monetization AI', role: 'Offer Matching', type: 'agent', status: 'online', efficiency: 0.99, lastActive: Date.now() - 120000 },
-            { id: '4', name: 'Image Studio', role: 'Visual Asset Creation', type: 'agent', status: 'offline', efficiency: 0.0, lastActive: Date.now() - 3600000 },
-        ];
+        const userId = req.user.uid;
+        const snap = await db.collection("agent_nodes")
+            .where("userId", "==", userId)
+            .get();
+        const nodes = snap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
         res.json(nodes);
     } catch (e: any) {
         res.status(500).json({ error: e.message });

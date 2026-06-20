@@ -111,25 +111,25 @@ function DepartmentSection({ dept, isExpanded, onToggle }: { dept: any, isExpand
   };
 
   return (
-    <div className="bg-[#101115] border border-white/5 rounded-3xl overflow-hidden shadow-xl transition-all duration-300 hover:border-white/10 group">
+    <div className="bg-[#0c0d12] border border-white/5 rounded-[40px] overflow-hidden shadow-2xl transition-all duration-500 hover:border-[#a8ff35]/20 group">
       <button 
         onClick={onToggle}
-        className="w-full flex items-center justify-between p-6 cursor-pointer"
+        className="w-full flex items-center justify-between p-10 cursor-pointer"
       >
-        <div className="flex items-center space-x-5 text-left">
-          <div className={`p-3 rounded-2xl border ${colors[dept.color]}`}>
-            {dept.icon}
+          <div className="flex items-center space-x-8 text-left">
+          <div className={`p-4 rounded-[24px] border ${colors[dept.color]} bg-white/5`}>
+            {React.cloneElement(dept.icon as React.ReactElement<any>, { strokeWidth: 2.5, className: 'w-6 h-6' })}
           </div>
           <div>
-            <h3 className="text-lg font-bold text-white group-hover:text-[#a8ff35] transition-colors">{dept.name}</h3>
-            <p className="text-xs text-zinc-500 mt-0.5">{dept.description}</p>
+            <h3 className="text-2xl font-bold text-white group-hover:text-[#a8ff35] transition-colors tracking-tight">{dept.name}</h3>
+            <p className="text-sm text-zinc-400 mt-1 font-medium">{dept.description}</p>
           </div>
         </div>
         <motion.div 
           animate={{ rotate: isExpanded ? 180 : 0 }}
-          className="p-2 rounded-xl bg-white/5 text-zinc-500"
+          className="p-3 rounded-2xl bg-white/5 text-zinc-500 group-hover:bg-[#a8ff35]/10 group-hover:text-[#a8ff35] transition-all"
         >
-          <ChevronDown className="w-5 h-5" />
+          <ChevronDown className="w-6 h-6" strokeWidth={2.5} />
         </motion.div>
       </button>
 
@@ -141,36 +141,39 @@ function DepartmentSection({ dept, isExpanded, onToggle }: { dept: any, isExpand
             exit={{ height: 0, opacity: 0 }}
             className="border-t border-white/5"
           >
-            <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-4 bg-black/20">
-              {dept.agents.map((agent: any, idx: number) => (
-                <Link 
-                  key={idx}
-                  to={agent.href}
-                  className="bg-[#090a0d] border border-white/5 rounded-2xl p-4 transition-all hover:bg-[#12141a] hover:border-[#a8ff35]/30 group/agent relative overflow-hidden"
-                >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="p-2.5 rounded-xl bg-white/5 text-zinc-400 group-hover/agent:text-[#a8ff35] group-hover/agent:bg-[#a8ff35]/10 transition-all">
-                      <agent.icon className="w-5 h-5" />
+            <div className="p-10 grid grid-cols-1 md:grid-cols-3 gap-6 bg-black/20">
+              {dept.agents.map((agent: any, idx: number) => {
+                 const Icon = agent.icon;
+                 return (
+                  <Link 
+                    key={idx}
+                    to={agent.href}
+                    className="bg-[#090a0d] border border-white/5 rounded-[32px] p-8 transition-all hover:bg-[#12141a] hover:border-[#a8ff35]/30 group/agent relative overflow-hidden active:scale-95"
+                  >
+                    <div className="flex items-start justify-between mb-8">
+                      <div className="p-4 rounded-2xl bg-white/5 text-zinc-400 group-hover/agent:text-[#a8ff35] group-hover/agent:bg-[#a8ff35]/10 transition-all border border-transparent group-hover/agent:border-[#a8ff35]/20">
+                        <Icon className="w-7 h-7" strokeWidth={2.5} />
+                      </div>
+                      <div className="flex flex-col items-end">
+                        <span className={`text-[9px] font-bold uppercase tracking-[0.2em] px-3 py-1 rounded-full border ${
+                          agent.status === 'Active' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)]' : 
+                          agent.status === 'Standby' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                          'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                        }`}>
+                          {agent.status}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex flex-col items-end">
-                      <span className={`text-[8px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full border ${
-                        agent.status === 'Active' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 
-                        agent.status === 'Standby' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
-                        'bg-blue-500/10 text-blue-400 border-blue-500/20'
-                      }`}>
-                        {agent.status}
-                      </span>
+                    <div>
+                      <h4 className="text-lg font-bold text-white mb-2 group-hover/agent:translate-x-1 transition-transform tracking-tight">{agent.name}</h4>
+                      <p className="text-[11px] text-zinc-400 leading-relaxed font-semibold uppercase tracking-wider">{agent.role}</p>
                     </div>
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-white mb-1 group-hover/agent:translate-x-1 transition-transform">{agent.name}</h4>
-                    <p className="text-[10px] text-zinc-500 leading-normal">{agent.role}</p>
-                  </div>
-                  <div className="absolute bottom-4 right-4 opacity-0 group-hover/agent:opacity-100 transition-opacity">
-                    <ArrowRight className="w-4 h-4 text-[#a8ff35]" />
-                  </div>
-                </Link>
-              ))}
+                    <div className="absolute top-2 right-2 p-6 opacity-0 group-hover/agent:opacity-5 transition-opacity">
+                      <Icon className="w-24 h-24 text-[#a8ff35]" strokeWidth={2.5} />
+                    </div>
+                  </Link>
+                 );
+              })}
             </div>
           </motion.div>
         )}
@@ -205,9 +208,9 @@ export function AgentLauncher({
   return (
     <div className="max-w-7xl mx-auto space-y-12 pb-20 animate-fade-in">
       {/* 3.1 HEADER SECTION */}
-      <div className="relative overflow-hidden rounded-[40px] bg-gradient-to-br from-[#101115] to-[#050608] border border-white/5 p-12 shadow-2xl">
-        <div className="absolute top-0 right-0 w-[40%] h-full opacity-10 pointer-events-none">
-          <div className="absolute top-[-20%] right-[-10%] w-[300px] h-[300px] bg-[#a8ff35] rounded-full blur-[120px]" />
+      <header className="relative overflow-hidden rounded-[40px] bg-gradient-to-br from-[#12141a] to-[#08090d] border border-white/10 p-12 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+        <div className="absolute top-0 right-0 w-[40%] h-full opacity-20 pointer-events-none">
+          <div className="absolute top-[-20%] right-[-10%] w-[400px] h-[400px] bg-[#a8ff35] rounded-full blur-[140px] opacity-20" />
           <div className="absolute bottom-[-10%] right-[10%] w-[250px] h-[250px] bg-indigo-500 rounded-full blur-[100px]" />
         </div>
 
@@ -223,34 +226,35 @@ export function AgentLauncher({
             <span className="text-xs font-mono font-bold text-zinc-500 uppercase tracking-widest">Autonomous Operations v4.0</span>
           </motion.div>
 
-          <h1 className="text-5xl font-black tracking-tight text-white mb-6 uppercase">
-            Agent Launch <span className="text-zinc-600">&</span> Orchestration
+          <h1 className="text-6xl md:text-7xl font-bold tracking-[-0.04em] text-white mb-8 leading-[0.9]">
+            Agent Launch <span className="text-zinc-600">&</span> <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-zinc-500">Orchestration</span>
           </h1>
-          <p className="text-lg text-zinc-400 mb-8 leading-relaxed font-medium">
+          <p className="text-xl text-zinc-400 mb-10 leading-relaxed font-light tracking-tight max-w-2xl">
             Command your sovereign affiliate empire through specialized departmental AI clusters. 
-            Deploy content silos, optimize traffic distribution, and manage financial intelligence nodes from a single strategic command deck.
+            Deploy content silos and optimize distribution from a single command deck.
           </p>
 
-          <div className="flex items-center space-x-6">
+          <div className="flex items-center space-x-12">
             <div className="flex flex-col">
-              <span className="text-3xl font-black text-white">12</span>
-              <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Active Nodes</span>
+              <span className="text-5xl font-bold text-white tracking-tighter">12</span>
+              <span className="text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-[0.2em] mt-2">Active Nodes</span>
             </div>
-            <div className="w-px h-10 bg-white/10" />
+            <div className="w-px h-12 bg-white/10" />
             <div className="flex flex-col">
-              <span className="text-3xl font-black text-[#a8ff35]">100%</span>
-              <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">System Health</span>
+              <span className="text-5xl font-bold text-[#a8ff35] tracking-tighter">100%</span>
+              <span className="text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-[0.2em] mt-2">System Health</span>
             </div>
           </div>
         </div>
-      </div>
+      </header>
 
       {/* 3.2 DEPARTMENTAL GRID */}
-      <div className="space-y-6 mt-16">
+      <section className="space-y-6 mt-16">
         <div className="flex items-center justify-between px-2">
           <div>
-            <h2 className="text-2xl font-bold text-white tracking-tight uppercase">Operational Departments</h2>
-            <p className="text-sm text-zinc-500 mt-1">Select a department to access specialized worker clusters.</p>
+            <h2 className="text-3xl font-bold text-white tracking-tight uppercase">Operational Departments</h2>
+            <p className="text-base text-zinc-400 mt-2 font-medium">Select a department to access specialized worker clusters.</p>
           </div>
           <button 
             onClick={() => setExpandedDepts(DEPARTMENTS.map(d => d.id))}
@@ -270,7 +274,7 @@ export function AgentLauncher({
             />
           ))}
         </div>
-      </div>
+      </section>
 
       {/* 3.3 SYSTEM STATS RIBBON */}
       <div className="flex items-center justify-center pt-10">

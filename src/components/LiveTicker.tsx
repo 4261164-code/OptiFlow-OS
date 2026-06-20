@@ -24,29 +24,29 @@ export const LiveTicker: React.FC = () => {
   const [recentPayouts, setRecentPayouts] = useState<any[]>([]);
 
   useEffect(() => {
-    // Only fetch completed earn/bonus transactions for the social proof ticker
+    // Fetch recent transactions and filter client-side to avoid complex composite index requirements
     const q = query(
       collection(db, "transactions"),
-      where("status", "==", "completed"),
-      where("type", "in", ["earn", "bonus"]),
       orderBy("timestamp", "desc"),
-      limit(20)
+      limit(100)
     );
 
     const unsub = onSnapshot(q, (snap) => {
-      const payouts = snap.docs.map(doc => {
-        const data = doc.data() as Transaction;
-        return {
-          id: doc.id,
+      const payouts = snap.docs
+        .map(doc => ({ id: doc.id, ...(doc.data() as Transaction) }))
+        .filter(t => t.status === "completed" && (t.type === "earn" || t.type === "bonus"))
+        .slice(0, 20)
+        .map(data => ({
+          id: data.id,
           name: getAnonymizedName(data.userId),
           amount: (data.amount / 100).toFixed(2),
           type: data.type,
           timestamp: data.timestamp
-        };
-      });
+        }));
       setRecentPayouts(payouts);
     }, (err) => {
-      console.error("LiveTicker error:", err);
+      console.error("LiveTicker error:", err.message);
+      setRecentPayouts([]);
     });
 
     return unsub;

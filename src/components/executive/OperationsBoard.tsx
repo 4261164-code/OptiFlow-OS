@@ -14,9 +14,11 @@ import {
   TrendingUp,
   Brain,
   ShieldCheck,
-  Server
+  Server,
+  Zap
 } from 'lucide-react';
 import { apiFetch } from '../../lib/auth';
+import { WebOpsPanel } from './WebOpsPanel';
 
 interface HealthOverview {
   agentFailureRate: number;
@@ -106,7 +108,12 @@ export function OpsBoard() {
     });
 
     // 3. Keep real-time sync of profit metrics
-    const qProfits = query(collection(db, 'profit_metrics'), orderBy('roi', 'desc'), limit(15));
+    const qProfits = query(
+      collection(db, 'profit_metrics'), 
+      where('userId', '==', uid),
+      orderBy('roi', 'desc'), 
+      limit(15)
+    );
     const unsubProfits = onSnapshot(qProfits, (snap) => {
       if (!snap.empty) {
         setProfits(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as ProfitMetric)));
@@ -326,6 +333,35 @@ export function OpsBoard() {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* WEBOPS AUTONOMOUS LAYER SECTION */}
+      <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <WebOpsPanel />
+        </div>
+        <div className="p-6 bg-indigo-500/5 border border-indigo-500/10 rounded-xl space-y-4">
+          <div className="flex items-center space-x-2 pb-2 border-b border-indigo-500/10">
+            <Zap className="w-4 h-4 text-indigo-400" />
+            <h3 className="text-sm font-bold text-indigo-400 uppercase tracking-wider">WebOps Policy</h3>
+          </div>
+          <div className="space-y-4 text-xs text-zinc-400 leading-relaxed">
+            <p>
+              The WebOps agent operates under a <strong className="text-indigo-300">Deterministic Safety Policy</strong>. 
+              Only actions categorized as <span className="px-1 bg-emerald-500/20 text-emerald-400 rounded">LOW RISK</span> 
+              are executed autonomously.
+            </p>
+            <ul className="space-y-2 list-disc pl-4">
+              <li>Config adjustments within API rate envelopes</li>
+              <li>SEO metadata patches for owned properties</li>
+              <li>Network retry policy tuning</li>
+              <li>Cache clearance and resource purging</li>
+            </ul>
+            <p className="p-2 bg-zinc-900 border border-zinc-800 rounded text-[10px] italic">
+              Critical financial logic and tenant security boundaries remain isolated from the WebOps autonomy layer.
+            </p>
           </div>
         </div>
       </section>

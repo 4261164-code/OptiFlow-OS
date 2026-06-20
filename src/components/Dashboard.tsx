@@ -13,6 +13,7 @@ import {
   BarChart3,
   RefreshCw
 } from 'lucide-react';
+import { cn } from '../lib/utils';
 import { useNotifications } from './NotificationContext';
 import { CampaignIcon, ArticlesIcon, PinterestIcon, BubblyAppleIcon, CloverMascotIcon, BrandingXIcon, BrandingHexIcon } from './CustomIcons';
 import { AgentLauncher } from './AgentLauncher';
@@ -152,20 +153,20 @@ export function Dashboard() {
   if (viewMode === 'launcher') {
     return (
       <div className="space-y-8">
-        <div className="flex justify-end border-b border-white/5 pb-6">
-          <div className="bg-[#0D1117] p-1 rounded-full flex items-center border border-white/5 text-xs shadow-inner">
+        <div className="flex justify-end border-b border-white/5 pb-10">
+          <div className="bg-[#0D1117] p-1.5 rounded-2xl flex items-center border border-white/5 shadow-2xl">
               <button 
               onClick={() => setViewMode('launcher')} 
-              className="px-6 py-2.5 rounded-full font-bold transition duration-300 flex items-center gap-2 bg-emerald-600 text-white shadow-lg cursor-pointer"
+              className="px-8 py-3 rounded-xl font-bold transition-all duration-300 flex items-center gap-3 text-xs uppercase tracking-widest cursor-pointer bg-[#a8ff35] text-black shadow-[0_0_20px_rgba(168,255,53,0.2)]"
             >
-              <Activity className="w-4 h-4" />
+              <Activity className="w-4 h-4" strokeWidth={2.5} />
               <span>Agent Launcher</span>
             </button>
             <button 
               onClick={() => setViewMode('analytics')} 
-              className="px-6 py-2.5 rounded-full font-bold transition duration-300 flex items-center gap-2 text-zinc-400 hover:text-white cursor-pointer"
+              className="px-8 py-3 rounded-xl font-bold transition-all duration-300 flex items-center gap-3 text-xs uppercase tracking-widest cursor-pointer text-zinc-500 hover:text-white"
             >
-              <BarChart3 className="w-4 h-4" />
+              <BarChart3 className="w-4 h-4" strokeWidth={2.5} />
               <span>Campaign Console</span>
             </button>
           </div>
@@ -182,20 +183,20 @@ export function Dashboard() {
   return (
     <>
       {/* Console Active Header Toggles */}
-      <div className="flex justify-end border-b border-white/5 pb-6 mb-8">
-        <div className="bg-[#0D1117] p-1 rounded-full flex items-center border border-white/5 text-xs shadow-inner">
+      <div className="flex justify-end border-b border-white/5 pb-10 mb-8">
+        <div className="bg-[#0D1117] p-1.5 rounded-2xl flex items-center border border-white/5 shadow-2xl">
           <button 
             onClick={() => setViewMode('launcher')} 
-            className="px-6 py-2.5 rounded-full font-bold transition duration-300 flex items-center gap-2 text-zinc-400 hover:text-white cursor-pointer"
+            className="px-8 py-3 rounded-xl font-bold transition-all duration-300 flex items-center gap-3 text-xs uppercase tracking-widest cursor-pointer text-zinc-500 hover:text-white"
           >
-            <Activity className="w-4 h-4" />
+            <Activity className="w-4 h-4" strokeWidth={2.5} />
             <span>Agent Launcher</span>
           </button>
           <button 
             onClick={() => setViewMode('analytics')} 
-            className="px-6 py-2.5 rounded-full font-bold transition duration-300 flex items-center gap-2 bg-emerald-600 text-white shadow-lg cursor-pointer"
+            className="px-8 py-3 rounded-xl font-bold transition-all duration-300 flex items-center gap-3 text-xs uppercase tracking-widest cursor-pointer bg-[#a8ff35] text-black shadow-[0_0_20px_rgba(168,255,53,0.2)]"
           >
-            <BarChart3 className="w-4 h-4" />
+            <BarChart3 className="w-4 h-4" strokeWidth={2.5} />
             <span>Campaign Console</span>
           </button>
         </div>
@@ -203,20 +204,20 @@ export function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Main Area: Dashboard stats and Campaign lists */}
-        <div className="lg:col-span-12 space-y-8">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="lg:col-span-12 space-y-10">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 border-b border-white/5 pb-10">
             <div>
-              <h1 className="text-2xl font-semibold tracking-tight text-white font-sans">Campaign Factory</h1>
-              <p className="text-sm text-zinc-500 mt-1">Orchestrate enterprise SEO content silos automatically.</p>
+              <h1 className="text-4xl font-bold tracking-tight text-white font-display">Campaign Factory</h1>
+              <p className="text-base text-zinc-500 mt-2">Orchestrate enterprise SEO content silos automatically.</p>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[12px] font-bold text-zinc-400 font-mono flex items-center gap-2 bg-zinc-900/50 px-4 py-2 rounded-lg border border-white/5">
-                <BrandingHexIcon className="w-5 h-5 text-emerald-500" />
-                <span>REALTIME CORE ONLINE</span>
-              </span>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 text-[#a8ff35] font-mono text-[10px] uppercase tracking-[0.2em] bg-[#a8ff35]/5 px-4 py-2 rounded-full border border-[#a8ff35]/10">
+                <Activity className="w-4 h-4 animate-pulse" strokeWidth={2.5} />
+                Realtime Core Online
+              </div>
             </div>
           </div>
-            <CampaignHealthHeatmap jobs={jobs} />
+          <CampaignHealthHeatmap jobs={jobs} />
         </div>
       </div>
     </>

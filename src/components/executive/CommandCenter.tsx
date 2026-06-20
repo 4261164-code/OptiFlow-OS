@@ -26,6 +26,7 @@ export function CommandCenter() {
   const [loading, setLoading] = useState(true);
   const [showAddTarget, setShowAddTarget] = useState(false);
   const [newTarget, setNewTarget] = useState({ title: '', description: '', priority: 'medium' as any });
+  const [activeView, setActiveView] = useState<'directives' | 'soul'>('directives');
 
   useEffect(() => {
     if (!auth.currentUser) return;
@@ -69,21 +70,7 @@ export function CommandCenter() {
     );
     const unsubNodes = onSnapshot(qNodes, (snap) => {
       const dbNodes = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as OrganizationNode));
-      
-      if (dbNodes.length === 0) {
-        // Seed if empty
-        const mockNodes: Omit<OrganizationNode, 'id'>[] = [
-          { name: 'Executive Planner', role: 'Strategy Logic', type: 'agent', status: 'online', efficiency: 0.98, lastActive: Date.now(), userId: auth.currentUser!.uid, personality: "Analytical, calm, proactive", learnedData: "Prefer high-ticket CPA offers" },
-          { name: 'Memory Core', role: 'Context Storage', type: 'system', status: 'online', efficiency: 1.0, lastActive: Date.now(), userId: auth.currentUser!.uid, personality: "Systematic, efficient", learnedData: "Optimized for speed" },
-          { name: 'SEO Architect', role: 'Structure Designer', type: 'agent', status: 'online', efficiency: 0.92, lastActive: Date.now() - 5000, userId: auth.currentUser!.uid, personality: "Creative, detailed", learnedData: "Prefers long-tail keywords" },
-          { name: 'Traffic Dispatch', role: 'Link Management', type: 'agent', status: 'busy', efficiency: 0.85, lastActive: Date.now(), userId: auth.currentUser!.uid, personality: "Fast, precise", learnedData: "High EPC traffic patterns" },
-          { name: 'VideoAgent', role: 'Video Generation', type: 'agent', status: 'online', efficiency: 0.95, lastActive: Date.now(), userId: auth.currentUser!.uid, personality: "Visual, creative", learnedData: "Optimized for cinematic shots" },
-          { name: 'ReelAgent', role: 'Short Content Gen', type: 'agent', status: 'online', efficiency: 0.90, lastActive: Date.now(), userId: auth.currentUser!.uid, personality: "Fast, trend-oriented", learnedData: "Optimized for viral pacing" },
-        ];
-        mockNodes.forEach(node => addDoc(collection(db, 'agent_nodes'), node));
-      } else {
-        setNodes(dbNodes);
-      }
+      setNodes(dbNodes);
     }, (error) => {
       console.warn("Error in nodes subscription:", error);
     });
@@ -172,10 +159,32 @@ export function CommandCenter() {
          </section>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+      <div className="grid grid-cols-1 gap-8">
         
-        {/* 2. CORE DIRECTIVES (TARGETS) */}
-        <section className="lg:col-span-2 space-y-6">
+        {/* VIEW TOGGLE */}
+        <div className="flex items-center space-x-2 bg-zinc-100 dark:bg-white/5 p-1 rounded-xl w-fit">
+          <button 
+            onClick={() => setActiveView('directives')}
+            className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${activeView === 'directives' ? 'bg-white dark:bg-zinc-800 shadow-sm text-zinc-900 dark:text-white' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
+          >
+            <div className="flex items-center">
+              <Target className="w-4 h-4 mr-2" />
+              Strategic Directives
+            </div>
+          </button>
+          <button 
+            onClick={() => setActiveView('soul')}
+            className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${activeView === 'soul' ? 'bg-white dark:bg-zinc-800 shadow-sm text-zinc-900 dark:text-white' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
+          >
+            <div className="flex items-center">
+              <Brain className="w-4 h-4 mr-2" />
+              Soul Interface & Memory
+            </div>
+          </button>
+        </div>
+
+        {activeView === 'directives' ? (
+          <section className="space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold flex items-center text-zinc-900 dark:text-white">
               <Target className="w-5 h-5 mr-2 text-rose-500" />
@@ -289,22 +298,33 @@ export function CommandCenter() {
             )}
           </div>
         </section>
-        
-        {/* 3. STRATEGIC MEMORY (SOUL LOG) */}
-        <aside className="space-y-6">
-          <div className="flex items-center space-x-2">
-            <div className="relative">
-              <Brain className="w-5 h-5 text-indigo-400" />
-              <motion.div 
-                animate={{ scale: [1, 1.5, 1], opacity: [0.5, 0, 0.5] }}
-                transition={{ duration: 2, repeat: Infinity }}
-                className="absolute inset-0 bg-indigo-500/20 rounded-full"
-              />
-            </div>
-            <h2 className="text-lg font-bold text-zinc-900 dark:text-white">Active Strategic Memory</h2>
-          </div>
+        ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full">
+          {/* 3 & 4. SIDEBAR: SOUL CHAT & MEMORY */}
 
-          <div className="space-y-4">
+          {/* CEO SOUL CHAT */}
+          <section className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <h2 className="text-lg font-bold text-zinc-900 dark:text-white">Soul Interface</h2>
+            </div>
+            <CEOChat />
+          </section>
+
+          {/* STRATEGIC MEMORY (SOUL LOG) */}
+          <aside className="space-y-4 flex-1">
+            <div className="flex items-center space-x-2">
+              <div className="relative">
+                <Brain className="w-5 h-5 text-indigo-400" />
+                <motion.div 
+                  animate={{ scale: [1, 1.5, 1], opacity: [0.5, 0, 0.5] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                  className="absolute inset-0 bg-indigo-500/20 rounded-full"
+                />
+              </div>
+              <h2 className="text-lg font-bold text-zinc-900 dark:text-white">Active Strategic Memory</h2>
+            </div>
+
+            <div className="space-y-4 h-[500px] overflow-y-auto pr-2 scrollbar-hide">
             {memory.length === 0 ? (
               <div className="p-8 text-center bg-zinc-50 dark:bg-white/5 rounded-3xl border border-dashed border-zinc-800">
                 <History className="w-8 h-8 mx-auto text-zinc-700 mb-3" />
@@ -340,15 +360,9 @@ export function CommandCenter() {
               ))
             )}
           </div>
-        </aside>
-
-        {/* 4. CEO SOUL CHAT */}
-        <section className="lg:col-span-1 space-y-6">
-          <div className="flex items-center space-x-2">
-            <h2 className="text-lg font-bold text-zinc-900 dark:text-white">Soul Interface</h2>
-          </div>
-          <CEOChat />
-        </section>
+          </aside>
+        </div>
+        )}
 
       </div>
     </div>

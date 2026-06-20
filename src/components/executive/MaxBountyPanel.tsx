@@ -212,8 +212,7 @@ export function MaxBountyPanel() {
       const res = await apiFetch('/api/postbacks/maxbounty', {
         method: 'POST',
         headers: { 
-          'Content-Type': 'application/json',
-          'X-Signature': 'mock_dev_signer_auth_bypass' // will be signed or bypassed correctly by server in sandbox
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           transaction_id: simTxId,
@@ -364,7 +363,7 @@ export function MaxBountyPanel() {
           </form>
           
           <p className="text-[10px] text-zinc-400 italic">
-            Note: Connection issues fall back gracefully to sandbox test environments with simulated API tokens to maintain frictionless testing.
+            Note: Secure connectivity for MaxBounty is enforced via proxy.
           </p>
         </div>
 
@@ -694,15 +693,15 @@ export function MaxBountyPanel() {
 
                 <div className="p-4 bg-emerald-500/5 border border-emerald-500/15 rounded-xl space-y-3">
                   <h4 className="text-emerald-400 font-bold flex items-center">
-                    <Send className="w-3.5 h-3.5 mr-1.5" /> Postback Webhook Sandbox simulation
+                    <Send className="w-3.5 h-3.5 mr-1.5" /> Integration Tester
                   </h4>
                   <p className="text-[11px] text-zinc-400 leading-relaxed">
-                    Fire a mock postback from MaxBounty. The tracking link key <strong className="text-indigo-400">{simSub2}</strong> will reconcile securely in our event-ledger and update dashboard widgets.
+                    Verify postback reconciliation for the generated link <strong className="text-indigo-400">{simSub2}</strong>.
                   </p>
                   
                   <form onSubmit={handleSimulatePostback} className="grid grid-cols-2 gap-3">
                     <div className="col-span-2">
-                      <label className="block text-[10px] uppercase font-bold text-zinc-500 mb-0.5">Mock Transaction ID</label>
+                      <label className="block text-[10px] uppercase font-bold text-zinc-500 mb-0.5">Transaction ID</label>
                       <input 
                         type="text" 
                         value={simTxId || ''} 
@@ -712,7 +711,7 @@ export function MaxBountyPanel() {
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] uppercase font-bold text-zinc-500 mb-0.5">Mock Payout Earned</label>
+                      <label className="block text-[10px] uppercase font-bold text-zinc-500 mb-0.5">Payout</label>
                       <input 
                         type="number" 
                         step="0.01"
@@ -723,7 +722,7 @@ export function MaxBountyPanel() {
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] uppercase font-bold text-zinc-500 mb-0.5">Linked Click Key</label>
+                      <label className="block text-[10px] uppercase font-bold text-zinc-500 mb-0.5">Click Key</label>
                       <input 
                         type="text" 
                         value={simSub2 || ''} 
@@ -738,7 +737,7 @@ export function MaxBountyPanel() {
                       disabled={postbackLoading}
                       className="col-span-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 rounded transition-colors cursor-pointer text-xs"
                     >
-                      {postbackLoading ? "Resolving Webhook..." : "Mock MaxBounty Lead Conversion"}
+                      {postbackLoading ? "Verifying..." : "Fire Test Postback"}
                     </button>
                   </form>
                 </div>

@@ -2,8 +2,7 @@
   "firestore": [
     {
       "database": "ai-studio-b17ddf8c-b59f-4f82-8ac3-b7bf4fcbe0ce",
-      "rules": "firestore.rules",
-      "indexes": "firestore.indexes.json"
+      "rules": "firestore.rules"
     }
   ],
   "hosting": {
@@ -12,26 +11,6 @@
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
-    ],
-    "rewrites": [
-      {
-        "source": "/api/**",
-        "run": {
-          "serviceId": "api",
-          "region": "us-central1"
-        }
-      },
-      {
-        "source": "/go/**",
-        "run": {
-          "serviceId": "api",
-          "region": "us-central1"
-        }
-      },
-      {
-        "source": "**",
-        "destination": "/index.html"
-      }
     ]
   }
 }

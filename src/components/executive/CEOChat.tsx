@@ -149,7 +149,7 @@ export function CEOChat() {
   };
 
   return (
-    <div className="flex flex-col h-[650px] bg-white dark:bg-[#09090b] border border-zinc-200 dark:border-white/5 rounded-3xl overflow-hidden shadow-2xl">
+    <div className="flex flex-col h-[500px] bg-white dark:bg-[#09090b] border border-zinc-200 dark:border-white/5 rounded-3xl overflow-hidden shadow-2xl">
       {/* Header */}
       <div className="p-6 border-b border-zinc-100 dark:border-white/5 bg-zinc-50 dark:bg-zinc-900/50 flex items-center justify-between">
         <div className="flex items-center space-x-4">

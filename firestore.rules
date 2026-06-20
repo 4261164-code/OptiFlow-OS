@@ -1,391 +1,72 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper to check if the document belongs to the user
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Generic rule for collections indexed by userId
+    match /{collectionName}/{docId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    // Specific rules for user profile
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+    
+    match /settings/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // Shared context / Locks (Admin-managed backend only)
+    match /worker_locks/{docId} {
+      allow read, write: if false; 
+    }
+
+    // Social Proof / Ticker
+    match /transactions/{id} {
+      // Allow social proof reading
+      allow read: if true;
+      // Only owner can write (though usually server-side)
+      allow write: if isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid);
+    }
+
+    // Public recent earning events (if any)
+    match /payouts/{id} {
+      allow read: if true;
+      allow write: if false; 
+    }
+
+    // Immutable audit logs (for server only, but rules applies to client too)
+    // In practice, client shouldn't write to these, only server.
+    match /immutable_audit_logs/{id} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Only server-side via Admin SDK
+    }
+    
+    match /change_proposals/{id} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Only server-side via Admin SDK enforcing governance boundaries
+    }
+    
+    match /governance_audit_logs/{id} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Only server-side via Admin SDK
+    }
+    
+    // Default deny for anything else
     match /{document=**} {
       allow read, write: if false;
-    }
-
-    function isSignedIn() { return request.auth != null; }
-    function incoming() { return request.resource.data; }
-    function existing() { return resource.data; }
-
-    function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
-    }
-
-    function isValidJob(data) {
-      return data.keys().hasAll(['keyword', 'status', 'userId', 'createdAt', 'updatedAt'])
-        && data.keyword is string && data.keyword.size() <= 5000
-        && data.status in ["pending", "running", "research", "writing", "pinterest", "monetization", "completed", "error"]
-        && data.userId == request.auth.uid
-        && data.createdAt is number
-        && data.updatedAt is number;
-    }
-
-    function isValidArticle(data) {
-      return data.keys().hasAll(['title', 'content', 'keyword', 'jobId', 'userId', 'createdAt', 'updatedAt'])
-        && data.title is string && data.title.size() <= 2000
-        && data.content is string && data.content.size() <= 1000000
-        && data.keyword is string && data.keyword.size() <= 5000
-        && data.jobId is string
-        && data.userId == request.auth.uid
-        && data.createdAt is number
-        && data.updatedAt is number;
-    }
-
-    function isValidPin(data) {
-      return data.keys().hasAll(['title', 'description', 'concept', 'articleId', 'jobId', 'userId', 'createdAt', 'updatedAt'])
-        && data.title is string && data.title.size() <= 2000
-        && data.description is string && data.description.size() <= 10000
-        && data.concept is string && data.concept.size() <= 10000
-        && data.articleId is string
-        && data.jobId is string
-        && data.userId == request.auth.uid
-        && data.createdAt is number
-        && data.updatedAt is number;
-    }
-
-    function isValidOffer(data) {
-      return data.keys().hasAll(['brand', 'keyword', 'link', 'userId', 'createdAt', 'updatedAt'])
-        && data.brand is string && data.brand.size() <= 500
-        && data.keyword is string && data.keyword.size() <= 500
-        && data.link is string && data.link.size() <= 5000
-        && data.userId == request.auth.uid
-        && data.createdAt is number
-        && data.updatedAt is number;
-    }
-
-    function isValidNotification(data) {
-      return data.keys().hasAll(['title', 'message', 'type', 'read', 'userId', 'createdAt', 'updatedAt'])
-        && data.title is string && data.title.size() <= 1000
-        && data.message is string && data.message.size() <= 4000
-        && data.type in ["milestone", "traffic", "error", "info"]
-        && data.read is bool
-        && data.userId == request.auth.uid
-        && data.createdAt is number
-        && data.updatedAt is number;
-    }
-
-    function isValidTopicCluster(data) {
-      return data.keys().hasAll(['title', 'keyword', 'status', 'userId', 'createdAt', 'updatedAt'])
-        && data.title is string && data.title.size() <= 1000
-        && data.keyword is string && data.keyword.size() <= 1000
-        && data.status in ["planning", "generating", "linking", "completed", "error"]
-        && data.userId == request.auth.uid
-        && data.createdAt is number
-        && data.updatedAt is number;
-    }
-
-    function isValidClusterNode(data) {
-      return data.keys().hasAll(['clusterId', 'keyword', 'title', 'searchIntent', 'status', 'userId', 'isPillar', 'createdAt'])
-        && data.clusterId is string
-        && data.keyword is string && data.keyword.size() <= 1000
-        && data.title is string && data.title.size() <= 1000
-        && data.searchIntent is string
-        && data.status in ["pending", "generating", "completed", "error"]
-        && data.userId == request.auth.uid
-        && data.isPillar is bool
-        && data.createdAt is number;
-    }
-
-    function isValidRevenueMetric(data) {
-      return data.keys().hasAll(['userId', 'keyword', 'clicks', 'conversions', 'revenue', 'timestamp', 'createdAt', 'roi', 'date'])
-        && data.userId == request.auth.uid
-        && data.keyword is string
-        && data.clicks is number
-        && data.conversions is number
-        && data.revenue is number
-        && data.roi is number
-        && data.date is string
-        && data.timestamp is number
-        && data.createdAt is number;
-    }
-
-    function isValidAgentLog(data) {
-      return data.keys().hasAll(['agentType', 'status', 'message', 'userId', 'timestamp', 'createdAt'])
-        && data.agentType is string
-        && data.status is string
-        && data.message is string && data.message.size() <= 10000
-        && data.userId == request.auth.uid
-        && data.timestamp is number
-        && data.createdAt is number;
-    }
-
-    function isValidAgentNode(data) {
-      return data.keys().hasAll(['name', 'role', 'status', 'userId', 'lastActive'])
-        && data.name is string
-        && data.role is string
-        && data.status is string
-        && data.userId == request.auth.uid
-        && data.lastActive is number;
-    }
-
-    function isValidAutomationLog(data) {
-      return data.keys().hasAll(['keyword', 'status', 'userId', 'createdAt', 'updatedAt'])
-        && data.keyword is string && data.keyword.size() <= 2000
-        && data.status is string && data.status.size() <= 100
-        && data.userId == request.auth.uid
-        && data.createdAt is number
-        && data.updatedAt is number;
-    }
-
-    function isValidKeyword(data) {
-      return data.keys().hasAll(['keyword', 'payloadJson', 'createdAt', 'userId', 'isTracked', 'updatedAt'])
-        && data.keyword is string && data.keyword.size() <= 2000
-        && data.payloadJson is string && data.payloadJson.size() <= 1000000
-        && data.userId == request.auth.uid
-        && data.createdAt is number
-        && data.updatedAt is number
-        && data.isTracked is bool;
-    }
-
-    function isValidStrategicMemory(data) {
-      return data.keys().hasAll(['topic', 'insight', 'reliability', 'userId', 'createdAt'])
-        && data.topic is string
-        && data.insight is string
-        && data.reliability is number
-        && data.userId == request.auth.uid
-        && data.createdAt is number;
-    }
-
-    function isValidCEOTarget(data) {
-      return data.keys().hasAll(['title', 'description', 'status', 'priority', 'metrics', 'userId', 'createdAt', 'updatedAt'])
-        && data.title is string
-        && data.description is string
-        && data.status in ["active", "reached", "abandoned", "pivoted"]
-        && data.priority in ["low", "medium", "high", "critical"]
-        && data.metrics is list
-        && data.userId == request.auth.uid
-        && data.createdAt is number
-        && data.updatedAt is number;
-    }
-
-    function isAdmin() { 
-      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true; 
-    }
-
-    function isValidUserStats(data) {
-      return data.keys().hasAll(['balance', 'streakDays'])
-        && data.balance is number
-        && data.streakDays is number;
-    }
-
-    function isValidTransaction(data) {
-      return data.keys().hasAll(['userId', 'amount', 'type', 'status', 'timestamp'])
-        && data.userId is string
-        && data.amount is number
-        && data.type in ['earn', 'withdraw', 'bonus', 'referral']
-        && data.status in ['pending', 'completed', 'failed', 'reversed']
-        && data.timestamp is number;
-    }
-
-    function isValidWithdrawal(data) {
-      return data.keys().hasAll(['userId', 'amount', 'method', 'recipient', 'status', 'timestamp'])
-        && data.userId is string
-        && data.amount is number
-        && data.method in ['paypal', 'amazon_gc']
-        && data.recipient is string && data.recipient.size() <= 500
-        && data.status in ['pending', 'approved', 'processed', 'rejected']
-        && data.timestamp is number;
-    }
-
-    match /strategic_memory/{memoryId} {
-      allow read, write: if true;
-    }
-
-    match /ceo_targets/{targetId} {
-      allow read, write: if true;
-    }
-
-    match /agent_logs/{logId} {
-      allow read, write: if true;
-    }
-
-    match /agent_nodes/{nodeId} {
-      allow read, write: if true;
-    }
-
-    match /settings/{userId} {
-      allow read, write: if true;
-    }
-
-    match /jobs/{jobId} {
-      allow read, write: if true;
-    }
-
-    match /articles/{articleId} {
-      allow read, write: if true;
-    }
-
-    match /pins/{pinId} {
-      allow read, write: if true;
-    }
-
-    match /offers/{offerId} {
-      allow read, write: if true;
-    }
-
-    match /notifications/{notificationId} {
-      allow read, write: if true;
-    }
-
-    match /topic_clusters/{clusterId} {
-      allow read, write: if true;
-    }
-
-    match /cluster_nodes/{nodeId} {
-      allow read, write: if true;
-    }
-
-    match /revenue_metrics/{metricId} {
-      allow read, write: if true;
-    }
-
-
-
-    match /affiliate_clicks/{clickId} {
-      allow read, write: if true;
-    }
-
-    match /affiliate_conversions/{conversionId} {
-      allow read, write: if true;
-    }
-
-    match /revenue_events/{eventId} {
-      allow read, write: if true;
-    }
-
-    match /profit_metrics/{metricId} {
-      allow read, write: if true;
-    }
-
-    match /system_health_metrics/{metricId} {
-      allow read, write: if true;
-    }
-
-    match /cluster_metrics/{metricId} {
-      allow read, write: if true;
-    }
-
-    match /article_metrics/{metricId} {
-      allow read, write: if true;
-    }
-
-    match /offer_metrics/{metricId} {
-      allow read, write: if true;
-    }
-
-    match /daily_metrics/{metricId} {
-      allow read, write: if true;
-    }
-
-    match /automationLogs/{logId} {
-      allow read, write: if true;
-    }
-
-    match /keywords/{keywordId} {
-      allow read, write: if true;
-    }
-
-    match /immutable_audit_logs/{logId} {
-      allow read, write: if true;
-    }
-
-    match /pending_approvals/{approvalId} {
-      allow read, write: if true;
-    }
-
-    match /error_logs/{logId} {
-      allow read, write: if true;
-    }
-
-    match /api_health/{documentId} {
-      allow read, write: if true;
-    }
-
-    match /image_retry_queue/{queueId} {
-      allow read, write: if true;
-    }
-
-    match /system_quotas/{quotaId} {
-      allow read, write: if true;
-    }
-
-    match /telemetry/{telemetryId} {
-      allow read, write: if true;
-    }
-
-    match /edge_response_cache/{cacheId} {
-      allow read, write: if true;
-    }
-
-    match /system_faults/{faultId} {
-      allow read, write: if true;
-    }
-
-    match /agent_messages/{messageId} {
-      allow read, write: if true;
-    }
-
-    match /affiliate_networks/{networkId} {
-      allow read, write: if true;
-    }
-
-    match /network_credentials/{credentialId} {
-      allow read, write: if true;
-    }
-
-    match /maxbounty_campaigns/{campaignId} {
-      allow read, write: if true;
-    }
-
-    match /tracking_links/{linkId} {
-      allow read, write: if true;
-    }
-
-    match /users/{userId} {
-      allow read, write: if true;
-
-      match /traffic_sources/{sourceId} {
-        allow read, write: if true;
-      }
-      
-      match /bandit_models/{modelId} {
-        allow read, write: if true;
-      }
-    }
-
-    match /transactions/{transactionId} {
-      allow read, write: if true;
-    }
-
-    match /withdrawals/{withdrawalId} {
-      allow read, write: if true;
-    }
-
-    match /postbacks/{postbackId} {
-      allow read, write: if true;
-    }
-
-    match /postback_processing_queue/{taskId} {
-      allow read, write: if true;
-    }
-
-    match /pending_click_events/{eventId} {
-      allow read, write: if true;
-    }
-
-    match /unreconciled_conversions/{conversionId} {
-      allow read, write: if true;
-    }
-
-    match /click_errors/{errorId} {
-      allow read, write: if true;
-    }
-
-    match /cost_events/{eventId} {
-      allow read, write: if true;
     }
   }
 }

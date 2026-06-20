@@ -4,7 +4,7 @@ import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { runPipeline } from "./server/pipeline";
 import { db } from "./server/firebaseAdmin";
-import { verifyToken } from "./server/middleware/verifyToken";
+import { verifyToken, requireRole } from "./server/middleware/verifyToken";
 import { getUserSettings } from "./server/cache";
 import { goRouter } from "./server/routes/go";
 import { clicksApiRouter } from "./server/routes/api/clicks";
@@ -13,6 +13,7 @@ import { postbackRouter } from "./server/routes/api/postback";
 import { opsRouter } from "./server/routes/api/ops";
 import { maxbountyRouter } from "./server/routes/api/maxbounty";
 import { workersRouter } from "./server/routes/api/workers";
+import { governanceRouter } from "./server/routes/api/governance";
 import { runResearchAgent, runWriterAgent, runMonetizationAgent, runPinterestAgent, runImageGenerationAgent, runAffiliateMatchAgent, runTrafficEngineAgent, runSEOLinkAgent, runSocialCopyAgent, runSEOClusterAgent, runReportDigestAgent, runExecutiveSummaryAgent, runCustomPinAgent, runDeepKeywordExplorerAgent, runCompetitorAuditAgent, runEbookCreatorAgent } from "./server/agents";
 import { getLinkedInProfile, publishToLinkedInFeed } from "./server/linkedinService";
 
@@ -44,7 +45,7 @@ export const appPromise = (async () => {
   // Secure all API routes except public ones
   app.use("/api", (req, res, next) => {
     // Public routes
-    if (req.path === "/health" || req.path === "/postback" || req.path.startsWith("/webhooks") || req.path.startsWith("/workers")) {
+    if (req.path === "/health" || req.path === "/postback" || req.path.startsWith("/webhooks")) {
       return next();
     }
     return verifyToken(req, res, next);
@@ -52,11 +53,15 @@ export const appPromise = (async () => {
 
   console.log("[Server] Mounting routers...");
   app.use("/api/clicks", clicksApiRouter);
-  app.use("/api/executive", executiveApiRouter);
+  // Enforce precise RBAC for Privileged Endpoints
+  const adminOnly = requireRole("admin");
+  app.use("/api/executive", adminOnly, executiveApiRouter);
+  app.use("/api/ops", adminOnly, opsRouter);
+  app.use("/api/workers", adminOnly, workersRouter);
+  app.use("/api/governance", adminOnly, governanceRouter);
+  
   app.use("/api/webhooks", postbackRouter);
-  app.use("/api/ops", opsRouter);
   app.use("/api/maxbounty", maxbountyRouter);
-  app.use("/api/workers", workersRouter);
   console.log("[Server] Routers mounted.");
 
   // API constraints check
@@ -99,11 +104,26 @@ export const appPromise = (async () => {
   app.get("/api/db-bridge/:collection/:id", async (req: any, res) => {
     try {
       const { collection, id } = req.params;
+      const userId = req.user.uid;
+
+      // Ownership check for sensitive collections
+      if (['users', 'settings'].includes(collection) && id !== userId) {
+        return res.status(403).json({ error: "Access denied. You can only access your own profile/settings." });
+      }
+
       const docRef = db.collection(collection).doc(id);
       const snap = await docRef.get();
+      
+      const data = snap.exists ? snap.data() : null;
+      
+      // Secondary check for documents that have a userId field
+      if (data && data.userId && data.userId !== userId) {
+        return res.status(403).json({ error: "Access denied. Document belongs to another user." });
+      }
+
       res.json({
         exists: snap.exists,
-        data: snap.exists ? snap.data() : null
+        data
       });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
@@ -113,8 +133,13 @@ export const appPromise = (async () => {
   app.post("/api/db-bridge/query", async (req: any, res) => {
     try {
       const { path: colPath, filters, orderField, orderDirection, limitNum } = req.body;
+      const userId = req.user.uid;
+
       let queryRef: any = db.collection(colPath);
       
+      // Mandatory ownership filter for production safety
+      queryRef = queryRef.where("userId", "==", userId);
+
       if (filters && Array.isArray(filters)) {
         for (const f of filters) {
           queryRef = queryRef.where(f.field, f.op, f.val);
@@ -145,12 +170,36 @@ export const appPromise = (async () => {
   app.post("/api/db-bridge/write", async (req: any, res) => {
     try {
       const { path: colPath, id, data, options, action } = req.body;
+      const userId = req.user.uid;
+
+      if (!id && action !== 'delete') {
+         return res.status(400).json({ error: "Document ID is required." });
+      }
+
+      // Security: Disallow arbitrary collection writes
+      const allowedCollections = ["topic_clusters", "campaigns", "jobs", "settings", "users", "affiliates"];
+      if (!allowedCollections.includes(colPath)) {
+          return res.status(403).json({ error: "Forbidden: Cannot write to this collection directly." });
+      }
+
       const docRef = db.collection(colPath).doc(id);
       
+      // Strict ownership check for ALL writes
+      const snap = await docRef.get();
+      if (snap.exists) {
+        const resourceOwner = snap.data()?.userId;
+        if (resourceOwner && resourceOwner !== userId) {
+          return res.status(403).json({ error: "Access denied. Cannot modify data belonging to another user." });
+        }
+      }
+
+      // Force userId on new writes
+      const writeData = { ...data, userId, updatedAt: Date.now() };
+      
       if (action === 'set') {
-        await docRef.set(data, options);
+        await docRef.set(writeData, options);
       } else if (action === 'update') {
-        await docRef.update(data);
+        await docRef.update(writeData);
       } else if (action === 'delete') {
         await docRef.delete();
       }
@@ -308,18 +357,9 @@ export const appPromise = (async () => {
       } catch (err) {}
       
       if (!response.ok) {
-        // Handle common sandbox/consumer type errors gracefully for the mock environment
-        if (data.message?.includes("consumer type") || response.status === 403 || response.status === 401) {
-          console.warn("[Pinterest Service] Consumer type error or unauthorized. Simulating mock boards for demonstration.");
-          return res.json({ boards: [
-            { id: "mock_board_1", name: "Motivation & Success" },
-            { id: "mock_board_2", name: "Affiliate Marketing" },
-            { id: "mock_board_3", name: "Wealth Mindset" }
-          ]});
-        }
         throw new Error(data.message || `Pinterest API error code: ${response.status}`);
       }
-      res.json({ boards: data.items || [] });
+      res.json({ boards: data.items || [], isMock: false });
     } catch (error: any) {
       console.log("Pinterest Boards Fetch failed:", error);
       res.status(500).json({ error: error.message || "Failed to fetch boards from Pinterest." });
@@ -370,15 +410,6 @@ export const appPromise = (async () => {
       } catch (err) {}
       
       if (!response.ok) {
-        if (data.message?.includes("consumer type") || response.status === 403 || response.status === 401 || String(boardId).startsWith("mock_")) {
-          console.warn("[Pinterest Service] Consumer type error or mock board used. Simulating successful publish.");
-          const mockPinId = "mock_pin_" + Math.floor(Math.random() * 1000000);
-          return res.json({ 
-            success: true, 
-            pinId: mockPinId, 
-            link: `https://www.pinterest.com/pin/${mockPinId}` 
-          });
-        }
         throw new Error(data.message || `Pinterest returned status ${response.status}`);
       }
 
@@ -748,7 +779,7 @@ export const appPromise = (async () => {
          target: "multi_agent_pipeline",
          impact: "high",
          reversibility: "high",
-         factors: ["api_cost", "payment_impact"]
+         factors: ["api_cost", "payment_impact", "reversible"]
       });
       
       const topoResult = await Layer3Execution.executeActionPlan(userId, plan, idempotencyKey);
@@ -1231,9 +1262,164 @@ Details: ${JSON.stringify(err, (key, value) => key === 'apiKey' ? '***HIDDEN***'
       console.error("[System Hardening] Failed to initialize background workers:", err);
     }
 
-    app.listen(PORT, "0.0.0.0", () => {
+    const server = app.listen(PORT, "0.0.0.0", () => {
       console.log(`Server running on http://localhost:${PORT}`);
     });
+
+    // Initialize WebOps WebSocket Stream
+    try {
+      const { WebSocketServer } = await import("ws");
+      const crypto = await import("crypto");
+      const os = await import("os");
+      
+      const WEBOPS_SECRET = process.env.WEBOPS_SECRET || "super_secret_audit_key";
+      const KEY_VERSION = "v1";
+      let lastEventHash = crypto.createHash("sha256").update("GENESIS_BLOCK").digest("hex");
+      
+      const wss = new WebSocketServer({ noServer: true });
+      
+      const signEvent = (event: any) => {
+        const payloadStr = JSON.stringify({ 
+          type: event.type, 
+          message: event.message, 
+          severity: event.severity, 
+          service: event.service, 
+          source: event.source,
+          metric: event.metric,
+          value: event.value,
+          previousEventHash: event.previousEventHash
+        });
+        const hmac = crypto.createHmac("sha256", WEBOPS_SECRET);
+        hmac.update((event.eventId || "") + (event.timestamp || "") + payloadStr + KEY_VERSION);
+        return hmac.digest("hex");
+      };
+
+      server.on("upgrade", (request, socket, head) => {
+        const { pathname } = new URL(request.url || "", `http://${request.headers.host}`);
+        if (pathname === "/webops-stream") {
+          wss.handleUpgrade(request, socket, head, (ws) => {
+            wss.emit("connection", ws, request);
+          });
+        } else {
+          socket.destroy();
+        }
+      });
+      
+      wss.on("connection", (ws) => {
+        console.log("Client connected to WebOps stream.");
+        
+        // Handle Audit Challenge from Truth Engine
+        ws.on("message", (msg) => {
+          try {
+            const data = JSON.parse(msg.toString());
+            if (data.type === "AUDIT_CHALLENGE" && data.nonce) {
+              const serverTime = Date.now();
+              const hmac = crypto.createHmac("sha256", WEBOPS_SECRET);
+              hmac.update("AUDIT_RESPONSE" + data.nonce + serverTime + KEY_VERSION);
+              
+              ws.send(JSON.stringify({
+                type: "AUDIT_RESPONSE",
+                nonce: data.nonce,
+                serverTime,
+                keyVersion: KEY_VERSION,
+                signature: hmac.digest("hex")
+              }));
+            }
+          } catch (e) {}
+        });
+
+        // Send initial connection event
+        const connectEvent: any = {
+          eventId: crypto.randomUUID(),
+          timestamp: new Date().toISOString(),
+          type: "SYSTEM_ACK",
+          message: "Secure connection established with autonomous ops engine.",
+          severity: "info",
+          service: "core",
+          source: "server",
+          keyVersion: KEY_VERSION,
+          previousEventHash: lastEventHash
+        };
+        connectEvent.signature = signEvent(connectEvent);
+        lastEventHash = crypto.createHash("sha256").update(JSON.stringify(connectEvent)).digest("hex");
+        
+        ws.send(JSON.stringify(connectEvent));
+      });
+
+      // Export the broadcast function for forensic telemetry piping
+      (global as any).broadcastWebOpsEvent = (event: any) => {
+        if (!event.eventId) event.eventId = crypto.randomUUID();
+        
+        // Tamper-evident chaining
+        event.previousEventHash = lastEventHash;
+        event.keyVersion = KEY_VERSION;
+        event.signature = signEvent(event);
+        
+        lastEventHash = crypto.createHash("sha256").update(JSON.stringify(event)).digest("hex");
+        
+        wss.clients.forEach(client => {
+          if (client.readyState === 1) { // WebSocket.OPEN
+            client.send(JSON.stringify(event));
+          }
+        });
+      };
+
+      // Real-time backend background telemetry generation with verified system state provenance
+      const emitTelemetry = () => {
+        const variance = Math.random() * 3000;
+        setTimeout(() => {
+          // Acquire true system metrics instead of synthetics
+          const memUsage = process.memoryUsage();
+          
+          const eventOptions = [
+            { 
+              type: "MEMORY_USAGE", 
+              message: `V8 Heap Size: ${(memUsage.heapUsed / 1024 / 1024).toFixed(2)} MB`, 
+              severity: "info", 
+              service: "core",
+              metric: "memory.heapUsed",
+              value: memUsage.heapUsed,
+              source: "process.memoryUsage()"
+            },
+            { 
+              type: "CPU_LOAD", 
+              message: `System Load Avg (1m): ${os.loadavg()[0].toFixed(2)}`, 
+              severity: "info", 
+              service: "os",
+              metric: "os.loadavg",
+              value: os.loadavg()[0],
+              source: "os.loadavg()"
+            },
+            { 
+              type: "SYSTEM_UPTIME", 
+              message: `Server uptime: ${os.uptime().toFixed(0)}s`, 
+              severity: "success", 
+              service: "os",
+              metric: "os.uptime",
+              value: os.uptime(),
+              source: "os.uptime()"
+            }
+          ];
+          
+          const targetEvent = eventOptions[Math.floor(Math.random() * eventOptions.length)];
+          
+          if ((global as any).broadcastWebOpsEvent) {
+             (global as any).broadcastWebOpsEvent({
+               timestamp: new Date().toISOString(),
+               ...targetEvent
+             });
+          }
+          
+          emitTelemetry(); // recursive fuzzy loop
+        }, 500 + variance); 
+      };
+      
+      emitTelemetry();
+
+      
+    } catch (err) {
+      console.error("[WebOps] Failed to initialize WebSocket server:", err);
+    }
   }
 
   return app;

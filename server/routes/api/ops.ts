@@ -173,10 +173,11 @@ opsRouter.get("/health-digest", async (req: any, res: any) => {
                 topProfitMetrics: []
             });
         }
+        const userId = req.user.uid;
         const [summarySnap, costsSnap, profitsSnap] = await Promise.all([
           db.collection("system_health_metrics").doc("summary").get(),
-          db.collection("cost_events").orderBy("timestamp", "desc").limit(30).get(),
-          db.collection("profit_metrics").orderBy("profit", "desc").limit(10).get()
+          db.collection("cost_events").where("userId", "==", userId).orderBy("timestamp", "desc").limit(30).get(),
+          db.collection("profit_metrics").where("userId", "==", userId).orderBy("profit", "desc").limit(10).get()
         ]);
         
         let overview = {

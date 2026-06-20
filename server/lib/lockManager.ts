@@ -1,4 +1,4 @@
-import { db } from "../firebaseAdmin";
+import { db, hasServiceAccount } from "../firebaseAdmin";
 import { logger } from "./logger";
 
 export interface LockDoc {
@@ -16,6 +16,10 @@ export class LockManager {
    * A lease is issued for leaseDurationMs (defaults to 5 minutes).
    */
   static async acquireLock(lockName: string, leaseDurationMs = 5 * 60 * 1000): Promise<boolean> {
+    if (!hasServiceAccount) {
+      // In degraded mode, allow lock by default (single instance simulation)
+      return true;
+    }
     try {
       const lockRef = db.collection("worker_locks").doc(lockName);
 
@@ -52,6 +56,7 @@ export class LockManager {
    * Releases an owned lock in Firestore.
    */
   static async releaseLock(lockName: string): Promise<void> {
+    if (!hasServiceAccount) return;
     try {
       const lockRef = db.collection("worker_locks").doc(lockName);
       await db.runTransaction(async (tx: any) => {

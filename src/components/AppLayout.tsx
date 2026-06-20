@@ -89,6 +89,7 @@ export function AppLayout() {
       label: "Analytics & Settings",
       items: [
         { label: "Performance Analytics", href: "/analytics", icon: AnalyticsIcon },
+        { label: "WebOps System", href: "/webops", icon: Activity },
         { label: "Settings", href: "/settings", icon: SettingsIcon },
       ]
     }
@@ -109,7 +110,14 @@ export function AppLayout() {
           
           {/* Header Area */}
           <div className="h-20 flex items-center justify-between px-6 border-b border-white/5 relative bg-zinc-950/20">
-            {!isSidebarCollapsed && <Logo />}
+            {!isSidebarCollapsed && (
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-[#a8ff35]/10 flex items-center justify-center rounded-lg border border-[#a8ff35]/20">
+                  <BrandingHexIcon className="w-5 h-5 text-[#a8ff35]" />
+                </div>
+                <span className="font-display font-bold text-white tracking-tight">AffiliateOS</span>
+              </div>
+            )}
             
             {isSidebarCollapsed && (
               <div className="mx-auto">
@@ -126,17 +134,17 @@ export function AppLayout() {
           </div>
 
           {/* Navigation Items */}
-          <nav className="flex-1 px-3 py-4 space-y-4 overflow-y-auto scrollbar-none">
+          <nav className="flex-1 px-3 py-6 space-y-6 overflow-y-auto scrollbar-none">
              {navigationCategories.map((cat) => {
                const isOpen = openedCategories[cat.id];
                return (
-                 <div key={cat.id} className="space-y-1">
+                 <div key={cat.id} className="space-y-1.5">
                    {!isSidebarCollapsed && (
                      <button 
                        onClick={() => toggleCategory(cat.id)} 
-                       className="flex items-center justify-between w-full px-3 py-1.5 text-[9px] uppercase tracking-widest text-zinc-500 font-bold hover:text-zinc-200 transition-colors group cursor-pointer"
+                       className="flex items-center justify-between w-full px-3 py-2 text-[10px] uppercase tracking-[0.2em] text-zinc-500 font-bold hover:text-zinc-200 transition-colors group cursor-pointer"
                      >
-                       <span className="group-hover:tracking-wider transition-all duration-300">{cat.label}</span>
+                       <span className="group-hover:tracking-[0.25em] transition-all duration-300">{cat.label}</span>
                        {isOpen ? (
                          <ChevronUp className="w-3 h-3 text-zinc-500 group-hover:text-white transition-transform" />
                        ) : (
@@ -152,7 +160,7 @@ export function AppLayout() {
                          animate={{ height: "auto", opacity: 1 }}
                          exit={{ height: 0, opacity: 0 }}
                          transition={{ duration: 0.2, ease: "easeInOut" }}
-                         className="overflow-hidden space-y-1"
+                         className="overflow-hidden space-y-1.5"
                        >
                          {cat.items.map((item) => {
                            const isActive = location.pathname === item.href;
@@ -162,21 +170,21 @@ export function AppLayout() {
                                to={item.href}
                                title={isSidebarCollapsed ? item.label : undefined}
                                className={cn(
-                                 "flex items-center rounded-xl text-xs font-semibold transition-all duration-200 relative group cursor-pointer",
-                                 isSidebarCollapsed ? "justify-center p-3" : "px-4 py-2 hover:translate-x-1",
+                                 "flex items-center rounded-2xl text-[11px] font-bold transition-all duration-200 relative group cursor-pointer",
+                                 isSidebarCollapsed ? "justify-center p-3.5" : "px-4 py-2.5 hover:translate-x-1",
                                  isActive
-                                   ? "bg-primary/10 text-white border border-primary/20"
-                                   : "text-zinc-400 hover:bg-white/5 hover:text-white border border-transparent"
+                                   ? "bg-[#a8ff35]/10 text-white border border-[#a8ff35]/20 shadow-[0_0_20px_rgba(168,255,53,0.05)]"
+                                   : "text-zinc-500 hover:bg-white/5 hover:text-zinc-200 border border-transparent"
                                )}
                              >
                                <item.icon className={cn(
-                                 "flex-shrink-0 h-4 w-4 transition-all duration-200", 
+                                 "flex-shrink-0 h-4.5 w-4.5 transition-all duration-200", 
                                  isActive 
-                                   ? "text-blue-500 drop-shadow-[0_0_8px_rgba(59,130,246,0.5)] scale-110" 
-                                   : "text-zinc-500 group-hover:text-zinc-200",
-                                 !isSidebarCollapsed && "mr-3"
-                               )} strokeWidth={2} />
-                               {!isSidebarCollapsed && <span className="transition-all duration-200">{item.label}</span>}
+                                   ? "text-[#a8ff35] drop-shadow-[0_0_8px_rgba(168,255,53,0.5)] scale-110" 
+                                   : "text-zinc-500 group-hover:text-zinc-300",
+                                 !isSidebarCollapsed && "mr-3.5"
+                               )} strokeWidth={2.5} />
+                               {!isSidebarCollapsed && <span className="transition-all duration-200 tracking-tight">{item.label}</span>}
                              </Link>
                            );
                          })}

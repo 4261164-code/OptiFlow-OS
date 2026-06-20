@@ -861,5 +861,14 @@ export function startSystemHardeningWorkers() {
     task: async () => { await CEOAgent.runSelfHealingAudit(); },
   });
 
+  WorkerManager.registerWorker({
+    name: "webOpsMaintenance",
+    intervalMs: 600_000, // Every 10 minutes
+    task: async () => {
+      const { webOpsManager } = await import("../webops/WebOpsManager");
+      await webOpsManager.runSyncCycle();
+    },
+  });
+
   WorkerManager.startAll().catch(e => logger.error("Worker start failure", e));
 }

@@ -129,13 +129,28 @@ export function TrafficEngine() {
     }
   };
 
-  const handleCloak = (e: React.FormEvent) => {
+  const handleCloak = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!rawAffiliateUrl.trim() || !customSlug.trim()) return;
 
     const hostname = window.location.origin;
     const cleanSlug = customSlug.toLowerCase().replace(/[^a-z0-9-_]/g, '-');
     const cloakedUrl = `${hostname}/go/${cleanSlug}`;
+
+    try {
+      if (auth.currentUser) {
+        // Save cloaked link as an 'offer' in Firestore to make the redirect work
+        const { doc, setDoc } = await import('firebase/firestore');
+        await setDoc(doc(db, 'offers', cleanSlug), {
+          link: rawAffiliateUrl,
+          userId: auth.currentUser.uid,
+          name: `Cloaked: ${cleanSlug}`,
+          createdAt: Date.now()
+        });
+      }
+    } catch (err) {
+      console.error("Failed to save cloaked link to db:", err);
+    }
 
     const newLink: CloakedLink = {
       tag: cleanSlug,

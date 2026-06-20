@@ -642,19 +642,21 @@ export class Layer3Execution {
     }
 
     // 8. Immutable Audit Write back complete with Correlation Tracing ID
-    const auditId = await this.writeAuditEntry({
+    const payload: any = {
       userId,
       idempotencyKey,
       action: plan.action,
       decisionScore: plan.score,
       gate: plan.gate,
       status: success ? "SUCCESS" : "FAILED",
-      result: execResult,
-      error: executionError,
       timestamp: now,
-      trace: currentTrace,
-      rollbackPointer: success ? `undo_${plan.action}_${idempotencyKey}` : undefined
-    });
+      trace: currentTrace
+    };
+    if (execResult !== undefined) payload.result = execResult;
+    if (executionError !== undefined) payload.error = executionError;
+    if (success) payload.rollbackPointer = `undo_${plan.action}_${idempotencyKey}`;
+
+    const auditId = await this.writeAuditEntry(payload);
 
     return {
       success,
@@ -673,7 +675,11 @@ export class Layer3Execution {
       const ref = await db.collection("immutable_audit_logs").add(auditDoc);
       return ref.id;
     } catch (err) {
-      logger.error("[Layer3Execution] AUDIT WRITE FAILURE:", err);
+      if (process.env.NODE_ENV === "production") {
+        logger.error("[Layer3Execution] AUDIT WRITE FAILURE:", err);
+      } else {
+        logger.warn("[Layer3Execution] AUDIT WRITE FAILURE: Firebase not fully provisioned. Audit logged to trace only.");
+      }
       return "fallback_audit_id";
     }
   }

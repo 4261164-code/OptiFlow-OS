@@ -1178,12 +1178,12 @@ Return ONLY a JSON array containing these 5 subtopics (conform to the schema per
 
 export async function runReportDigestAgent(documentText: string, docType: string, userId?: string): Promise<any> {
   const prompt = `You are the Executive Intelligence & Strategic Optimization Agent for AffiliateOS.
-You are given a document (Type: \${docType}) which contains weekly report analytics, system optimization criteria, strategy plans, or custom documents.
+You are given a document (Type: ${docType}) which contains weekly report analytics, system optimization criteria, strategy plans, or custom documents.
 Analyze the following document text and provide a highly detailed, professional, realistic analysis and actionable strategic recommendations.
 
 Document Text:
 """
-\${documentText}
+${documentText}
 """
 
 You must generate your response in strict JSON format. The response must contain:
@@ -1689,7 +1689,11 @@ export async function generateCEOSpeech(text: string, voiceName: string = 'Kore'
 
     const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
     return base64Audio || null;
-  } catch (err) {
+  } catch (err: any) {
+    if (err.status === 429) {
+      logger.warn(`[TTS Fallback] Rate limited 429 on TTS model. Falling back to silent.`);
+      return null;
+    }
     logger.error("TTS generation failed:", err);
     return null;
   }
