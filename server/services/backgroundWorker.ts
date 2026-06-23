@@ -81,6 +81,7 @@ export async function runClickBufferWorker() {
           userId: userId || "system-fallback"
         };
 
+        const { FieldValue } = require("firebase-admin/firestore");
         await db.collection("affiliate_clicks").doc(clickId).set(finalClickData);
 
         // Task 2: Log append-only to Event Ledger
@@ -93,6 +94,32 @@ export async function runClickBufferWorker() {
           pinId,
           source
         });
+
+        // Task 3: Real-time incremental aggregation (removes full collection scans)
+        const dateStr = finalClickData.timestamp.toISOString().split("T")[0];
+        const sysUserId = userId || "system-fallback";
+        const dailyId = `${sysUserId}_${dateStr}`;
+        
+        const increments: any = {
+           clicks: FieldValue.increment(1),
+           userId: sysUserId,
+           date: dateStr,
+           timestamp: Date.now()
+        };
+
+        await db.collection("daily_metrics").doc(dailyId).set(increments, { merge: true });
+
+        if (articleId && articleId !== "unknown") {
+            await db.collection("article_metrics").doc(`${sysUserId}_${articleId}`).set({
+               clicks: FieldValue.increment(1), userId: sysUserId, articleId, timestamp: Date.now()
+            }, { merge: true });
+        }
+
+        if (offerId && offerId !== "unknown") {
+            await db.collection("offer_metrics").doc(`${sysUserId}_${offerId}`).set({
+               clicks: FieldValue.increment(1), userId: sysUserId, offerId, timestamp: Date.now()
+            }, { merge: true });
+        }
 
         // Mark as confirmed in buffer
         await db.collection("pending_click_events").doc(clickId).update({
@@ -213,6 +240,38 @@ export async function runConversionReconciliationWorker() {
             updatedAt: Date.now()
           });
 
+          // Task 3: Real-time incremental aggregation for conversions and revenue
+          const { FieldValue } = require("firebase-admin/firestore");
+          const dateStr = new Date(timestamp || Date.now()).toISOString().split("T")[0];
+          const dailyId = `${matchedUserId}_${dateStr}`;
+          const amt = Number(amount || 0);
+          
+          await db.collection("daily_metrics").doc(dailyId).set({
+             conversions: FieldValue.increment(1),
+             revenue: FieldValue.increment(amt),
+             userId: matchedUserId,
+             date: dateStr,
+             timestamp: Date.now()
+          }, { merge: true });
+
+          if (matchedArticleId && matchedArticleId !== "unknown") {
+             const artMetricRef = db.collection("article_metrics").doc(`${matchedUserId}_${matchedArticleId}`);
+             await artMetricRef.set({
+                conversions: FieldValue.increment(1),
+                revenue: FieldValue.increment(amt),
+                userId: matchedUserId, articleId: matchedArticleId, timestamp: Date.now()
+             }, { merge: true });
+          }
+
+          if (matchedOfferId && matchedOfferId !== "unknown") {
+             const offMetricRef = db.collection("offer_metrics").doc(`${matchedUserId}_${matchedOfferId}`);
+             await offMetricRef.set({
+                conversions: FieldValue.increment(1),
+                revenue: FieldValue.increment(amt),
+                userId: matchedUserId, offerId: matchedOfferId, timestamp: Date.now()
+             }, { merge: true });
+          }
+
           logger.info(`[Reconciliation Worker] Successfully Matched Conversion: ${conversionId} with Click ID ${clickId}`);
 
         } else {
@@ -258,6 +317,9 @@ export async function runMetricsAggregationWorker() {
   if (!FEATURE_FLAGS.ENABLE_AGGREGATION_WORKERS) return;
 
   try {
+    // Migrated fully to Real-Time Event-Driven Incremental Aggregation.
+    logger.info("[Metrics Aggregation Worker] System uses real-time increments. Bypassing full DB scan.");
+    return;
     logger.info("[Metrics Aggregation Worker] Rebuilding pre-aggregated metric views...");
 
     // Gather raw ingredients
@@ -790,12 +852,54 @@ export async function runImageRetryWorker() {
 }
 
 import { WorkerManager } from "../workers/WorkerManager";
+import { runPipelineQueueWorker } from "../workers/PipelineWorker";
+import { OrchestrationEngine } from "../orchestrator/engine";
+import { EventEngine } from "../events/engine";
+import { QueueWorker } from "../workers/QueueWorker";
+import { optimizeOffers } from "../workers/agents/offerOptimizer";
+import { dailyBrain } from "../workers/agents/dailyBrain";
 
 /**
  * Starts all system hardening background routines
  */
 export function startSystemHardeningWorkers() {
   logger.info("[System Hardening Workers] Initializing scheduled routines via WorkerManager...");
+
+  // AI Strategic Background Loops
+  WorkerManager.registerWorker({
+    name: "offerOptimizerLoop",
+    intervalMs: 15_000, // Frequent check for this demo, would be slower in prod
+    task: async () => { await optimizeOffers(); },
+    retryPolicy: { maxRetries: 3, backoffMs: 1000, backoffMultiplier: 2, maxBackoffMs: 3000 }
+  });
+
+  WorkerManager.registerWorker({
+    name: "dailyBrainLoop",
+    intervalMs: 30_000, // Frequent check for demo
+    task: async () => { await dailyBrain(); },
+    retryPolicy: { maxRetries: 3, backoffMs: 1000, backoffMultiplier: 2, maxBackoffMs: 3000 }
+  });
+
+  WorkerManager.registerWorker({
+    name: "coreQueueWorker",
+    intervalMs: 5_000,
+    task: async () => { await QueueWorker.processPendingJobs(); },
+    retryPolicy: { maxRetries: 3, backoffMs: 1000, backoffMultiplier: 2, maxBackoffMs: 10000 }
+  });
+
+  WorkerManager.registerWorker({
+    name: "eventDrivenEngine",
+    intervalMs: 8_000,
+    task: async () => { await EventEngine.processEvents(); },
+    retryPolicy: { maxRetries: 3, backoffMs: 1000, backoffMultiplier: 2, maxBackoffMs: 10000 }
+  });
+
+  WorkerManager.registerWorker({
+    name: "autonomousOrchestrator",
+    intervalMs: 10_000,
+    task: async () => { await OrchestrationEngine.processPendingTasks(); },
+    retryPolicy: { maxRetries: 3, backoffMs: 1000, backoffMultiplier: 2, maxBackoffMs: 10000 }
+  });
 
   WorkerManager.registerWorker({
     name: "clickBuffer",
@@ -809,6 +913,13 @@ export function startSystemHardeningWorkers() {
     intervalMs: 30_000,
     task: runConversionReconciliationWorker,
     retryPolicy: { maxRetries: 3, backoffMs: 1000, backoffMultiplier: 2, maxBackoffMs: 10000 }
+  });
+
+  WorkerManager.registerWorker({
+    name: "pipelineWorker",
+    intervalMs: 20_000,
+    task: runPipelineQueueWorker,
+    retryPolicy: { maxRetries: 5, backoffMs: 2000, backoffMultiplier: 1.5, maxBackoffMs: 30000 }
   });
 
   WorkerManager.registerWorker({

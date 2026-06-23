@@ -2,6 +2,8 @@ import { logger } from "./lib/logger";
 import { runResearchAgent, runWriterAgent, runMonetizationAgent, runPinterestAgent, runImageGenerationAgent, runSEOLinkAgent } from "./agents";
 import { db } from "./firebaseAdmin";
 import { queueImageRetry } from "./services/imageService";
+import { WordPressClient } from "./integrations/wordpress/client";
+import { PinterestClient } from "./integrations/pinterest/client";
 
 
 export async function logAgentTelemetry(userId: string, agentType: string, status: 'success' | 'warn' | 'error' | 'info' | 'started' | 'running' | 'completed' | 'failed', message: string, jobId?: string) {
@@ -155,6 +157,18 @@ export async function runPipeline(opts: PipelineOpts): Promise<{
   }
 
   logger.info(`[Pipeline] Stage 2 success. Generated article '${articleId}'.`);
+  
+  // Checkpoint: Save article to database
+  await db.collection("articles").doc(articleId).set({
+      id: articleId,
+      title: articleRaw.title,
+      content: articleRaw.content,
+      keyword: keyword,
+      userId: userId || "system-fallback",
+      jobId: jobId || "system",
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+  });
 
   // ==========================================
   // STAGE 3: Pinterest & Image Generation
@@ -199,6 +213,81 @@ export async function runPipeline(opts: PipelineOpts): Promise<{
         }
       }
     }
+  }
+
+  // ==========================================
+  // STAGE 4: WordPress & Pinterest Publishing
+  // ==========================================
+  if (jobId) await db.collection("jobs").doc(jobId).update({ status: "publishing", updatedAt: Date.now() });
+
+  logger.info(`[Pipeline] Stage 4: Publishing constraints & execution...`);
+  await logAgentTelemetry(userId, "Distribution Engine", "running", `Initiating WP and Pinterest deployments.`, jobId);
+
+  try {
+     const settingsSnap = await db.collection("settings").doc(userId).get();
+     const settings = settingsSnap.data() || {};
+     const wpEnabled = settings.wordpressUrl && settings.wordpressUsername && settings.wordpressAppPassword;
+     const pinEnabled = settings.pinterestAccessToken && settings.pinterestBoardId;
+
+     if (wpEnabled) {
+        logger.info(`[Pipeline] WordPress integration found. Publishing...`);
+        const wpClient = new WordPressClient({
+           url: settings.wordpressUrl,
+           username: settings.wordpressUsername,
+           appPassword: settings.wordpressAppPassword
+        });
+
+        const wpResult = await wpClient.publishPost({
+           title: articleRaw.title,
+           content: articleRaw.content,
+           status: 'publish'
+        });
+        
+        await logAgentTelemetry(userId, "Distribution Engine", "success", `Successfully published to WordPress with ID ${wpResult.id}`, jobId);
+        articleRaw.content += `\n\n_WP Post ID: ${wpResult.id}_`; // Add basic reference
+        
+        await db.collection("articles").doc(articleId).update({
+            wordpressStatus: "published",
+            wordpressId: wpResult.id,
+            wordpressUrl: `${settings.wordpressUrl}/?p=${wpResult.id}`,
+            content: articleRaw.content,
+            updatedAt: Date.now()
+        });
+     } else {
+        logger.warn(`[Pipeline] WP Configuration missing. Skipping true WP deployment.`);
+     }
+
+     if (pinEnabled && pins.length > 0) {
+        logger.info(`[Pipeline] Pinterest integration found. Publishing ${pins.length} pins...`);
+        const pinClient = new PinterestClient({
+           accessToken: settings.pinterestAccessToken,
+           boardId: settings.pinterestBoardId
+        });
+
+        for (const pin of pins) {
+             const pinResult = await pinClient.createPin({
+                title: pin.title || articleRaw.title,
+                description: pin.description || `Read more about ${keyword}`,
+                link: settings.wordpressUrl ? `${settings.wordpressUrl}/?p=${articleRaw.content.match(/_WP Post ID: (\d+)_/)?.[1] || articleId}` : `https://yoursite.com/post/${articleId}`,
+                mediaUrl: pin.imageUrl || "https://images.unsplash.com/photo-1497366216548-37526070297c"
+             });
+             pin.networkId = pinResult.id;
+        }
+        
+        await db.collection("articles").doc(articleId).update({
+            pinterestStatus: "published",
+            pins: pins,
+            updatedAt: Date.now()
+        });
+
+        await logAgentTelemetry(userId, "Distribution Engine", "success", `Successfully published ${pins.length} pins to Pinterest board`, jobId);
+     } else {
+        logger.warn(`[Pipeline] Pinterest Configuration missing or no pins. Skipping true Pin deployment.`);
+     }
+
+  } catch (err: any) {
+     logger.error(`[Pipeline Error] Publish stage failed: ${err.message}`, err);
+     await logAgentTelemetry(userId, "Distribution Engine", "error", `Distribution deployment failed: ${err.message}`, jobId);
   }
 
   logger.info(`[Pipeline] Full pipeline agents completed successfully!`);

@@ -2,19 +2,24 @@ import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { KPICards } from '../../components/executive/KPICards';
 import { Rankings } from '../../components/executive/Rankings';
 import { useExecutiveMetrics } from '../../hooks/executive/useExecutiveMetrics';
-import { Moon, Sun, Clock, WifiOff, BarChart3, Settings2, Globe, Shield, Activity } from 'lucide-react';
+import { Moon, Sun, Clock, WifiOff, BarChart3, Settings2, Globe, Shield, Activity, FileText, Cpu } from 'lucide-react';
 import { ErrorBoundary } from '../../components/executive/ErrorBoundary';
 import { OpsBoard } from '../../components/executive/OperationsBoard';
 import { MaxBountyPanel } from '../../components/executive/MaxBountyPanel';
 import { CommandCenter } from '../../components/executive/CommandCenter';
 import { DiagnosticsBoard } from '../../components/executive/DiagnosticsBoard';
 import { GovernanceBoard } from '../../components/executive/GovernanceBoard';
+import { BusinessAnalystCard } from '../../components/executive/BusinessAnalystCard';
+import { OrchestrationEngineBoard } from '../../components/executive/OrchestrationEngineBoard';
+import { EventDrivenGrowthBoard } from '../../components/executive/EventDrivenGrowthBoard';
+import { TrackingBoard } from '../../components/executive/TrackingBoard';
+import { AnalyticsDashboard } from '../../components/executive/AnalyticsDashboard';
 
 const Charts = lazy(() => import('../../components/executive/Charts').then(m => ({ default: m.Charts })));
 
 export default function ExecutiveDashboard() {
     const { status } = useExecutiveMetrics();
-    const [activeTab, setActiveTab] = useState<'analytics' | 'operations' | 'maxbounty' | 'command' | 'diagnostics' | 'governance'>('command');
+    const [activeTab, setActiveTab] = useState<'analytics' | 'operations' | 'maxbounty' | 'command' | 'diagnostics' | 'governance' | 'analyst' | 'orchestrator' | 'growthloop' | 'tracking' | 'revenue'>('command');
     const [darkMode, setDarkMode] = useState(() => {
         return localStorage.getItem('theme') === 'dark' || 
                (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -72,7 +77,7 @@ export default function ExecutiveDashboard() {
 
                     <div className="flex items-center space-x-4">
                         {/* Tab Switcher */}
-                        <div className="flex bg-zinc-100 dark:bg-zinc-900 p-1 rounded-lg border border-zinc-200 dark:border-zinc-800">
+                        <div className="flex bg-zinc-100 dark:bg-zinc-900 p-1 rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-x-auto">
                             <button
                                 onClick={() => setActiveTab('command')}
                                 className={`inline-flex items-center px-4 py-2 text-xs font-semibold rounded-md transition-all duration-200 cursor-pointer ${
@@ -139,6 +144,61 @@ export default function ExecutiveDashboard() {
                                 <Shield className="w-3.5 h-3.5 mr-1.5" />
                                 Governance
                             </button>
+                            <button
+                                onClick={() => setActiveTab('analyst')}
+                                className={`inline-flex flex-shrink-0 items-center px-4 py-2 text-xs font-semibold rounded-md transition-all duration-200 cursor-pointer ${
+                                    activeTab === 'analyst'
+                                        ? 'bg-white dark:bg-[#111] text-indigo-600 dark:text-indigo-400 shadow-sm'
+                                        : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
+                                }`}
+                            >
+                                <FileText className="w-3.5 h-3.5 mr-1.5" />
+                                AI Analyst
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('orchestrator')}
+                                className={`inline-flex flex-shrink-0 items-center px-4 py-2 text-xs font-semibold rounded-md transition-all duration-200 cursor-pointer ${
+                                    activeTab === 'orchestrator'
+                                        ? 'bg-white dark:bg-[#111] text-indigo-600 dark:text-indigo-400 shadow-sm'
+                                        : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
+                                }`}
+                            >
+                                <Cpu className="w-3.5 h-3.5 mr-1.5" />
+                                Orchestrator
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('growthloop')}
+                                className={`inline-flex flex-shrink-0 items-center px-4 py-2 text-xs font-semibold rounded-md transition-all duration-200 cursor-pointer ${
+                                    activeTab === 'growthloop'
+                                        ? 'bg-white dark:bg-[#111] text-indigo-600 dark:text-indigo-400 shadow-sm'
+                                        : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
+                                }`}
+                            >
+                                <Activity className="w-3.5 h-3.5 mr-1.5" />
+                                Growth Loop
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('tracking')}
+                                className={`inline-flex flex-shrink-0 items-center px-4 py-2 text-xs font-semibold rounded-md transition-all duration-200 cursor-pointer ${
+                                    activeTab === 'tracking'
+                                        ? 'bg-white dark:bg-[#111] text-indigo-600 dark:text-indigo-400 shadow-sm'
+                                        : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
+                                }`}
+                            >
+                                <Globe className="w-3.5 h-3.5 mr-1.5" />
+                                Tracking
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('revenue')}
+                                className={`inline-flex flex-shrink-0 items-center px-4 py-2 text-xs font-semibold rounded-md transition-all duration-200 cursor-pointer ${
+                                    activeTab === 'revenue'
+                                        ? 'bg-white dark:bg-[#111] text-emerald-600 dark:text-emerald-400 shadow-sm'
+                                        : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
+                                }`}
+                            >
+                                <BarChart3 className="w-3.5 h-3.5 mr-1.5" />
+                                Analytics
+                            </button>
                         </div>
 
                         <button 
@@ -176,6 +236,26 @@ export default function ExecutiveDashboard() {
                     ) : activeTab === 'governance' ? (
                         <ErrorBoundary>
                             <GovernanceBoard />
+                        </ErrorBoundary>
+                    ) : activeTab === 'analyst' ? (
+                        <ErrorBoundary>
+                            <BusinessAnalystCard />
+                        </ErrorBoundary>
+                    ) : activeTab === 'orchestrator' ? (
+                        <ErrorBoundary>
+                            <OrchestrationEngineBoard />
+                        </ErrorBoundary>
+                    ) : activeTab === 'growthloop' ? (
+                        <ErrorBoundary>
+                            <EventDrivenGrowthBoard />
+                        </ErrorBoundary>
+                    ) : activeTab === 'tracking' ? (
+                        <ErrorBoundary>
+                            <TrackingBoard />
+                        </ErrorBoundary>
+                    ) : activeTab === 'revenue' ? (
+                        <ErrorBoundary>
+                            <AnalyticsDashboard />
                         </ErrorBoundary>
                     ) : (
                         <ErrorBoundary>

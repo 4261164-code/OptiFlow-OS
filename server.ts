@@ -833,85 +833,34 @@ export const appPromise = (async () => {
       }
       await logRef.update({ logs, updatedAt: Date.now() });
 
-      // 2. Spawn background process Job
+      // 2. Queue background process Job
       const jobId = `job-auto-${Date.now()}`;
       await db.collection("jobs").doc(jobId).set({
         id: jobId,
         keyword,
-        status: "running",
+        status: "pending",
         userId,
+        retries: 0,
+        logId,
+        seoLevel: "High",
+        numPins: 3,
+        autoPublishWordpress: !!autoPublishWordpress,
+        autoPublishSocial: !!autoPublishSocial,
+        affiliateOffers: matchedOffer ? `${matchedOffer.brand}:${matchedOffer.link}` : undefined,
         createdAt: Date.now(),
         updatedAt: Date.now()
       });
-      logs.push(`[Orchestrator Pipeline]: Spawned background process instance with Job Reference Ref: "${jobId}".`);
+      logs.push(`[Orchestrator Pipeline]: Queued background process instance with Job Reference Ref: "${jobId}".`);
       await logRef.update({ logs, updatedAt: Date.now() });
 
-      // Run pipeline
-      const pipelineResult = await runPipeline({
-        userId,
-        jobId,
-        keyword,
-        seoLevel: "High",
-        numPins: 3,
-        affiliateOffers: matchedOffer ? `${matchedOffer.brand}:${matchedOffer.link}` : undefined
-      });
-
-      logs.push(`[Content assembly complete]: Compiled optimized target article: "${pipelineResult.article.title}" (${pipelineResult.article.content.length} characters written).`);
-      
-      let articleId = pipelineResult.articleId;
-
-      // 3. WordPress deployer check
-      if (autoPublishWordpress) {
-        // Fetch user wordpress credentials
-        const settingsSnap = await db.collection("settings").doc(userId).get();
-        const settings = settingsSnap.exists ? settingsSnap.data() : null;
-        if (settings && settings.wordpressUrl && settings.wordpressUsername && settings.wordpressPassword) {
-          logs.push(`[WP Deployment Node]: Uploading content block through premium XML-RPC credentials to site URL: "${settings.wordpressUrl}"...`);
-          try {
-            const wpPublishedId = Math.floor(Math.random() * 8999) + 1000;
-            await db.collection("articles").doc(articleId).update({
-              wordpressStatus: "published",
-              wordpressUrl: `${settings.wordpressUrl}/?p=${wpPublishedId}`,
-              updatedAt: Date.now()
-            });
-            logs.push(`[WP Deployment Success]: Article published onto site link: "${settings.wordpressUrl}/?p=${wpPublishedId}"!`);
-          } catch (wpError: any) {
-             logs.push(`[WP Deployment Node error]: Live target upload failed: ${wpError?.message || String(wpError)}`);
-          }
-        } else {
-          logs.push(`[WP Deployment Node error]: Missing server WordPress credentials. Publishing aborted.`);
-        }
-      }
-
-      // 4. Pinterest & Social Check
-      if (pipelineResult.pins && pipelineResult.pins.length > 0) {
-        logs.push(`[Pinterest Creative Agent]: Compiled ${pipelineResult.pins.length} distinct graphic templates.`);
-        if (autoPublishSocial) {
-          logs.push(`[Social Syndication]: Broadcasting tweet blocks to X (Twitter) & LinkedIn profiles requires manual confirmation in this version. Items placed in Draft queue.`);
-        }
-      }
-
-      logs.push(`[Orchestration Trace Success]: Routine completed perfectly. Closing pipeline threads.`);
-
-      await logRef.update({
-        logs,
-        status: "success",
-        articleId,
-        updatedAt: Date.now()
-      });
-
-      // Update active Job to complete in Firestore
-      await db.collection("jobs").doc(jobId).update({
-        status: "completed",
-        articleId,
-        updatedAt: Date.now()
-      });
-
-      res.json({
+      // Return immediately so the HTTP response isn't blocked by long-running pipeline execution
+      return res.json({
         success: true,
+        message: "Autopilot sequence initiated and queued successfully.",
+        jobId,
         logId,
         keyword,
-        articleId
+        matchedOffer
       });
 
     } catch (e: any) {
@@ -1212,11 +1161,25 @@ Details: ${JSON.stringify(err, (key, value) => key === 'apiKey' ? '***HIDDEN***'
     const { distroRouter } = await import("./server/routes/api/distro");
     const { pipelineRouter } = await import("./server/routes/api/pipeline");
     
+    // System Agent routers
+    const gscRouter = (await import("./server/routes/api/gsc")).default;
+    const analystRouter = (await import("./server/routes/api/analyst")).default;
+    const orchestratorRouter = (await import("./server/routes/api/orchestrator")).default;
+    const eventsRouter = (await import("./server/routes/api/events")).default;
+    const trackingRouter = (await import("./server/routes/api/tracking")).default;
+    const analyticsRouter = (await import("./server/routes/api/analytics")).default;
+    
     app.use("/api/strategy", strategyRouter);
     app.use("/api/writing", writingRouter);
     app.use("/api/intel", intelRouter);
     app.use("/api/distro", distroRouter);
     app.use("/api/pipeline", pipelineRouter);
+    app.use("/api/gsc", gscRouter);
+    app.use("/api/analyst", analystRouter);
+    app.use("/api/orchestrator", orchestratorRouter);
+    app.use("/api/events", eventsRouter);
+    app.use("/api/tracking", trackingRouter);
+    app.use("/api/analytics", analyticsRouter);
     
     console.log("[Server] Mounted all topological AI routers.");
   } catch (err) {

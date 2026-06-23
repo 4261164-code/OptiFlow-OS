@@ -122,6 +122,29 @@ postbackRouter.post("/postback", async (req, res) => {
                 timestamp: new Date()
             });
 
+            // Incremental aggregation
+            const { FieldValue } = require("firebase-admin/firestore");
+            const dateStr = new Date().toISOString().split("T")[0];
+            await db.collection("daily_metrics").doc(`${userId}_${dateStr}`).set({
+                conversions: FieldValue.increment(1),
+                revenue: FieldValue.increment(activeAmount),
+                userId, date: dateStr, timestamp: Date.now()
+            }, { merge: true });
+
+            if (articleId && articleId !== "unknown") {
+                await db.collection("article_metrics").doc(`${userId}_${articleId}`).set({
+                    conversions: FieldValue.increment(1), revenue: FieldValue.increment(activeAmount),
+                    userId, articleId, timestamp: Date.now()
+                }, { merge: true });
+            }
+
+            if (matchedOfferId && matchedOfferId !== "unknown") {
+                await db.collection("offer_metrics").doc(`${userId}_${matchedOfferId}`).set({
+                    conversions: FieldValue.increment(1), revenue: FieldValue.increment(activeAmount),
+                    userId, offerId: matchedOfferId, timestamp: Date.now()
+                }, { merge: true });
+            }
+
             return res.json({
                 success: true,
                 status: "reconciled_immediately",

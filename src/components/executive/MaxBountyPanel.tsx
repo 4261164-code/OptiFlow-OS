@@ -21,6 +21,8 @@ import {
 } from 'lucide-react';
 import { apiFetch } from '../../lib/auth';
 
+import { MaxBountyAttribution } from './MaxBountyAttribution';
+
 interface Campaign {
   id: string;
   networkCampaignId: number;
@@ -753,6 +755,19 @@ export function MaxBountyPanel() {
             )}
           </div>
         </div>
+      </section>
+
+      {/* INTELLIGENCE AND REVENUE ATTRIBUTION SYSTEM */}
+      <section className="pt-8 border-t border-zinc-100 dark:border-zinc-850">
+        <div className="mb-4">
+          <h3 className="font-bold text-gray-900 dark:text-white text-md uppercase tracking-wide flex items-center">
+            <Activity className="w-5 h-5 text-indigo-400 mr-2" /> Revenue Intelligence & Attribution
+          </h3>
+          <p className="text-xs text-zinc-500 mt-1">
+            Real-time analytics engine processing EPC, conversions, and AI-driven offer replacements.
+          </p>
+        </div>
+        <MaxBountyAttribution />
       </section>
     </div>
   );

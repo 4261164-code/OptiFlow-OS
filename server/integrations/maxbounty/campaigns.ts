@@ -85,6 +85,9 @@ export class MaxBountyCampaigns {
    */
   async fetchFromNetwork(endpoint: "top" | "trending" | "popular" | "suggested" = "top"): Promise<MaxBountyCampaign[]> {
     try {
+      if (!this.apiToken) {
+          throw new Error("MaxBounty API token is required but missing");
+      }
       logger.info(`[MaxBountyCampaigns] Requesting campaign data from endpoint: /campaigns/${endpoint}...`);
       const response = await fetch(`https://api.maxbounty.com/campaigns/${endpoint}`, {
         method: "GET",
@@ -98,12 +101,12 @@ export class MaxBountyCampaigns {
         const body = await response.json();
         return (body.campaigns || []).map((c: any) => this.mapApiToCampaign(c));
       } else {
-        logger.warn(`[MaxBountyCampaigns] API returned status ${response.status}. Fetching mock dataset.`);
-        return this.getMockCampaigns(endpoint);
+        const errText = await response.text();
+        throw new Error(`MaxBounty API returned status ${response.status}: ${errText}`);
       }
     } catch (err: any) {
-      logger.warn(`[MaxBountyCampaigns] Connection failed (${err.message}). Retrieving local mock dataset.`);
-      return this.getMockCampaigns(endpoint);
+      logger.error(`[MaxBountyCampaigns] Connection failed (${err.message}). No fallback datasets allowed in production.`);
+      throw err;
     }
   }
 

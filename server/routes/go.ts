@@ -54,11 +54,20 @@ goRouter.get("/smart/:userId", async (req, res) => {
         
         const clickId = await processClick(selectedOfferId, undefined, source, userAgent, ip, referer, undefined);
         
+        let finalDestinationUrl = destinationUrl;
+        try {
+            const urlObj = new URL(finalDestinationUrl);
+            urlObj.searchParams.set("s1", clickId);
+            finalDestinationUrl = urlObj.toString();
+        } catch(e) {
+            // ignore
+        }
+        
         // Optimistically apply a negative reward (failure/click). If it converts later, postback updates with a positive reward.
         await BanditEngine.updateReward(userId, context, selectedOfferId, 0, false);
         
         logger.info(JSON.stringify({ event: "smart_click_redirect", clickId, selectedOfferId, latencyMs: Date.now() - startTime }));
-        return res.redirect(302, destinationUrl);
+        return res.redirect(302, finalDestinationUrl);
 
     } catch (e: any) {
         logger.error("Smart routing failed:", e);
@@ -96,6 +105,15 @@ goRouter.get("/:offerId", async (req, res) => {
         }
 
         clickId = await processClick(offerId, articleId, source, userAgent, ip, referer, pinId);
+
+        // Inject SubID tracking parameter (s1 for MaxBounty/general network routing)
+        try {
+            const urlObj = new URL(destinationUrl);
+            urlObj.searchParams.set("s1", clickId);
+            destinationUrl = urlObj.toString();
+        } catch(urlErr) {
+            logger.warn(`Could not parse destinationUrl for SubID injection: ${destinationUrl}`);
+        }
 
     } catch (e: any) {
         logger.error(JSON.stringify({ event: "click_error", offerId, errorMessage: e.message }));

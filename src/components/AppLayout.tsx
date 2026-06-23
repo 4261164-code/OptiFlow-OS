@@ -31,11 +31,8 @@ export function AppLayout() {
   const [isAIChatOpen, setIsAIChatOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [openedCategories, setOpenedCategories] = useState<Record<string, boolean>>({
-    command: true,
-    intelligence: true,
-    content: true,
-    distribution: true,
-    system: false,
+    revenue_operations: true,
+    ai_systems: true,
   });
 
   useEffect(() => {
@@ -44,52 +41,24 @@ export function AppLayout() {
 
   const navigationCategories = [
     {
-      id: "command",
-      label: "Command & Control",
+      id: "revenue_operations",
+      label: "Revenue Operations",
       items: [
-        { label: "Dashboard", href: "/", icon: DashboardIcon },
-        { label: "CEO Command Center", href: "/executive", icon: Shield },
-        { label: "Strategy Hub", href: "/strategy", icon: TrendingUp },
-        { label: "Autopilot Console", href: "/automation", icon: Activity },
-        { label: "Agents Control", href: "/agents", icon: AgentsIcon },
+        { label: "Overview", href: "/", icon: DashboardIcon },
+        { label: "Content Command", href: "/content", icon: ArticlesIcon },
+        { label: "Offer Intelligence", href: "/offers", icon: AffiliateMatchIcon },
+        { label: "Traffic Intelligence", href: "/traffic", icon: TrafficEngineIcon },
+        { label: "Creator Dashboard", href: "/creators", icon: CreatorNetworkIcon },
       ]
     },
     {
-      id: "intelligence",
-      label: "Research & Intel",
+      id: "ai_systems",
+      label: "AI Systems",
       items: [
-        { label: "Intel Digest", href: "/intel-digest", icon: Brain },
-        { label: "Keyword Explorer", href: "/keywords", icon: Search },
-        { label: "SEO Clusters", href: "/clusters", icon: Network },
-      ]
-    },
-    {
-      id: "content",
-      label: "Content Studio",
-      items: [
-        { label: "Campaign Builder", href: "/new", icon: CampaignIcon },
-        { label: "Articles Generator", href: "/articles", icon: ArticlesIcon },
-        { label: "EBook Creator", href: "/ebooks", icon: Book },
-      ]
-    },
-    {
-      id: "distribution",
-      label: "Distribution & Growth",
-      items: [
-        { label: "Pinterest Engine", href: "/pins", icon: PinterestIcon },
-        { label: "Publishing Hub", href: "/publishing", icon: PublishingIcon },
-        { label: "Offers & Monetization", href: "/offers", icon: OffersIcon },
-        { label: "Affiliate Match", href: "/affiliate-match", icon: AffiliateMatchIcon },
-        { label: "Traffic Generator", href: "/traffic-engine", icon: TrafficEngineIcon },
-        { label: "Creator Network", href: "/creator-network", icon: CreatorNetworkIcon },
-      ]
-    },
-    {
-      id: "system",
-      label: "Analytics & Settings",
-      items: [
-        { label: "Performance Analytics", href: "/analytics", icon: AnalyticsIcon },
-        { label: "WebOps System", href: "/webops", icon: Activity },
+        { label: "AI Brain", href: "/brain", icon: Brain },
+        { label: "Automations", href: "/automations", icon: Activity },
+        { label: "Job Monitor", href: "/jobs", icon: AnalyticsIcon },
+        { label: "Analytics Lab", href: "/analytics", icon: TrendingUp },
         { label: "Settings", href: "/settings", icon: SettingsIcon },
       ]
     }
@@ -181,7 +150,7 @@ export function AppLayout() {
                                  "flex-shrink-0 h-4.5 w-4.5 transition-all duration-200", 
                                  isActive 
                                    ? "text-[#a8ff35] drop-shadow-[0_0_8px_rgba(168,255,53,0.5)] scale-110" 
-                                   : "text-zinc-500 group-hover:text-zinc-300",
+                                   : "text-zinc-400 group-hover:text-zinc-100 group-hover:scale-105",
                                  !isSidebarCollapsed && "mr-3.5"
                                )} strokeWidth={2.5} />
                                {!isSidebarCollapsed && <span className="transition-all duration-200 tracking-tight">{item.label}</span>}

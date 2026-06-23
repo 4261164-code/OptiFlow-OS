@@ -192,3 +192,16 @@ maxbountyRouter.post("/postbacks/maxbounty", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// 7. Intelligence Engine GET
+maxbountyRouter.get("/intelligence", async (req: any, res: any) => {
+  try {
+    const userId = req.user.uid;
+    const { RevenueIntelligenceAgent } = await import("../../services/revenueIntelligenceAgent");
+    const analytics = await RevenueIntelligenceAgent.runAttributionAnalysis(userId);
+    res.json({ success: true, data: analytics });
+  } catch (err: any) {
+    logger.error("[MaxBounty Intelligence Error]", err);
+    res.status(500).json({ error: err.message });
+  }
+});

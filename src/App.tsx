@@ -10,30 +10,20 @@ import { loginWithGoogle, loginAnonymously } from './lib/auth';
 import { onAuthStateChanged, User } from 'firebase/auth';
 
 import { AppLayout } from './components/AppLayout';
-import { Dashboard } from './components/Dashboard';
-import { CampaignBuilder } from './components/CampaignBuilder';
-import { ArticlesPage } from './components/ArticlesPage';
-import { OffersPage } from './components/OffersPage';
-import { PinsPage } from './components/PinsPage';
+import { Overview } from './pages/dashboard/Overview';
+import { ContentCommand } from './pages/dashboard/Content';
+import { Offers } from './pages/dashboard/Offers';
+import { Traffic } from './pages/dashboard/Traffic';
+import { Creators } from './pages/dashboard/Creators';
+import { AIBrain } from './pages/dashboard/AIBrain';
+import { Automations } from './pages/dashboard/Automations';
+import { Jobs } from './pages/dashboard/Jobs';
+import { AnalyticsLab } from './pages/dashboard/AnalyticsLab';
 import { SettingsPage } from './components/SettingsPage';
-import { EbookCreator } from './components/EbookCreator';
-import { PublishingQueue } from './components/PublishingQueue';
-import { Analytics } from './components/Analytics';
-import ExecutiveDashboard from './pages/executive';
-import { AgentManagement } from './components/AgentManagement';
-import { AffiliateMatch } from './components/AffiliateMatch';
-import { TrafficEngine } from './components/TrafficEngine';
-import { CreatorNetwork } from './components/CreatorNetwork';
-import { SEOClusters } from './components/SEOClusters';
-import { IntelligenceCenter } from './components/IntelligenceCenter';
-import { StrategyHub } from './components/StrategyHub';
-import { KeywordExplorer } from './components/KeywordExplorer';
-import { AutomationSuite } from './components/AutomationSuite';
 import { NotificationProvider } from './components/NotificationContext';
 import { NotificationToast } from './components/NotificationToast';
 import { NotificationDrawer } from './components/NotificationDrawer';
 import { LandingPage } from './components/LandingPage';
-import { WebOpsDashboard } from './components/WebOpsDashboard';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -97,26 +87,16 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route element={<AppLayout />}>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/new" element={<CampaignBuilder />} />
-            <Route path="/articles" element={<ArticlesPage />} />
-            <Route path="/ebooks" element={<EbookCreator />} />
-            <Route path="/offers" element={<OffersPage />} />
-            <Route path="/pins" element={<PinsPage />} />
-            <Route path="/publishing" element={<PublishingQueue />} />
-            <Route path="/clusters" element={<SEOClusters />} />
-            <Route path="/keywords" element={<KeywordExplorer />} />
-            <Route path="/automation" element={<AutomationSuite />} />
-            <Route path="/analytics" element={<Analytics />} />
-            <Route path="/executive" element={<ExecutiveDashboard />} />
-            <Route path="/affiliate-match" element={<AffiliateMatch />} />
-            <Route path="/traffic-engine" element={<TrafficEngine />} />
-            <Route path="/creator-network" element={<CreatorNetwork />} />
-            <Route path="/intel-digest" element={<IntelligenceCenter />} />
-            <Route path="/strategy" element={<StrategyHub />} />
-            <Route path="/agents" element={<AgentManagement />} />
+            <Route path="/" element={<Overview />} />
+            <Route path="/content" element={<ContentCommand />} />
+            <Route path="/offers" element={<Offers />} />
+            <Route path="/traffic" element={<Traffic />} />
+            <Route path="/creators" element={<Creators />} />
+            <Route path="/brain" element={<AIBrain />} />
+            <Route path="/automations" element={<Automations />} />
+            <Route path="/jobs" element={<Jobs />} />
+            <Route path="/analytics" element={<AnalyticsLab />} />
             <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/webops" element={<WebOpsDashboard />} />
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
