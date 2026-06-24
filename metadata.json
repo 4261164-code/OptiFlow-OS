@@ -1,6 +1,6 @@
 {
-  "name": "AffiliateOS",
-  "description": "An autonomous affiliate marketing and digital publishing operating system.",
+  "name": "OptiFlow OS",
+  "description": "An autonomous affiliate revenue operating system managing content, traffic, and intelligence.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -1,4 +1,4 @@
-// Centralized Feature Flags for AffiliateOS System Hardening
+// Centralized Feature Flags for OptiFlow OS System Hardening
 
 export const FEATURE_FLAGS = {
   // Task 2: Immutable Event Ledger

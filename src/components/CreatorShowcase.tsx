@@ -91,7 +91,7 @@ export function CreatorShowcase() {
     return (
       <div className="space-y-6">
         <div className="flex flex-col gap-1">
-          <h2 className="text-xl font-bold text-white tracking-tight">AffiliateOS Creator Partner Showcase</h2>
+          <h2 className="text-xl font-bold text-white tracking-tight">OptiFlow OS Creator Partner Showcase</h2>
           <p className="text-xs text-zinc-400">
             Need highly optimized affiliate banners, social Pinterest graphics, or a premium custom brand identity? Meet our certified elite designers.
           </p>
@@ -169,7 +169,7 @@ export function CreatorShowcase() {
         <div className="p-4 bg-zinc-900/50 border border-white/5 rounded-2xl flex items-center gap-3">
           <Award className="w-5 h-5 text-[#a8ff35] flex-shrink-0" />
           <p className="text-xs text-zinc-400 leading-relaxed">
-            All AffiliateOS Creator Partners have verified feedback loops. Designs requested here sync immediately with your local assets library for immediate automatic syndication.
+            All OptiFlow OS Creator Partners have verified feedback loops. Designs requested here sync immediately with your local assets library for immediate automatic syndication.
           </p>
         </div>
       </div>
@@ -325,7 +325,7 @@ export function CreatorShowcase() {
                   </div>
 
                   <div className="bg-gradient-to-br from-indigo-500/20 to-emerald-500/20 w-full h-full rounded flex items-center justify-center font-bold text-zinc-300 relative">
-                    <span className="text-xs uppercase tracking-widest">AffiliateOS ID</span>
+                    <span className="text-xs uppercase tracking-widest">OptiFlow OS ID</span>
                   </div>
 
                   {/* Bottom camera tag overlay */}
@@ -335,7 +335,7 @@ export function CreatorShowcase() {
                   </div>
                 </div>
                 <div className="mt-3.5">
-                  <p className="font-bold text-white text-xs font-sans">AffiliateOS Branding</p>
+                  <p className="font-bold text-white text-xs font-sans">OptiFlow OS Branding</p>
                   <p className="text-[10px] text-zinc-500 font-sans mt-0.5">Logo guidelines & style palettes.</p>
                 </div>
               </div>
@@ -521,7 +521,7 @@ export function CreatorShowcase() {
               <div className="flex items-center justify-between border-b border-white/5 pb-3">
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-[#a8ff35]" />
-                  <span className="font-bold text-white text-sm">Secure AffiliateOS Client Inquiry</span>
+                  <span className="font-bold text-white text-sm">Secure OptiFlow OS Client Inquiry</span>
                 </div>
                 <button 
                   onClick={() => setIsBookingOpen(false)} 
@@ -538,7 +538,7 @@ export function CreatorShowcase() {
                   </div>
                   <h3 className="text-md font-bold text-white">Inquiry Forwarded Successfully</h3>
                   <p className="text-xs text-zinc-400 max-w-xs mx-auto">
-                    Ivan has been notified via AffiliateOS routing with your campaign requirements! He will follow up via your address within 24 hours.
+                    Ivan has been notified via OptiFlow OS routing with your campaign requirements! He will follow up via your address within 24 hours.
                   </p>
                 </div>
               ) : (

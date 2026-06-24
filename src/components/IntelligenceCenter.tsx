@@ -60,7 +60,7 @@ export function IntelligenceCenter() {
   
   // High-fidelity pre-loaded professional example text based on docType to make it immediately usable/interactive
   const defaultTexts = {
-    'weekly-report': `AffiliateOS Performance Digest - Week 22
+    'weekly-report': `OptiFlow OS Performance Digest - Week 22
 - Main Target: Outdoor Adventure Gear & Solar Power Systems
 - Total Traffic: 48,290 visits (+14.2% week-on-week)
 - Key issues: Bounce rate high (72%) on the 'best portable solar chargers' subtopic list.

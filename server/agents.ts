@@ -1177,7 +1177,7 @@ Return ONLY a JSON array containing these 5 subtopics (conform to the schema per
 }
 
 export async function runReportDigestAgent(documentText: string, docType: string, userId?: string): Promise<any> {
-  const prompt = `You are the Executive Intelligence & Strategic Optimization Agent for AffiliateOS.
+  const prompt = `You are the Executive Intelligence & Strategic Optimization Agent for OptiFlow OS.
 You are given a document (Type: ${docType}) which contains weekly report analytics, system optimization criteria, strategy plans, or custom documents.
 Analyze the following document text and provide a highly detailed, professional, realistic analysis and actionable strategic recommendations.
 
@@ -1217,7 +1217,7 @@ Conform strictly to this format so the UI can construct gorgeous, premium intera
 }
 
 export async function runExecutiveSummaryAgent(recentActivitiesJson: string, userId?: string): Promise<any> {
-  const prompt = `You are the Lead Digital Strategist & Portfolio Auditor for AffiliateOS, an autonomous marketing engine.
+  const prompt = `You are the Lead Digital Strategist & Portfolio Auditor for OptiFlow OS, an autonomous marketing engine.
 Below is a raw dump of recent activity events, notification records, system jobs, or metric reports in JSON format:
 """
 ${recentActivitiesJson}
@@ -1268,13 +1268,13 @@ Ensure the final output is parsed strictly into this JSON structure, with no wra
     const calculatedStatus = hasCriticalIssues ? "warning" : "operational";
     
     // Custom narration engine
-    let dynamicSummary = "Your AffiliateOS campaigns are performing within active benchmarks, showing healthy system click-through rates. Trackable affiliate links are successfully mapped to active MaxBounty CPA pathways with optimized redirect headers. We recommend scaling recent visual trends and leveraging the auto-campaign discovery controls to optimize EPC payouts.";
+    let dynamicSummary = "Your OptiFlow OS campaigns are performing within active benchmarks, showing healthy system click-through rates. Trackable affiliate links are successfully mapped to active MaxBounty CPA pathways with optimized redirect headers. We recommend scaling recent visual trends and leveraging the auto-campaign discovery controls to optimize EPC payouts.";
     
     if (activities.length > 0) {
       const topSuccess = activities.find(a => a.status === "completed" || a.status === "active" || a.status === "success");
       const topError = activities.find(a => a.status === "failed" || a.status === "error");
       
-      dynamicSummary = `AffiliateOS portfolio telemetry indicates steady core pipelines. `;
+      dynamicSummary = `OptiFlow OS portfolio telemetry indicates steady core pipelines. `;
       if (topSuccess) {
         dynamicSummary += `We noted successful completion of "${topSuccess.message || topSuccess.title || "recent task details"}". `;
       }
@@ -1369,7 +1369,7 @@ Do not include any markdown block wrappers around the JSON.`;
 }
 
 export async function runSEOSoul(message: string, history: any[], userId?: string): Promise<any> {
-  const systemInstruction = `You are the Autonomous SEO Agent and Strategist for AffiliateOS.
+  const systemInstruction = `You are the Autonomous SEO Agent and Strategist for OptiFlow OS.
 You are conversational, inquisitive, and highly analytical. Your primary goal is to help the user design the perfect SEO strategy, keyword silos, and content plans.
 
 CRITICAL INSTRUCTION: DO NOT just immediately generate an answer and end the conversation. You MUST function as an interactive consultant. Ask clarifying questions about their niche, target audience, monetization goals, domain authority, and what they need to achieve before giving a final strategy. Converse with them.

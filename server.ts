@@ -1205,7 +1205,7 @@ Details: ${JSON.stringify(err, (key, value) => key === 'apiKey' ? '***HIDDEN***'
     });
   }
 
-  // Start the background workers for AffiliateOS click buffering, reconciliation, pre-aggregated analytics, and health logging.
+  // Start the background workers for OptiFlow OS click buffering, reconciliation, pre-aggregated analytics, and health logging.
   if (!process.env.VERCEL) {
     try {
       const { startSystemHardeningWorkers } = await import("./server/services/backgroundWorker");

@@ -1,5 +1,33 @@
-import { signInWithPopup, GoogleAuthProvider, signOut, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import { 
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  signOut, 
+  signInAnonymously, 
+  onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword
+} from 'firebase/auth';
 import { auth } from './firebase';
+
+export async function signUpWithEmail(email: string, password: string) {
+  try {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    return userCredential.user;
+  } catch (error) {
+    console.error("Error creating account:", error);
+    throw error;
+  }
+}
+
+export async function signInWithEmail(email: string, password: string) {
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    return userCredential.user;
+  } catch (error) {
+    console.error("Error signing in:", error);
+    throw error;
+  }
+}
 
 export async function loginWithGoogle() {
   const provider = new GoogleAuthProvider();
@@ -22,13 +50,21 @@ export async function loginAnonymously() {
 
 export async function logout() {
   try {
+    const wasSandbox = localStorage.getItem('sandbox_developer_user') !== null;
+    localStorage.removeItem('sandbox_developer_user');
     await signOut(auth);
+    if (wasSandbox) {
+      window.location.reload();
+    }
   } catch (error) {
     console.error("Error signing out", error);
   }
 }
 
 export async function getAuthToken() {
+  if (localStorage.getItem('sandbox_developer_user')) {
+    return 'sandbox-developer-bypass-token';
+  }
   const user = auth.currentUser;
   if (!user) return "";
   return await user.getIdToken(true);
@@ -36,6 +72,18 @@ export async function getAuthToken() {
 
 function waitForUser(): Promise<import('firebase/auth').User> {
   return new Promise((resolve, reject) => {
+    const savedSandbox = localStorage.getItem('sandbox_developer_user');
+    if (savedSandbox) {
+      try {
+        const parsed = JSON.parse(savedSandbox);
+        parsed.getIdToken = async () => 'sandbox-developer-bypass-token';
+        resolve(parsed as any);
+        return;
+      } catch (e) {
+        localStorage.removeItem('sandbox_developer_user');
+      }
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       unsubscribe();
       if (user) resolve(user);

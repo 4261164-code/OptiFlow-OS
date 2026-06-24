@@ -1,70 +1,57 @@
-# AffiliateOS User Manual
+# Optilink OS User Manual
 
-Welcome to **AffiliateOS**, your autonomous operating system for digital publishing, affiliate marketing, and user rewards. This manual will guide you through the core features of the platform, from AI-driven content generation to our **EarnPulse** rewards ecosystem.
-
----
-
-## 1. Overview
-AffiliateOS combines high-level business intelligence with a user-centric rewards engine.
-- **Executive Suite**: AI agents that handle LinkedIn networking, SEO clustering, and content publishing.
-- **EarnPulse**: A "Get-Paid-To" (GPT) layer where users earn real rewards for engaging with affiliate offers.
+Welcome to Optilink OS, your autonomous affiliate media operating system. This manual provides an overview of the platform's capabilities and how to navigate the system effectively to optimize your affiliate revenue operations.
 
 ---
 
-## 2. Getting Started
-### Authentication
-- **Secure Login**: Access the platform via Google or Email authentication.
-- **Boot Sequence**: Note that the platform performs a secure environment check upon login to ensure all AI modules are ready.
+## 1. Introduction
 
-### Navigation
-- **Sidebar**: Use the primary navigation on the left to switch between the Executive Dashboard, Earn Center, Wallet, and Admin tools.
-- **Live Ticker**: Watch the top of your screen for real-time social proof—a scrolling strip of recent earnings from the AffiliateOS community.
+Optilink OS is designed to automate the complete affiliate marketing lifecycle. From opportunity discovery to content creation, publishing, traffic acquisition, and revenue optimization, the platform uses AI-driven intelligence to manage your digital assets.
 
 ---
 
-## 3. The EarnPulse Ecosystem
-### Earning Rewards
-Navigate to the **Earn** page to find available tasks.
-- **Offer Grid**: Browse a curated list of campaigns. Each offer displays its reward value (in USD) and completion requirements.
-- **Offer Walls**: Some tasks open specialized containers (OfferWalls) for higher-tier rewards.
-- **Categories**: Filter offers by type (e.g., Surveys, App Installs, Signups) using the category tabs.
+## 2. Dashboard Overview
 
-### Daily Streaks
-- **Streak Bonus**: Log in daily to claim your streak bonus. Bonuses increase as you maintain your daily streak (reaching milestones on Day 3, 7, and 14).
+The **Overview** page is your central command center.
 
----
-
-## 4. Wallet & Withdrawals
-### Managing Balance
-Visit the **Wallet** page to track your earnings.
-- **Units**: All balances are tracked internally in cents to ensure precision, but displayed in standard currency (e.g., $10.00).
-- **Earnings Chart**: View a Recharts-powered visualization of your income over the last 30 days.
-- **Transaction History**: A detailed ledger of every "Earn", "Bonus", and "Withdrawal" event.
-
-### Cashing Out
-When you reach the minimum threshold (**$10.00**), you can request a payout.
-1. Go to the **Withdraw** page.
-2. Select your method (PayPal or Amazon Gift Card).
-3. Enter the amount (minimum 1000 cents).
-4. Confirm your request. Payouts are typically reviewed by an admin within 24–48 hours.
+*   **KPI Metrics**: Displays high-level data points including Revenue Today, Monthly Revenue, Click Volume, Conversion Rate, EPC, CTR, and active content status.
+*   **Revenue & Traffic Trends**: Visual representations of your revenue and traffic performance over time, powered by our internal telemetry data.
+*   **Intelligence Panels**: Top-performing articles and affiliate offers are highlighted for immediate strategic action.
+*   **Sync Data**: Manually trigger data synchronization from external sources to ensure the dashboard reflects real-time metrics.
 
 ---
 
-## 5. Executive Automation
-For administrators and marketing managers:
-- **Intelligence Center**: Real-time diagnostics of AI agents and keyword performance.
-- **Automation Suite**: Configure AI agents to auto-publish LinkedIn posts, generate Pinterest pins, and manage SEO topic clusters.
-- **Analytics**: Deep-dive charts into campaign revenue and user conversion metrics.
+## 3. Core Features
+
+### 3.1 The Autonomous Loop
+Optilink OS operates on a continuous feedback loop:
+1.  **Research**: AI identifies trending keywords and affiliate opportunities.
+2.  **Content Generation**: Automatic creation of SEO-optimized content based on research.
+3.  **Publishing & Distribution**: Automated publishing to your platforms (e.g., WordPress) and distribution via traffic channels (e.g., Pinterest).
+4.  **Tracking & Analysis**: Capturing click data and attributing revenue back to content.
+5.  **Optimization**: The AI Brain continuously monitors performance (CTR, EPC) and suggests or executes optimizations (e.g., rotating offers, rewriting headlines).
+
+### 3.2 AI Executive (CEO) Brain
+The Brain Agent manages the strategic direction of your operations. It continuously analyzes revenue and traffic data, forecasting performance and creating actionable tasks for other agents to execute.
 
 ---
 
-## 6. Admin Controls
-If you have administrative privileges:
-- **Withdrawal Management**: Review pending cash-out requests. You can approve or reject them based on fraud checks.
-- **User Monitoring**: Flag or suspend accounts displaying suspicious activity (e.g., VPN usage or duplicate offer completion).
+## 4. Navigating the UI
+
+Optilink OS uses a standardized, modern dark-mode interface:
+
+*   **Navigation**: Use the sidebar to switch between different modules (Dashboard, Content, Offers, Creators, AI Brain, Automations, Jobs).
+*   **Consistency**: We use a unified, stroke-based icon language for clarity and accessibility.
+*   **Dashboard Cards**: Each card displays specific metrics or data. Use the provided tools within these cards to monitor and interact with system data.
 
 ---
 
-## Support & Troubleshooting
-- **Missing Credits**: Some offers require up to 24 hours to "postback" from the provider. If a reward is missing after 24 hours, check the "Completed" tab in your Wallet.
-- **Security**: Always ensure you are accessing AffiliateOS from a secure connection. Your session is protected by Firebase Admin JWT verification.
+## 5. Troubleshooting & FAQs
+
+*   **Data not updating?** Ensure the `Sync Data` button has been pressed to fetch the latest metrics.
+*   **AI Brain inactive?** Check the **Automations** tab to ensure the Brain agent is toggled to "Enabled".
+*   **Attribution errors?** Verify that your affiliate network postbacks are correctly configured to pass the `click_id` generated by Optilink OS.
+
+---
+
+*For further assistance, consult the System Design documentation located in the `/docs` folder or contact your technical support lead.*

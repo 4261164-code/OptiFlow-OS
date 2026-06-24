@@ -402,7 +402,7 @@ export function MaxBountyPanel() {
               <Sliders className="w-4 h-4 text-indigo-400 mr-2" /> Auto Campaign Discovery Rules
             </h3>
             <p className="text-xs text-zinc-500 mt-1">
-              Adjust weighted prioritization in real time. Discovered high-scoring offers sync automatically to AffiliateOS content generators.
+              Adjust weighted prioritization in real time. Discovered high-scoring offers sync automatically to OptiFlow OS content generators.
             </p>
           </div>
 

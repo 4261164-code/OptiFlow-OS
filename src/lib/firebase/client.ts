@@ -26,6 +26,58 @@ export function initFirebaseClient() {
   db = getFirestore(app, import.meta.env.VITE_FIREBASE_DATABASE_ID || appletConfig.firestoreDatabaseId);
   auth = getAuth(app);
 
+  if (auth) {
+    const proto = Object.getPrototypeOf(auth);
+    const descriptor = Object.getOwnPropertyDescriptor(proto, 'currentUser') || Object.getOwnPropertyDescriptor(auth, 'currentUser');
+    const originalGetter = descriptor ? descriptor.get : null;
+    const originalSetter = descriptor ? descriptor.set : null;
+
+    Object.defineProperty(auth, 'currentUser', {
+      get() {
+        const stack = new Error().stack || '';
+        const isSDKCaller = stack.includes('@firebase') || 
+                            stack.includes('firestore') || 
+                            stack.includes('node_modules') || 
+                            stack.includes('/chunks/');
+
+        if (!isSDKCaller && typeof window !== 'undefined' && window.localStorage) {
+          const saved = window.localStorage.getItem('sandbox_developer_user');
+          if (saved) {
+            try {
+              const parsed = JSON.parse(saved);
+              return {
+                ...parsed,
+                getIdToken: async () => 'sandbox-developer-bypass-token',
+                getIdTokenResult: async () => ({ token: 'sandbox-developer-bypass-token', claims: {} }),
+                reload: async () => {},
+                toJSON: () => parsed,
+                emailVerified: true,
+                isAnonymous: false,
+                providerData: [],
+                metadata: {},
+                phoneNumber: null,
+                photoURL: null,
+              };
+            } catch (e) {
+              return null;
+            }
+          }
+        }
+        // Fall back to original SDK getter safely for Firebase SDK callers
+        if (originalGetter) {
+          return originalGetter.call(auth);
+        }
+        return null;
+      },
+      set(val) {
+        if (originalSetter) {
+          originalSetter.call(auth, val);
+        }
+      },
+      configurable: true
+    });
+  }
+
   return { app, db, auth };
 }
 

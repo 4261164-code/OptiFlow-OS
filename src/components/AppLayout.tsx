@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { CEOChat } from './executive/CEOChat';
 import { LiveTicker } from './LiveTicker';
 import { Logo } from "./Logo";
+import { IconWrapper } from './ui/IconWrapper';
 import {
   DashboardIcon,
   CampaignIcon,
@@ -36,7 +37,7 @@ export function AppLayout() {
   });
 
   useEffect(() => {
-    document.title = "AffiliateOS | Campaign Factory";
+    document.title = "OptiFlow OS | Campaign Factory";
   }, []);
 
   const navigationCategories = [
@@ -79,18 +80,11 @@ export function AppLayout() {
           
           {/* Header Area */}
           <div className="h-20 flex items-center justify-between px-6 border-b border-white/5 relative bg-zinc-950/20">
-            {!isSidebarCollapsed && (
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-[#a8ff35]/10 flex items-center justify-center rounded-lg border border-[#a8ff35]/20">
-                  <BrandingHexIcon className="w-5 h-5 text-[#a8ff35]" />
-                </div>
-                <span className="font-display font-bold text-white tracking-tight">AffiliateOS</span>
-              </div>
-            )}
-            
-            {isSidebarCollapsed && (
+            {!isSidebarCollapsed ? (
+              <Logo size="md" />
+            ) : (
               <div className="mx-auto">
-                <Logo size="sm" />
+                <Logo size="sm" hideText />
               </div>
             )}
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Input, Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from './ui';
-import { Loader2, CheckCircle2, XCircle, AlertTriangle, Trash2 } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle, AlertTriangle, Trash2, Shield } from 'lucide-react';
 import { db, auth } from '../lib/firebase';
 import { doc, getDoc, setDoc, collection, query, where, getDocs, deleteDoc } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/errorHandler';
@@ -185,6 +185,13 @@ export function SettingsPage() {
     const settingsPath = `settings/${auth.currentUser.uid}`;
     try {
       await setDoc(doc(db, 'settings', auth.currentUser.uid), settings);
+      
+      // Sync user profile role configuration as well
+      await setDoc(doc(db, 'users', auth.currentUser.uid), {
+        role: settings.role || 'admin',
+        displayName: auth.currentUser.displayName || settings.ceoName || 'Sandbox User',
+        email: auth.currentUser.email || 'anonymous@optiflow.io'
+      }, { merge: true });
     } catch (err) {
       console.error(err);
       handleFirestoreError(err, OperationType.WRITE, settingsPath);
@@ -289,6 +296,54 @@ export function SettingsPage() {
         </Card>
 
         <form onSubmit={handleSave} className="md:col-span-2 contents">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+              <div>
+                <CardTitle>Access & System Privileges</CardTitle>
+                <CardDescription>Configure your backend governance role and bypass overrides.</CardDescription>
+              </div>
+              <Shield className="w-5 h-5 text-[#a8ff35] animate-pulse" />
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Security Governance Role</label>
+                <select
+                  value={settings.role || 'admin'}
+                  onChange={e => setSettings({...settings, role: e.target.value})}
+                  className="w-full bg-[#0D1117] border border-white/10 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[#a8ff35]/50 transition-all"
+                >
+                  <option value="admin">System Administrator (Full Powers)</option>
+                  <option value="analyst">Strategy Analyst (Read-Only Insights)</option>
+                  <option value="creator">Content Creator (UGC Pipelines Only)</option>
+                </select>
+                <p className="text-[10px] text-zinc-500 mt-1">
+                  Changing this value instantly recalculates role-based permissions in middleware blocks.
+                </p>
+              </div>
+
+              <div className="bg-[#10141d]/80 border border-amber-500/15 p-4 rounded-xl flex items-start gap-3 mt-2">
+                <Shield className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5 animate-pulse" />
+                <div className="space-y-1 flex-grow">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-amber-400 uppercase tracking-wide">Admin Power Override Claims</span>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={settings.adminBypassEnabled !== false} 
+                        onChange={e => setSettings({...settings, adminBypassEnabled: e.target.checked, role: e.target.checked ? 'admin' : settings.role})} 
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-white/5 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-zinc-400 after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:bg-[#a8ff35] peer-checked:bg-[#a8ff35]/20"></div>
+                    </label>
+                  </div>
+                  <p className="text-[10px] text-zinc-400 leading-normal">
+                    Manually inject root administrator permissions. When active, all actions bypass policy constraints and authenticate directly.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>CEO Agent Personality</CardTitle>

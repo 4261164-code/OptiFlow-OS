@@ -4,7 +4,7 @@ export class WebOpsSEOAgent {
     // Simulate SEO analysis and improvement generation
     return {
       metaTags: {
-        title: `Optimized Affiliate Dashboard Insights - ${siteData.tenantName || 'AffiliateOS'}`,
+        title: `Optimized Affiliate Dashboard Insights - ${siteData.tenantName || 'OptiFlow OS'}`,
         description: "Real-time affiliate analytics and automation engine with advanced AI agents."
       },
       contentSuggestions: [

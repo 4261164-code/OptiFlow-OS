@@ -223,7 +223,7 @@ export class MaxBountyCampaigns {
     for (const b of scoredCampaigns) {
       await db.collection("maxbounty_campaigns").doc(b.id).set(b);
 
-      // Map MaxBounty campaign parameters directly into core AffiliateOS 'offers' schema:
+      // Map MaxBounty campaign parameters directly into core OptiFlow OS 'offers' schema:
       // Offers schema: brand, keyword, link, anchor, description, userId, createdAt, updatedAt
       const offerId = `offer-${b.id}`;
       
@@ -237,7 +237,7 @@ export class MaxBountyCampaigns {
         id: offerId,
         brand: b.name.split("-")[0].trim(),
         keyword: slugKey,
-        link: `/go/${offerId}`, // AffiliateOS redirect route
+        link: `/go/${offerId}`, // OptiFlow OS redirect route
         anchor: b.name,
         description: `MaxBounty CPA Offer #${b.networkCampaignId} - Payout $${b.payout.toFixed(2)}, EPC $${b.epc.toFixed(2)}. Targets: ${b.countries.join(", ")}.`,
         userId,

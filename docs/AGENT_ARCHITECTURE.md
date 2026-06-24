@@ -1,4 +1,4 @@
-# AffiliateOS v2.0 - Agent Architecture
+# OptiFlow OS v2.0 - Agent Architecture
 
 ## Core Agents
 

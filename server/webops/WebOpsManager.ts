@@ -39,7 +39,7 @@ export class WebOpsManager {
       }
 
       // 5. SEO Maintenance (SEOAgent)
-      const seoUpdates = await this.seoAgent.generateSEOUpdates({ tenantName: "AffiliateOS Core" });
+      const seoUpdates = await this.seoAgent.generateSEOUpdates({ tenantName: "OptiFlow OS Core" });
       await this.saveSEOLog(seoUpdates);
 
       logger.info("[WebOpsManager] Maintenance cycle completed.");
