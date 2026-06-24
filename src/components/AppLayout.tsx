@@ -84,7 +84,7 @@ export function AppLayout() {
               <Logo size="md" />
             ) : (
               <div className="mx-auto">
-                <Logo size="sm" hideText />
+                <Logo size="sm" hideText variant="circle" />
               </div>
             )}
 
@@ -141,7 +141,7 @@ export function AppLayout() {
                                )}
                              >
                                <item.icon className={cn(
-                                 "flex-shrink-0 h-4.5 w-4.5 transition-all duration-200", 
+                                 "flex-shrink-0 h-[18px] w-[18px] transition-all duration-200", 
                                  isActive 
                                    ? "text-[#a8ff35] drop-shadow-[0_0_8px_rgba(168,255,53,0.5)] scale-110" 
                                    : "text-zinc-400 group-hover:text-zinc-100 group-hover:scale-105",
@@ -187,7 +187,7 @@ export function AppLayout() {
              >
                <Bell className="w-4 h-4" />
                {unreadCount > 0 && (
-                 <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-[8px] font-extrabold h-4.5 w-4.5 rounded-full flex items-center justify-center border border-[#0B1017] shadow-[0_0_6px_#3b82f6]">
+                 <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-[8px] font-extrabold h-[18px] w-[18px] rounded-full flex items-center justify-center border border-[#0B1017] shadow-[0_0_6px_#3b82f6]">
                    {unreadCount}
                  </span>
                )}

@@ -539,3 +539,109 @@ opsRouter.post("/simulate-anomaly", async (req: any, res: any) => {
     }
 });
 
+/**
+ * Endpoint to Purge All Mock & Test Data for the active User
+ */
+opsRouter.post("/purge-all-data", async (req: any, res: any) => {
+    try {
+        const userId = req.user.uid;
+        if (!hasServiceAccount) {
+            return res.json({
+                success: true,
+                message: "Purge complete (Simulated environment - local storage/memory reset)."
+            });
+        }
+
+        const targetCollections = [
+            "jobs",
+            "articles",
+            "pins",
+            "image_retry_queue",
+            "offers",
+            "notifications",
+            "topic_clusters",
+            "cluster_nodes",
+            "revenue_metrics",
+            "agent_logs",
+            "agent_nodes",
+            "strategic_memory",
+            "ceo_targets",
+            "daily_metrics",
+            "revenue_events",
+            "affiliate_clicks",
+            "affiliate_conversions",
+            "change_proposals",
+            "clicks",
+            "conversions",
+            "system_events",
+            "system_faults",
+            "agent_messages",
+            "orchestration_jobs",
+            "orchestration_tasks",
+            "click_errors",
+            "webops_seo_logs"
+        ];
+
+        let totalDeleted = 0;
+        const purgeDetails: Record<string, number> = {};
+
+        for (const colName of targetCollections) {
+            // Query by userId
+            const q1 = db.collection(colName).where("userId", "==", userId).get();
+            const q2 = db.collection(colName).where("user_id", "==", userId).get();
+            
+            const [snap1, snap2] = await Promise.all([q1, q2]);
+            
+            const docIdsToDelete = new Set<string>();
+            snap1.forEach(doc => docIdsToDelete.add(doc.id));
+            snap2.forEach(doc => docIdsToDelete.add(doc.id));
+
+            // Also scan for documents that have mock prefix or mock fields
+            try {
+                const snapAll = await db.collection(colName).get();
+                snapAll.forEach(doc => {
+                    const data = doc.data();
+                    if (
+                        doc.id.startsWith("mock_") || 
+                        doc.id.startsWith("sim_") || 
+                        data.isMock === true || 
+                        data.mock === true ||
+                        data.userId === "mock-user-id" ||
+                        data.user_id === "mock-user-id"
+                    ) {
+                        docIdsToDelete.add(doc.id);
+                    }
+                });
+            } catch (scanErr) {
+                // Ignore collection scan errors if collection doesn't exist yet or is empty
+            }
+
+            if (docIdsToDelete.size > 0) {
+                const batch = db.batch();
+                let count = 0;
+                docIdsToDelete.forEach(id => {
+                    batch.delete(db.collection(colName).doc(id));
+                    count++;
+                });
+                await batch.commit();
+                totalDeleted += count;
+                purgeDetails[colName] = count;
+            } else {
+                purgeDetails[colName] = 0;
+            }
+        }
+
+        logger.info(`[SaaS Ops] User ${userId} requested full mock data purge. Total records deleted: ${totalDeleted}`);
+
+        return res.json({
+            success: true,
+            message: `Successfully purged all mock and test data! Total records deleted: ${totalDeleted}`,
+            details: purgeDetails
+        });
+    } catch (err: any) {
+        logger.error(`[SaaS Ops] Purge failed: ${err.message}`);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+

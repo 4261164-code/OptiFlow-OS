@@ -23,7 +23,10 @@ export function EbookCreator() {
   const [error, setError] = useState<string | null>(null);
 
   const handleGenerate = async () => {
-    if (!topic.trim()) return;
+    if (!topic.trim()) {
+      alert("Please enter a target topic or niche to generate an eBook.");
+      return;
+    }
     setLoading(true);
     setError(null);
     setEbook(null);
@@ -86,7 +89,7 @@ export function EbookCreator() {
           <div className="flex items-end">
             <Button 
               onClick={handleGenerate} 
-              disabled={loading || !topic.trim()}
+              disabled={loading}
               className="bg-indigo-600 hover:bg-indigo-500 text-white w-full md:w-auto h-11 px-8 gap-2 font-medium"
             >
               {loading ? (

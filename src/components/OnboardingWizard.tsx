@@ -19,6 +19,7 @@ import {
   Terminal
 } from 'lucide-react';
 import { IconWrapper } from './ui/IconWrapper';
+import { Logo } from './Logo';
 import { auth, db } from '../lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
@@ -165,9 +166,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
         {/* Progress bar */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 flex items-center justify-center bg-[#a8ff35]/10 rounded-lg border border-[#a8ff35]/25">
-              <img src="/logo.png" alt="Logo" className="w-4 h-4 object-contain" />
-            </div>
+            <Logo size="sm" hideText variant="circle" />
             <span className="text-xs font-bold uppercase tracking-wider text-zinc-400 font-mono">Cockpit Setup • Step {step} of 4</span>
           </div>
           <div className="flex gap-1">
@@ -484,7 +483,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                 <button
                   type="button"
                   onClick={handleFinish}
-                  disabled={loading || logIndex < terminalSequence.length}
+                  disabled={loading}
                   className="px-10 py-4 bg-[#a8ff35] hover:bg-[#baff4c] disabled:bg-zinc-800 disabled:text-zinc-600 text-black font-extrabold rounded-2xl text-base flex items-center gap-2.5 hover:scale-105 active:scale-95 transition-all shadow-[0_0_30px_rgba(168,255,53,0.2)]"
                 >
                   {loading ? (

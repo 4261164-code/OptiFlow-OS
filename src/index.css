@@ -30,6 +30,14 @@
     font-family: var(--font-display);
     letter-spacing: -0.03em;
   }
+
+  button, [role="button"], a {
+    cursor: pointer !important;
+  }
+
+  button:disabled, [role="button"][disabled] {
+    cursor: not-allowed !important;
+  }
 }
 
 /* Premium 3D Elevation Cards */

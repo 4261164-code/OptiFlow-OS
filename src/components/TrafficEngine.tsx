@@ -106,7 +106,10 @@ export function TrafficEngine() {
   }, []);
 
   const handleRun = async (keywordToRun: string) => {
-    if (!keywordToRun.trim()) return;
+    if (!keywordToRun || !keywordToRun.trim()) {
+      alert("Please select a discovered term or enter a free-form SEO term to query the traffic engine.");
+      return;
+    }
     setLoading(true);
     try {
       const resp = await apiFetch('/api/distro/traffic/engine', {
@@ -228,7 +231,7 @@ export function TrafficEngine() {
 
               <Button
                 className="w-full mt-2"
-                disabled={loading || !currentKeyword}
+                disabled={loading}
                 onClick={() => handleRun(currentKeyword)}
               >
                 {loading ? (

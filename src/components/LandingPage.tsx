@@ -27,6 +27,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { IconWrapper } from './ui/IconWrapper';
 import { signUpWithEmail, signInWithEmail } from '../lib/auth';
 import { updateProfile } from 'firebase/auth';
+import { Logo } from './Logo';
 
 interface LandingPageProps {
   handleLogin: () => void;
@@ -169,12 +170,7 @@ export function LandingPage({ handleLogin, handleGuestLogin, handleSandboxBypass
       {/* Navigation */}
       <nav className="fixed top-0 w-full z-50 border-b border-white/5 bg-[#040507]/85 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2.5 text-white font-bold tracking-tight text-lg">
-            <div className="w-8 h-8 flex items-center justify-center bg-[#a8ff35]/10 rounded-lg border border-[#a8ff35]/25 shadow-[0_0_15px_rgba(168,255,53,0.15)]">
-              <img src="/logo.png" alt="OptiFlow Logo" className="w-5 h-5 object-contain" />
-            </div>
-            <span className="bg-gradient-to-r from-white via-white to-zinc-400 bg-clip-text text-transparent">OptiFlow OS</span>
-          </div>
+          <Logo size="md" />
           <div className="flex items-center gap-4">
             <button 
               onClick={() => { setAuthMode('login'); setAuthErrorLocal(null); setShowAuthModal(true); }}
@@ -681,11 +677,8 @@ export function LandingPage({ handleLogin, handleGuestLogin, handleSandboxBypass
               </button>
 
               {/* Logo / Header */}
-              <div className="flex items-center gap-2 mb-6">
-                <div className="w-8 h-8 flex items-center justify-center bg-[#a8ff35]/10 rounded-lg border border-[#a8ff35]/25">
-                  <img src="/logo.png" alt="OptiFlow" className="w-5 h-5 object-contain" />
-                </div>
-                <span className="font-bold text-white tracking-tight">OptiFlow OS</span>
+              <div className="mb-6">
+                <Logo size="md" />
               </div>
 
               {/* Heading */}

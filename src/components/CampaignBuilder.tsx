@@ -47,7 +47,11 @@ export function CampaignBuilder() {
 
   const handleRun = async (e: React.FormEvent | React.MouseEvent) => {
     e.preventDefault();
-    if (!form.keyword.trim() || !auth.currentUser) return;
+    if (!form.keyword.trim()) {
+      alert("Please enter a target keyword or focus topic to deploy the campaign.");
+      return;
+    }
+    if (!auth.currentUser) return;
 
     setLoading(true);
     const userId = auth.currentUser.uid;
@@ -399,7 +403,7 @@ export function CampaignBuilder() {
           </div>
 
           <div className="flex justify-end pt-4">
-            <Button type="button" onClick={handleRun} size="lg" disabled={loading || !form.keyword.trim()} className="py-7 px-12 text-base rounded-2xl">
+            <Button type="button" onClick={handleRun} size="lg" disabled={loading} className="py-7 px-12 text-base rounded-2xl">
               <CampaignIcon className="w-5 h-5 mr-3 text-black" />
               Deploy Campaign Factory
             </Button>

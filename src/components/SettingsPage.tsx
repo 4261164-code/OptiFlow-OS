@@ -17,6 +17,94 @@ export function SettingsPage() {
   const [showPurgeConfirm, setShowPurgeConfirm] = useState(false);
   const [confirmText, setConfirmText] = useState('');
 
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [usersList, setUsersList] = useState<any[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [actioningUserId, setActioningUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const checkAdminRole = async () => {
+      if (!auth.currentUser) return;
+      if (auth.currentUser.email === '4261164@myuwc.ac.za' || localStorage.getItem('sandbox_developer_user')) {
+        setIsAdmin(true);
+        return;
+      }
+      try {
+        const userRef = doc(db, 'users', auth.currentUser.uid);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists() && userSnap.data().role === 'admin') {
+          setIsAdmin(true);
+        }
+      } catch (err) {
+        console.error("Admin role verification failed:", err);
+      }
+    };
+    checkAdminRole();
+  }, []);
+
+  const loadUsersList = async () => {
+    if (!auth.currentUser || !isAdmin) return;
+    setLoadingUsers(true);
+    try {
+      const q = query(collection(db, 'users'));
+      const querySnapshot = await getDocs(q);
+      const list: any[] = [];
+      querySnapshot.forEach((doc) => {
+        list.push({ id: doc.id, ...doc.data() });
+      });
+      // Sort: owner first, then by date descending
+      list.sort((a, b) => {
+        if (a.email === '4261164@myuwc.ac.za') return -1;
+        if (b.email === '4261164@myuwc.ac.za') return 1;
+        return (b.createdAt || '').localeCompare(a.createdAt || '');
+      });
+      setUsersList(list);
+    } catch (err) {
+      console.error("Failed to load users list:", err);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isAdmin) {
+      loadUsersList();
+    }
+  }, [isAdmin]);
+
+  const handleToggleApproval = async (targetUser: any) => {
+    if (!auth.currentUser || !isAdmin) return;
+    setActioningUserId(targetUser.id);
+    try {
+      const targetApproved = !targetUser.approved;
+      const userRef = doc(db, 'users', targetUser.id);
+      await setDoc(userRef, { approved: targetApproved }, { merge: true });
+      
+      // Update local state
+      setUsersList(prev => prev.map(u => u.id === targetUser.id ? { ...u, approved: targetApproved } : u));
+    } catch (err) {
+      console.error("Failed to toggle approval:", err);
+    } finally {
+      setActioningUserId(null);
+    }
+  };
+
+  const handleChangeRole = async (targetUserId: string, newRole: string) => {
+    if (!auth.currentUser || !isAdmin) return;
+    setActioningUserId(targetUserId);
+    try {
+      const userRef = doc(db, 'users', targetUserId);
+      await setDoc(userRef, { role: newRole }, { merge: true });
+      
+      // Update local state
+      setUsersList(prev => prev.map(u => u.id === targetUserId ? { ...u, role: newRole } : u));
+    } catch (err) {
+      console.error("Failed to update user role:", err);
+    } finally {
+      setActioningUserId(null);
+    }
+  };
+
   const handlePurgeAllData = async () => {
     if (!auth.currentUser) return;
     if (confirmText.toUpperCase() !== 'PURGE') {
@@ -29,21 +117,17 @@ export function SettingsPage() {
     setPurgeError(null);
 
     try {
-      const uid = auth.currentUser.uid;
-      const collectionsToPurge = ['articles', 'pins', 'jobs', 'offers', 'ebooks', 'agent_logs', 'automationLogs', 'topic_clusters', 'article_metrics'];
-      let deletedCount = 0;
-
-      for (const colName of collectionsToPurge) {
-        const q = query(collection(db, colName), where('userId', '==', uid));
-        const querySnapshot = await getDocs(q);
-        const deletePromises = querySnapshot.docs.map(docSnap => deleteDoc(docSnap.ref));
-        await Promise.all(deletePromises);
-        deletedCount += querySnapshot.size;
+      const response = await apiFetch('/api/ops/purge-all-data', {
+        method: 'POST'
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        setPurgeSuccess(data.message || "Successfully purged all mock and test-run database records!");
+        setConfirmText('');
+        setShowPurgeConfirm(false);
+      } else {
+        throw new Error(data.error || "Handshake rejected by purge endpoint.");
       }
-
-      setPurgeSuccess(`Structural wipeout complete. Restored baseline system parameters and cleaned ${deletedCount} analytics records.`);
-      setConfirmText('');
-      setShowPurgeConfirm(false);
     } catch (err: any) {
       console.error("Purge failure:", err);
       setPurgeError(err.message || "Failed to finalize database purge.");
@@ -554,6 +638,245 @@ export function SettingsPage() {
             </CardFooter>
           </Card>
         </form>
+
+        {/* Database & Mock Data Purge Section */}
+        <Card className="border-rose-500/25 bg-rose-950/5 mt-6">
+          <CardHeader className="border-b border-white/5 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-500 border border-rose-500/20">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div>
+                <CardTitle className="text-rose-400">Database & Mock Data Purge</CardTitle>
+                <CardDescription>
+                  Completely erase all programmatic articles, campaigns, offers, tracking logs, and analytical metric histories from Firestore.
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4 pt-6">
+            <p className="text-xs text-zinc-400 leading-relaxed">
+              This action scans all 25+ core system collections in Firestore and removes all documents belonging to your user profile, as well as general simulation/mock entries.
+              <span className="text-rose-400 font-semibold ml-1">Warning: This operation is permanent and irreversible.</span>
+            </p>
+
+            {purgeSuccess && (
+              <div className="bg-emerald-500/5 border border-emerald-500/15 text-emerald-400 px-4 py-3 rounded-xl text-xs leading-normal">
+                <span className="font-bold block mb-1">✓ Purge Success</span>
+                <span>{purgeSuccess}</span>
+              </div>
+            )}
+
+            {purgeError && (
+              <div className="bg-rose-500/5 border border-rose-500/15 text-rose-400 px-4 py-3 rounded-xl text-xs leading-normal">
+                <span className="font-bold block mb-1">❌ Purge Failed</span>
+                <span>{purgeError}</span>
+              </div>
+            )}
+
+            {!showPurgeConfirm ? (
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={() => {
+                  setShowPurgeConfirm(true);
+                  setConfirmText('');
+                  setPurgeSuccess(null);
+                  setPurgeError(null);
+                }}
+                className="bg-rose-600 hover:bg-rose-700 text-white font-bold"
+              >
+                Purge All Mock & Seeded Data
+              </Button>
+            ) : (
+              <div className="bg-rose-500/5 border border-rose-500/20 p-4 rounded-xl space-y-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-rose-400 uppercase tracking-wider block">
+                    Verify Purge Request
+                  </label>
+                  <p className="text-[11px] text-zinc-400">
+                    Please type <code className="bg-rose-500/10 text-rose-300 px-1 py-0.5 rounded font-mono font-bold">PURGE</code> below to authorize the structural wipeout.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-3 max-w-md">
+                  <Input
+                    value={confirmText}
+                    onChange={e => setConfirmText(e.target.value)}
+                    placeholder="Type PURGE to verify..."
+                    className="bg-black/20 border-rose-500/30 text-white focus:border-rose-500 font-mono text-sm uppercase"
+                  />
+                  <Button
+                    type="button"
+                    disabled={purging}
+                    onClick={handlePurgeAllData}
+                    className="bg-rose-600 hover:bg-rose-700 text-white font-extrabold whitespace-nowrap"
+                  >
+                    {purging ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Purging System...
+                      </>
+                    ) : (
+                      "Authorize Wipeout"
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => setShowPurgeConfirm(false)}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Admin Access Governance Section */}
+        {isAdmin && (
+          <Card className="border-zinc-800 bg-[#16171B] mt-6">
+            <CardHeader className="border-b border-white/5 pb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#a8ff35]/10 flex items-center justify-center text-[#a8ff35] border border-[#a8ff35]/20">
+                    <Shield className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-white">User Governance & Access Whitelist</CardTitle>
+                    <CardDescription className="text-zinc-400">
+                      Private Preview Mode: Only accounts manually authorized below can bypass the OptiFlow gateway and access dashboard telemetry.
+                    </CardDescription>
+                  </div>
+                </div>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={loadUsersList} 
+                  disabled={loadingUsers}
+                  className="border-white/10 hover:bg-white/5 text-xs font-bold text-zinc-300 self-start sm:self-center"
+                >
+                  {loadingUsers ? <Loader2 className="w-3 h-3 animate-spin mr-1.5" /> : null}
+                  Refresh Operators
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-4">
+              {loadingUsers && usersList.length === 0 ? (
+                <div className="py-12 text-center text-zinc-500 font-mono text-xs flex flex-col items-center justify-center gap-2">
+                  <Loader2 className="w-6 h-6 animate-spin text-[#a8ff35]" />
+                  Scanning Firestore User Registry...
+                </div>
+              ) : usersList.length === 0 ? (
+                <div className="py-8 text-center text-zinc-500 font-mono text-xs">
+                  No registered users discovered. Check auth configuration.
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-white/5 bg-black/20">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-white/5 border-b border-white/5 text-zinc-400 font-mono text-[10px] uppercase tracking-wider">
+                        <th className="p-3 md:p-4 font-bold">Operator Profile</th>
+                        <th className="p-3 md:p-4 font-bold">Identity Hash (UID)</th>
+                        <th className="p-3 md:p-4 font-bold">Role Tier</th>
+                        <th className="p-3 md:p-4 text-center font-bold">Clearance Status</th>
+                        <th className="p-3 md:p-4 text-right font-bold">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {usersList.map((usr) => {
+                        const isPrimaryOwner = usr.email === '4261164@myuwc.ac.za';
+                        const isActioning = actioningUserId === usr.id;
+                        
+                        return (
+                          <tr key={usr.id} className="hover:bg-white/[0.02] transition-colors">
+                            <td className="p-3 md:p-4 space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-white text-sm">
+                                  {usr.email || 'anonymous@optiflow.io'}
+                                </span>
+                                {isPrimaryOwner && (
+                                  <span className="bg-[#a8ff35]/10 text-[#a8ff35] border border-[#a8ff35]/25 text-[9px] px-1.5 py-0.5 rounded-md font-mono font-bold tracking-tight">
+                                    OWNER / ADMIN
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[10px] text-zinc-500">
+                                Discovered: {usr.createdAt ? new Date(usr.createdAt).toLocaleDateString() : 'N/A'}
+                              </div>
+                            </td>
+                            <td className="p-3 md:p-4 font-mono text-[10px] text-zinc-400">
+                              <span className="bg-black/40 border border-white/5 px-2 py-1 rounded select-all">
+                                {usr.id}
+                              </span>
+                            </td>
+                            <td className="p-3 md:p-4">
+                              {isPrimaryOwner ? (
+                                <span className="font-mono text-[10px] bg-zinc-800 text-zinc-300 px-2.5 py-1 rounded-lg border border-zinc-700">
+                                  Administrator (Root)
+                                </span>
+                              ) : (
+                                <select
+                                  value={usr.role || 'creator'}
+                                  disabled={isActioning}
+                                  onChange={(e) => handleChangeRole(usr.id, e.target.value)}
+                                  className="bg-[#1C1D21] border border-white/10 rounded-lg text-xs text-white px-2 py-1 focus:border-[#a8ff35] focus:outline-none"
+                                >
+                                  <option value="admin">Administrator</option>
+                                  <option value="analyst">Analyst</option>
+                                  <option value="creator">Creator</option>
+                                </select>
+                              )}
+                            </td>
+                            <td className="p-3 md:p-4 text-center">
+                              {usr.approved || isPrimaryOwner ? (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/25">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                  APPROVED ACCESS
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold font-mono bg-amber-500/10 text-amber-400 border border-amber-500/25">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                                  PENDING APPROVAL
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-3 md:p-4 text-right">
+                              {isPrimaryOwner ? (
+                                <span className="text-[10px] text-zinc-500 font-mono italic">
+                                  Immutable System Lock
+                                </span>
+                              ) : (
+                                <Button
+                                  type="button"
+                                  disabled={isActioning}
+                                  onClick={() => handleToggleApproval(usr)}
+                                  className={`text-[11px] font-bold py-1 px-3 h-auto rounded-lg transition-all ${
+                                    usr.approved 
+                                      ? "bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20" 
+                                      : "bg-[#a8ff35]/10 hover:bg-[#a8ff35]/20 text-black font-extrabold border border-[#a8ff35]/20"
+                                  }`}
+                                >
+                                  {isActioning ? (
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin mx-auto" />
+                                  ) : usr.approved ? (
+                                    "Revoke Access"
+                                  ) : (
+                                    "Approve Operator"
+                                  )}
+                                </Button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
       </div>
     </div>
