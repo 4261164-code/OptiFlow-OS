@@ -28,27 +28,7 @@ export function WebOpsDashboard() {
 
     const startMockStream = () => {
       setTelemetryMode("SIMULATION");
-      setEvents(prev => [{ timestamp: new Date().toISOString(), type: "SIMULATION_MODE_ENTERED", message: "WebOps stream fallback activated. Telemetry is local.", severity: "error", service: "client" }, ...prev]);
-      
-      fallbackInterval = setInterval(() => {
-        const msTimestamp = new Date().toISOString();
-        const rand = Math.random();
-
-        let newEvent: WebOpsEvent | null = null;
-        if (rand > 0.8) {
-          newEvent = { timestamp: msTimestamp, type: "TRAFFIC_SPIKE", message: "Incoming traffic spike detected on /go routes.", severity: "info", service: "api" };
-        } else if (rand > 0.6) {
-          newEvent = { timestamp: msTimestamp, type: "AUTO_FIX_INIT", message: "Initiating auto-scaling group capacity increase.", severity: "warning", service: "workers" };
-          setActiveFixes(prev => prev + 1);
-        } else if (rand > 0.4) {
-          newEvent = { timestamp: msTimestamp, type: "CIRCUIT_BREAKER", message: "Circuit breaker cleared for ThirdPartyAPI.", severity: "success", service: "network" };
-          setActiveFixes(prev => Math.max(0, prev - 1));
-        }
-
-        if (newEvent) { setEvents(prev => [newEvent!, ...prev].slice(0, 50)); }
-        setLatency(prev => Math.max(10, Math.min(300, Math.round(prev + (Math.random() - 0.5) * 20))));
-        setSystemHealth(prev => Math.max(70, Math.min(100, Math.round(prev + (Math.random() - 0.2) * 5))));
-      }, 3000);
+      setEvents(prev => [{ timestamp: new Date().toISOString(), type: "CONNECTION_FAILED", message: "WebOps stream connection failed.", severity: "error", service: "client" }, ...prev]);
     };
 
     try {

@@ -2,6 +2,7 @@ import React from 'react';
 import { Brain, CheckCircle, XCircle, Play } from 'lucide-react';
 import { db } from '../../lib/firebase';
 import { collection, addDoc } from 'firebase/firestore';
+import { RapidApiTools } from '../../components/RapidApiTools';
 
 export function AIBrain() {
   const dispatchJob = async (type: string, payload: any) => {
@@ -105,6 +106,9 @@ export function AIBrain() {
            </div>
         </div>
       </div>
+      
+      {/* RapidAPI Tools Section */}
+      <RapidApiTools />
     </div>
   );
 }

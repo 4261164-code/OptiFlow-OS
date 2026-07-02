@@ -1,0 +1,44 @@
+src/__tests__/executive/services.test.ts:4:const mocks = vi.hoisted(() => {
+src/__tests__/executive/services.test.ts:13:vi.mock("firebase/firestore", () => ({
+src/__tests__/executive/services.test.ts:14:    collection: mocks.collection,
+src/__tests__/executive/services.test.ts:15:    query: mocks.query,
+src/__tests__/executive/services.test.ts:16:    where: mocks.where,
+src/__tests__/executive/services.test.ts:17:    onSnapshot: mocks.onSnapshot,
+src/__tests__/executive/services.test.ts:28:vi.mock("firebase/app", () => ({ initializeApp: vi.fn(), getApps: vi.fn().mockReturnValue([]), getApp: vi.fn() }));
+src/__tests__/executive/services.test.ts:29:vi.mock("firebase/auth", () => ({ getAuth: vi.fn(), onAuthStateChanged: vi.fn(), signInWithPopup: vi.fn(), GoogleAuthProvider: vi.fn(), signOut: vi.fn(), signInAnonymously: vi.fn() }));
+src/__tests__/executive/services.test.ts:31:vi.mock("../../../lib/firebase", () => ({
+src/__tests__/executive/services.test.ts:39:        mocks.onSnapshot.mockImplementationOnce((q, cb) => {
+src/__tests__/executive/services.test.ts:52:        mocks.onSnapshot.mockImplementationOnce((q, cb) => {
+src/__tests__/executive/dashboard.test.tsx:11:vi.mock("../../components/executive/Charts", () => ({ Charts: () => <div data-testid="mock-charts">Charts</div> }));
+src/__tests__/executive/dashboard.test.tsx:12:vi.mock("../../components/executive/Rankings", () => ({ Rankings: () => <div data-testid="mock-rankings">Rankings</div> }));
+src/__tests__/executive/dashboard.test.tsx:21:            value: vi.fn().mockImplementation(query => ({
+src/__tests__/executive/dashboard.test.tsx:35:        vi.spyOn(metricsHook, "useExecutiveMetrics").mockReturnValue({
+src/__tests__/executive/dashboard.test.tsx:51:        vi.spyOn(metricsHook, "useExecutiveMetrics").mockReturnValue({
+src/__tests__/executive/dashboard.test.tsx:95:        vi.spyOn(metricsHook, "useExecutiveMetrics").mockReturnValue({
+src/components/SEOClusters.tsx:239:                   {/* We mock a topological map using grid columns and visual connector classes */}
+src/components/CreatorShowcase.tsx:37:  Xd: { label: 'Adobe XD', color: 'text-fuchsia-500 bg-fuchsia-500/10 border-fuchsia-500/30', desc: 'Dynamic interface wireframing & mockups' },
+src/components/CreatorShowcase.tsx:199:          {/* Quick Nav Pills from mockup top-bar */}
+src/components/CreatorShowcase.tsx:246:            {/* Glowing Tools Suite from the mockup line */}
+src/components/CreatorShowcase.tsx:653:                {/* Visual Accent from image mock: Sunil text label */}
+src/components/SettingsPage.tsx:125:        setPurgeSuccess(data.message || "Successfully purged all mock and test-run database records!");
+src/components/SettingsPage.tsx:208:    { id: 'midjourney', name: 'Midjourney Engine', category: 'Creative Graphic Agency', desc: 'Generates pin vectors, article header concepts, and layout mockups.' },
+src/components/SettingsPage.tsx:723:              This action scans all 25+ core system collections in Firestore and removes all documents belonging to your user profile, as well as general simulation/mock entries.
+src/components/LandingPage.tsx:275:            {/* Header of our mock agent cockpit */}
+src/components/OpenRouterStatusCard.tsx:7:  // Generate mock data for the last 24 hours
+src/components/OpenRouterStatusCard.tsx:8:  const mockTokenData = useMemo(() => {
+src/components/OpenRouterStatusCard.tsx:15:  const currentTokensUsed = mockTokenData.reduce((acc, curr) => acc + curr.tokens, 0);
+src/components/OpenRouterStatusCard.tsx:86:              <LineChart data={mockTokenData}>
+src/lib/firebase/admin.ts:228:    console.warn(`[Firestore Safe Guard][DEGRADED_MODE] Local/Dev mode fallback enabled for ${currentPath}.${propName}. Returning dummy mock payload.`);
+src/lib/firebase/admin.ts:232:      console.warn(`[Firestore Safe Guard][DEGRADED_MODE] Executing runTransaction callback with mock transaction.`);
+src/lib/firebase/admin.ts:233:      const mockTx = {
+src/lib/firebase/admin.ts:234:        get: async (ref: any) => ({ exists: false, data: () => ({}), ref, id: ref?.id || "mock" }),
+src/lib/firebase/admin.ts:235:        set: (ref: any, data: any) => mockTx,
+src/lib/firebase/admin.ts:236:        update: (ref: any, data: any) => mockTx,
+src/lib/firebase/admin.ts:237:        delete: (ref: any) => mockTx,
+src/lib/firebase/admin.ts:238:        getAll: async (...refs: any[]) => refs.map(ref => ({ exists: false, data: () => ({}), ref, id: ref?.id || "mock" }))
+src/lib/firebase/admin.ts:240:      return cb(mockTx);
+src/lib/firebase/admin.ts:248:        id: "mock_" + Math.random().toString(36).substring(2, 10),
+src/lib/firebase/admin.ts:256:        id: "mock_" + Math.random().toString(36).substring(2, 10),
+src/lib/firebase/admin.ts:257:        path: `${currentPath}/mock_id`,
+src/lib/firebase/admin.ts:267:    return { success: true, mock: true } as any;
+src/hooks/executive/useExecutiveMetrics.ts:74:        // Basic offline mock check

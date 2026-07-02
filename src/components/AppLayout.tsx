@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { Plus, LogOut, Lock, Search, Bell, Network, Brain, Activity, Shield, Book, MessageSquare, X, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, TrendingUp } from "lucide-react";
+import { Plus, LogOut, Lock, Search, Bell, Network, Brain, Activity, Shield, Book, MessageSquare, X, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, TrendingUp, AlertTriangle } from "lucide-react";
 import { cn } from "../lib/utils";
 import { Button } from "./ui";
 import { logout } from "../lib/auth";
@@ -10,6 +10,8 @@ import { CEOChat } from './executive/CEOChat';
 import { LiveTicker } from './LiveTicker';
 import { Logo } from "./Logo";
 import { IconWrapper } from './ui/IconWrapper';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db, auth } from '../lib/firebase';
 import {
   DashboardIcon,
   CampaignIcon,
@@ -31,6 +33,7 @@ export function AppLayout() {
   const { unreadCount, setIsOpen } = useNotifications();
   const [isAIChatOpen, setIsAIChatOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [openedCategories, setOpenedCategories] = useState<Record<string, boolean>>({
     revenue_operations: true,
     ai_systems: true,
@@ -38,6 +41,18 @@ export function AppLayout() {
 
   useEffect(() => {
     document.title = "OptiFlow OS | Campaign Factory";
+  }, []);
+
+  useEffect(() => {
+    if (!auth.currentUser) return;
+    const docRef = doc(db, 'settings', auth.currentUser.uid);
+    const unsubscribe = onSnapshot(docRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setMaintenanceMode(!!data.maintenanceMode);
+      }
+    });
+    return () => unsubscribe();
   }, []);
 
   const navigationCategories = [
@@ -229,6 +244,15 @@ export function AppLayout() {
            </div>
         </div>
         <main className="flex-1 overflow-y-auto px-6 pb-6 md:px-10 md:pb-10 bg-gradient-to-b from-[#05070A] via-[#0B1017] to-[#05070A] relative">
+          {maintenanceMode && (
+            <div className="bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-lg mb-6 flex items-center gap-3">
+              <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-bold">System Maintenance Mode Active</p>
+                <p className="text-xs text-red-400/80">Autonomous agents and background workers are currently paused. The dashboard remains accessible for configuration.</p>
+              </div>
+            </div>
+          )}
           <Outlet />
         </main>
       </div>

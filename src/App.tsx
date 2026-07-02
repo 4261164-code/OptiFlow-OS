@@ -27,6 +27,7 @@ import { NotificationToast } from './components/NotificationToast';
 import { NotificationDrawer } from './components/NotificationDrawer';
 import { LandingPage } from './components/LandingPage';
 import { OnboardingWizard } from './components/OnboardingWizard';
+import { ServiceHealthMonitor } from './components/ServiceHealthMonitor';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -296,6 +297,7 @@ export default function App() {
 
   return (
     <NotificationProvider>
+      <ServiceHealthMonitor />
       <BrowserRouter>
         <Routes>
           <Route element={<AppLayout />}>

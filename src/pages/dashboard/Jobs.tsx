@@ -7,14 +7,6 @@ export function Jobs() {
   const [jobs, setJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Mock data to render quickly or if DB is empty
-  const mockJobs = [
-    { id: 'job-1', type: 'generate_content', status: 'completed', created: '10 mins ago', duration: '45s' },
-    { id: 'job-2', type: 'seo_optimizer', status: 'running', created: '2 mins ago', duration: '-' },
-    { id: 'job-3', type: 'distribute_pinterest', status: 'pending', created: '1 min ago', duration: '-' },
-    { id: 'job-4', type: 'publish_wordpress', status: 'failed', created: '1 hour ago', duration: '12s' },
-  ];
-
   useEffect(() => {
     async function fetchJobs() {
       try {
@@ -30,11 +22,11 @@ export function Jobs() {
            }));
            setJobs(fetched);
         } else {
-           setJobs(mockJobs);
+           setJobs([]);
         }
       } catch (err) {
         console.error(err);
-        setJobs(mockJobs);
+        setJobs([]);
       } finally {
         setLoading(false);
       }

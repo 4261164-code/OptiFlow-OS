@@ -152,6 +152,11 @@ export function SettingsPage() {
     twitterToken: '',
     linkedinToken: '',
     analyticsId: '',
+    customWebhookUrl: '',
+    customApiKey: '',
+    maxbountyApiKey: '',
+    clickbankApiKey: '',
+    maintenanceMode: false,
     agentOverrides: {
       "CEO Strategic Executive": { provider: 'default', customApiKey: '', customModel: '' },
       "Writer Agent": { provider: 'default', customApiKey: '', customModel: '' },
@@ -204,7 +209,10 @@ export function SettingsPage() {
     { id: 'wordpress', name: 'WordPress Blog Connector', category: 'Auto-Publishing', desc: 'Saves Phase 2 XML-RPC credentials for auto-publishing draft campaigns.' },
     { id: 'pinterest', name: 'Pinterest Business', category: 'Social Distribution', desc: 'Exchanges authorized PIN syndication hooks to sync boards.' },
     { id: 'telegram', name: 'Telegram Broadcast', category: 'Social Alerts', desc: 'Fires instant lead alerts and live post notifications to channels.' },
-    { id: 'linkedin', name: 'LinkedIn UGC Feed', category: 'Social Distribution', desc: 'Broadcasts executive summaries and marketing copies to feeds.' }
+    { id: 'linkedin', name: 'LinkedIn UGC Feed', category: 'Social Distribution', desc: 'Broadcasts executive summaries and marketing copies to feeds.' },
+    { id: 'maxbounty', name: 'MaxBounty Plugin API', category: 'Affiliate Network', desc: 'Secure Server-to-Server connection for live EPCs and CPA offers.' },
+    { id: 'clickbank', name: 'ClickBank Plugin API', category: 'Affiliate Network', desc: 'Real-time sales & hoplink attribution.' },
+    { id: 'api_plugin', name: 'Custom API Plugin / Webhook', category: 'Extension', desc: 'Validates outbound webhook payload delivery and custom API handshakes.' }
   ];
 
   const testSingleIntegration = async (integrationId: string) => {
@@ -425,6 +433,27 @@ export function SettingsPage() {
                   </p>
                 </div>
               </div>
+
+              <div className="bg-[#10141d]/80 border border-red-500/15 p-4 rounded-xl flex items-start gap-3 mt-2">
+                <Shield className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                <div className="space-y-1 flex-grow">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-red-400 uppercase tracking-wide">System Maintenance Mode</span>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={settings.maintenanceMode === true} 
+                        onChange={e => setSettings({...settings, maintenanceMode: e.target.checked})} 
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-white/5 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-zinc-400 after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:bg-red-500 peer-checked:bg-red-500/20"></div>
+                    </label>
+                  </div>
+                  <p className="text-[10px] text-zinc-400 leading-normal">
+                    Pause all autonomous agents and background workers immediately. The dashboard remains accessible for configuration.
+                  </p>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
@@ -589,6 +618,41 @@ export function SettingsPage() {
               <div className="space-y-2">
                 <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Application Password</label>
                 <Input type="password" value={settings.wordpressPassword} onChange={e => setSettings({...settings, wordpressPassword: e.target.value})} placeholder="xxxx xxxx xxxx xxxx" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>API Plugins & Webhooks</CardTitle>
+              <CardDescription>Extend OptiFlow with custom REST APIs and Webhook endpoints.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Custom Webhook URL</label>
+                <Input type="url" value={settings.customWebhookUrl || ''} onChange={e => setSettings({...settings, customWebhookUrl: e.target.value})} placeholder="https://hook.make.com/..." />
+                <p className="text-[10px] text-zinc-500">Fires on campaign completion and major lifecycle events.</p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Zapier / Custom REST API Key</label>
+                <Input type="password" value={settings.customApiKey || ''} onChange={e => setSettings({...settings, customApiKey: e.target.value})} placeholder="Secret token for external plugins..." />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Third-Party Affiliate Platforms</CardTitle>
+              <CardDescription>Configure and validate custom API plugin keys for affiliate networks.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">MaxBounty API Key</label>
+                <Input type="password" value={settings.maxbountyApiKey || ''} onChange={e => setSettings({...settings, maxbountyApiKey: e.target.value})} placeholder="mb_live_..." />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">ClickBank API / Developer Key</label>
+                <Input type="password" value={settings.clickbankApiKey || ''} onChange={e => setSettings({...settings, clickbankApiKey: e.target.value})} placeholder="DEV-..." />
               </div>
             </CardContent>
           </Card>

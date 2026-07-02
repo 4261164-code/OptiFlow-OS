@@ -147,29 +147,59 @@ Matched Bounties with CTR limits:
     }
   };
 
-  const deployAgentTask = (index: number, task: OptimizationTask) => {
+  const deployAgentTask = async (index: number, task: OptimizationTask) => {
     setDeployingTaskIndex(index);
-    
-    // Show high-quality interactive sub-agent terminal deployment loop
-    const subLogs = [
-      `🤖 [Sub-Agent Boot] Awakening ${task.agent}...`,
-      `📦 [Parameters Configured] Action targeting: "${task.suggestedAction}"`,
-      `📡 [External API Reach] Pulling targeted affiliate metadata limits...`,
-      `💾 [System Update] Injecting optimization guidelines and re-indexing nodes...`,
-      `✔️ [Task Success] Deploy complete!`
-    ];
+    setAgentLogs(prev => [...prev, `[System] Dispatching task: ${task.suggestedAction} to /api/seeds...`]);
 
-    let currentLog = 0;
-    const interval = setInterval(() => {
-      if (currentLog < subLogs.length) {
-        setAgentLogs(prev => [...prev.filter(l => !l.startsWith("✔️") && !l.startsWith("🤖")), subLogs[currentLog]]);
-        currentLog++;
-      } else {
-        clearInterval(interval);
-        setDeployedTasks(prev => ({ ...prev, [index]: true }));
-        setDeployingTaskIndex(null);
-      }
-    }, 900);
+    try {
+      // 1. Call POST /api/seeds to initiate the content generation pipeline
+      const response = await apiFetch('/api/seeds', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          keyword: task.suggestedAction,
+          seoLevel: "High",
+          numPins: 3
+        })
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to dispatch seed");
+
+      const jobId = data.jobId;
+      setAgentLogs(prev => [...prev, `[Job] Queued with ID: ${jobId}. Polling /api/queue...`]);
+
+      // 2. Poll GET /api/queue for real-time status updates
+      const pollInterval = setInterval(async () => {
+        try {
+          const queueRes = await apiFetch(`/api/queue?jobId=${jobId}`);
+          const queueData = await queueRes.json();
+          
+          if (queueData.success && queueData.queue.length > 0) {
+            const jobStatus = queueData.queue[0].status;
+            
+            setAgentLogs(prev => [...prev, `[Job ${jobId}] Status: ${jobStatus}`]);
+            
+            if (jobStatus === 'completed' || jobStatus === 'error') {
+              clearInterval(pollInterval);
+              setDeployedTasks(prev => ({ ...prev, [index]: true }));
+              setDeployingTaskIndex(null);
+              if (jobStatus === 'completed') {
+                setAgentLogs(prev => [...prev, `✔️ [Task Success] Optimization active for ${task.suggestedAction}`]);
+              } else {
+                setAgentLogs(prev => [...prev, `❌ [Task Failed] Optimization failed for ${task.suggestedAction}`]);
+              }
+            }
+          }
+        } catch (pollErr) {
+          console.warn("Polling error:", pollErr);
+        }
+      }, 2000);
+
+    } catch (err: any) {
+      setAgentLogs(prev => [...prev, `[System] Error: ${err.message}`]);
+      setDeployingTaskIndex(null);
+    }
   };
 
   return (

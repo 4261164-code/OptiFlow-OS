@@ -1,8 +1,29 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Target, ArrowRight, Zap, RefreshCw } from 'lucide-react';
+import { db } from '../../lib/firebase';
+import { collection, query, getDocs, limit } from 'firebase/firestore';
 
 export function Offers() {
-  const offers: any[] = [];
+  const [offers, setOffers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadOffers() {
+      try {
+        const offersSnap = await getDocs(query(collection(db, 'offers'), limit(50)));
+        const loaded: any[] = [];
+        offersSnap.forEach(doc => {
+          loaded.push({ id: doc.id, ...doc.data() });
+        });
+        setOffers(loaded);
+      } catch (e) {
+        console.error("Failed to load offers:", e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadOffers();
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -18,18 +39,25 @@ export function Offers() {
           <table className="w-full text-left text-sm text-zinc-400">
             <thead className="text-xs uppercase bg-zinc-900/50 text-zinc-500 border-b border-zinc-800">
               <tr>
-                <th className="px-6 py-4 font-bold">Offer</th>
-                <th className="px-6 py-4 font-bold">Clicks</th>
-                <th className="px-6 py-4 font-bold">Conversions</th>
-                <th className="px-6 py-4 font-bold">EPC</th>
-                <th className="px-6 py-4 font-bold">Revenue</th>
+                <th className="px-6 py-4 font-bold">Offer / Brand</th>
+                <th className="px-6 py-4 font-bold">Link</th>
                 <th className="px-6 py-4 font-bold">Status</th>
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td colSpan={6} className="px-6 py-10 text-center text-zinc-600">No offers found.</td>
-              </tr>
+              {offers.length === 0 ? (
+                <tr>
+                  <td colSpan={3} className="px-6 py-10 text-center text-zinc-600">No offers found.</td>
+                </tr>
+              ) : (
+                offers.map(offer => (
+                  <tr key={offer.id} className="border-b border-zinc-800">
+                    <td className="px-6 py-4 text-white font-medium">{offer.brand || offer.anchor || 'Unknown'}</td>
+                    <td className="px-6 py-4 text-zinc-400 max-w-xs truncate">{offer.link || '-'}</td>
+                    <td className="px-6 py-4 text-emerald-400 font-bold">Active</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -44,7 +72,7 @@ export function Offers() {
              <Target className="w-4 h-4 mr-2" />
              AI Recommendations
            </h3>
-           <p className="text-sm text-zinc-300">No active AI recommendations at this time.</p>
+           <p className="text-sm text-zinc-300">Run the OptiFlow pipeline to automatically match relevant offers.</p>
          </div>
       </div>
     </div>

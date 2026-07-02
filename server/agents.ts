@@ -1405,8 +1405,8 @@ LATEST USER MESSAGE: ${message}`
           }] 
         }
       ],
-      systemInstruction: { role: 'system', parts: [{ text: systemInstruction }] },
-      generationConfig: {
+      config: {
+        systemInstruction: systemInstruction,
         responseMimeType: "application/json",
         temperature: 0.7,
       }
@@ -1639,7 +1639,15 @@ INCOMING MESSAGE FROM CEO:
       }
     }, 3, userId, "CEO Strategic Executive", "executive");
 
-    const parsedResult = safeParseJSON(response.text, {});
+    const parsedResult = safeParseJSON(response.text, {
+      response: "Executive link maintained. Telemetry currently syncing.",
+      initiative: { action: "none", reasoning: "Link stabilization in progress" },
+      mood: "analytical"
+    });
+
+    if (!parsedResult.response) {
+      parsedResult.response = "Executive link maintained. Telemetry currently syncing.";
+    }
 
     // Self-updating and persistent learning (Super Memory instantiation)
     if (parsedResult.newLearnedMemory && parsedResult.newLearnedMemory.topic && parsedResult.newLearnedMemory.insight && db) {
@@ -1671,6 +1679,7 @@ INCOMING MESSAGE FROM CEO:
 }
 
 export async function generateCEOSpeech(text: string, voiceName: string = 'Kore', userId?: string): Promise<string | null> {
+  if (!text) return null;
   try {
     const aiClient = await getAIClient(userId);
     const response = await aiClient.models.generateContent({

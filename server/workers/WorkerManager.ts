@@ -3,6 +3,7 @@ import { HealthManager } from "./HealthManager";
 import { JobScheduler } from "./JobScheduler";
 import { RetryFramework, RetryPolicy } from "./RetryFramework";
 import { LockManager } from "../lib/lockManager";
+import { db } from "../firebaseAdmin";
 
 export interface WorkerDefinition {
   name: string;
@@ -25,6 +26,15 @@ export class WorkerManager {
     HealthManager.initializeWorker(worker.name);
 
     JobScheduler.schedule(worker.name, worker.intervalMs, async () => {
+      try {
+        const settingsSnap = await db.collection("settings").where("maintenanceMode", "==", true).limit(1).get();
+        if (!settingsSnap.empty) {
+           return; // Maintenance mode is active, skip execution silently
+        }
+      } catch (e) {
+        // DB error, continue
+      }
+
       if (!HealthManager.isHealthyEnoughToRun(worker.name)) {
         logger.warn(`[WorkerManager] Worker ${worker.name} skipped execution due to health degradation.`);
         return;

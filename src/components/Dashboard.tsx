@@ -18,6 +18,7 @@ import { useNotifications } from './NotificationContext';
 import { CampaignIcon, ArticlesIcon, PinterestIcon, BubblyAppleIcon, CloverMascotIcon, BrandingXIcon, BrandingHexIcon } from './CustomIcons';
 import { AgentLauncher } from './AgentLauncher';
 import { CampaignHealthHeatmap } from './CampaignHealthHeatmap';
+import { OpenRouterStatusCard } from './OpenRouterStatusCard';
 
 export function Dashboard() {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -217,6 +218,7 @@ export function Dashboard() {
               </div>
             </div>
           </div>
+          <OpenRouterStatusCard />
           <CampaignHealthHeatmap jobs={jobs} />
         </div>
       </div>

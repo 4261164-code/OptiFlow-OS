@@ -6,17 +6,6 @@ export function AnalyticsDashboard() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  // Mock chart data for visualization since we're just getting started
-  const chartData = [
-    { name: 'Mon', revenue: 45 },
-    { name: 'Tue', revenue: 52 },
-    { name: 'Wed', revenue: 38 },
-    { name: 'Thu', revenue: 65 },
-    { name: 'Fri', revenue: 89 },
-    { name: 'Sat', revenue: 110 },
-    { name: 'Sun', revenue: 145 },
-  ];
-
   useEffect(() => {
     fetch('/api/analytics/overview')
       .then(res => res.json())
@@ -95,7 +84,7 @@ export function AnalyticsDashboard() {
          </h3>
          <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+              <AreaChart data={data?.chartData || []} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
