@@ -3,6 +3,8 @@ import { logger } from "../../lib/logger";
 
 // Offer Intelligence Engine (EPC Swapping)
 export async function optimizeOffers() {
+  logger.warn("[Offer Intelligence] Legacy global offer optimizer disabled. Thompson Sampling (banditEngine.ts) is the sole production offer-selection system.");
+  return;
   try {
     const offersSnap = await db.collection("offers").get();
     

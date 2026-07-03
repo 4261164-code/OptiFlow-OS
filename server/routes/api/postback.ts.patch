@@ -1,0 +1,24 @@
+--- server/routes/api/postback.ts
++++ server/routes/api/postback.ts
+@@ -8,6 +8,17 @@
+ 
+ export const postbackRouter = express.Router();
+ 
++function verifyPostbackSignature(req: express.Request): boolean {
++    const signature = req.headers['x-postback-signature'] || req.query.signature;
++    if (!signature || typeof signature !== 'string') return false;
++    
++    const secret = process.env.POSTBACK_SECRET || 'default-insecure-secret';
++    const payload = JSON.stringify(req.body);
++    const expectedSignature = crypto.createHmac('sha256', secret).update(payload).digest('hex');
++    
++    return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
++}
++
+ postbackRouter.post("/postback", async (req, res) => {
+     try {
++        if (!verifyPostbackSignature(req)) {
++            return res.status(401).json({ error: "Invalid or missing postback signature" });
++        }
++
+         const { clickId, queryClickId, amount, affiliate, offerId, transactionId } = req.body;

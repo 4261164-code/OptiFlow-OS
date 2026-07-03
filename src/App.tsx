@@ -22,6 +22,8 @@ import { Automations } from './pages/dashboard/Automations';
 import { Jobs } from './pages/dashboard/Jobs';
 import { AnalyticsLab } from './pages/dashboard/AnalyticsLab';
 import { SettingsPage } from './components/SettingsPage';
+import { StartupDiagnosticsPage } from './pages/StartupDiagnostics';
+import APILab from './pages/APILab';
 import { NotificationProvider } from './components/NotificationContext';
 import { NotificationToast } from './components/NotificationToast';
 import { NotificationDrawer } from './components/NotificationDrawer';
@@ -51,7 +53,7 @@ export default function App() {
       let role = 'creator';
 
       // Auto-approve primary owner email
-      if (user.email === '4261164@myuwc.ac.za') {
+      if (user.email === 'admin@example.com') {
         isApproved = true;
         role = 'admin';
       }
@@ -61,7 +63,7 @@ export default function App() {
         isApproved = userData.approved === true || isApproved;
         
         // Keep Firestore in sync if owner wasn't marked approved or admin
-        if (user.email === '4261164@myuwc.ac.za' && (userData.approved !== true || userData.role !== 'admin')) {
+        if (user.email === 'admin@example.com' && (userData.approved !== true || userData.role !== 'admin')) {
           await setDoc(userRef, { approved: true, role: 'admin' }, { merge: true });
         }
       } else {
@@ -89,7 +91,7 @@ export default function App() {
     } catch (err) {
       console.error("Failed to verify user access/onboarding:", err);
       // Fallback for safety (owner is always approved)
-      if (user.email === '4261164@myuwc.ac.za') {
+      if (user.email === 'admin@example.com') {
         setUserApproved(true);
       } else {
         setUserApproved(false);
@@ -190,7 +192,7 @@ export default function App() {
   const handleSandboxBypass = () => {
     const sandboxUser = {
       uid: 'q8i1F0a4i5er1dvWI7xljYkwaSH2',
-      email: '4261164@myuwc.ac.za',
+      email: 'sandbox@example.com',
       emailVerified: true,
       isAnonymous: false,
       displayName: 'Sandbox Developer',
@@ -311,6 +313,8 @@ export default function App() {
             <Route path="/jobs" element={<Jobs />} />
             <Route path="/analytics" element={<AnalyticsLab />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/apilab" element={<APILab />} />
+            <Route path="/diagnostics" element={<StartupDiagnosticsPage />} />
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>

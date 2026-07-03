@@ -48,7 +48,7 @@ export class BanditEngine {
   /**
    * Fetch Beta distribution parameters for all available arms (offers)
    */
-  private static async getArmsData(userId: string, contextKey: string, availableOffers: string[]): Promise<BanditOfferArm[]> {
+  private static async getArmsData(userId: string, contextKey: string, availableOffers: string[], defaultPayouts: Record<string, number> = {}): Promise<BanditOfferArm[]> {
     const cacheKey = `${userId}_${contextKey}`;
     if (contextBetaCache.has(cacheKey)) {
       return contextBetaCache.get(cacheKey)!;
@@ -68,7 +68,7 @@ export class BanditEngine {
       if (dbArms[offerId]) {
         arms.push({ offerId, payout: dbArms[offerId].payout, alpha: dbArms[offerId].alpha, beta: dbArms[offerId].beta });
       } else {
-        arms.push({ offerId, payout: 10, alpha: 1, beta: 1 }); // Assume $10 payout as fallback
+        arms.push({ offerId, payout: (defaultPayouts && defaultPayouts[offerId]) ? defaultPayouts[offerId] : 10, alpha: 1, beta: 1 });
       }
     }
 
@@ -81,8 +81,12 @@ export class BanditEngine {
    * Core Selection Algorithm
    */
   static async selectOffer(userId: string, context: TrafficContext, availableOffers: string[]): Promise<string> {
+    const defaultPayouts: Record<string, number> = {};
+    const offersSnap = await db.collection("offers").where("__name__", "in", availableOffers).get();
+    offersSnap.forEach(doc => defaultPayouts[doc.id] = doc.data().payout || 10);
+
     const contextKey = this.getContextKey(context);
-    const arms = await this.getArmsData(userId, contextKey, availableOffers);
+    const arms = await this.getArmsData(userId, contextKey, availableOffers, defaultPayouts);
 
     let bestOffer = availableOffers[0] || "";
     let maxExpectedRevenue = -1;

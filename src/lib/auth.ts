@@ -107,7 +107,9 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}) {
     });
   }
   
-  headers.set('Authorization', `Bearer ${token}`);
+  if (!endpoint.startsWith('/api/health')) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
 
   const response = await fetch(endpoint, {
     ...options,

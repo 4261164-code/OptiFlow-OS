@@ -76,6 +76,7 @@ export function AppLayout() {
         { label: "Job Monitor", href: "/jobs", icon: AnalyticsIcon },
         { label: "Analytics Lab", href: "/analytics", icon: TrendingUp },
         { label: "Settings", href: "/settings", icon: SettingsIcon },
+        { label: "API Sandbox", href: "/apilab", icon: Activity },
       ]
     }
   ];

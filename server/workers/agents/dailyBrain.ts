@@ -1,22 +1,18 @@
 import { db } from "../../firebaseAdmin";
 import { logger } from "../../lib/logger";
-import OpenAI from "openai";
+import { GoogleGenAI, Type } from "@google/genai";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || "dummy",
-});
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "dummy" });
 
 export async function dailyBrain() {
   try {
      logger.info("[Daily Brain] Initiating multi-agent feedback loop analysis...");
-
      const data = await getSystemMetrics();
 
      const prompt = `
      You are a growth engine.
      Analyze performance and suggest actions. Return ONLY valid JSON in this format:
      { "actions": [ { "type": "content|seo|distribute", "payload": { "target": "article_id_or_keyword" } } ] }
-
      Revenue: $${data.revenue}
      Top Content: ${data.topContent}
      Low Content: ${data.lowContent}
@@ -25,30 +21,48 @@ export async function dailyBrain() {
 
      let decisions: any = { actions: [] };
 
-     if (process.env.OPENAI_API_KEY) {
-         const response = await openai.chat.completions.create({
-             model: "gpt-4.1-mini",
-             messages: [
-                 { role: "system", content: "You are an automated growth system. Output structured JSON only." },
-                 { role: "user", content: prompt }
-             ]
-         });
-         try {
-             decisions = JSON.parse(response.choices[0].message.content || '{"actions":[]}');
-         } catch(e) {
-             logger.error("[Daily Brain] Failed to parse JSON from AI.");
-         }
-     } else {
-         // Mock decision logic
-         logger.info("[Daily Brain] Using mock decision engine (No OPENAI_API_KEY).");
-         decisions = {
-             actions: [
-                 { type: "content", payload: { action: "clone_content", target: data.topContent } },
-                 { type: "seo", payload: { action: "rewrite_title", target: data.lowContent } }
-             ]
-         };
+     if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'dummy') {
+         logger.error("[Daily Brain] GEMINI_API_KEY missing. Skipping decision cycle.");
+         return;
      }
 
+     const response = await ai.models.generateContent({
+         model: "gemini-2.5-flash",
+         contents: [
+             { role: "user", parts: [{ text: "You are an automated growth system. Output structured JSON only.\n" + prompt }] }
+         ],
+         config: {
+             responseMimeType: "application/json",
+             responseSchema: {
+                 type: Type.OBJECT,
+                 properties: {
+                     actions: {
+                         type: Type.ARRAY,
+                         items: {
+                             type: Type.OBJECT,
+                             properties: {
+                                 type: { type: Type.STRING },
+                                 payload: { 
+                                    type: Type.OBJECT,
+                                    properties: {
+                                        target: { type: Type.STRING }
+                                    }
+                                 }
+                             },
+                             required: ["type", "payload"]
+                         }
+                     }
+                 },
+                 required: ["actions"]
+             }
+         }
+     });
+     try {
+         decisions = JSON.parse(response.text || '{"actions":[]}');
+     } catch(e) {
+         logger.error("[Daily Brain] Failed to parse JSON from AI.");
+     }
+     
      for (const action of decisions.actions) {
          await db.collection("jobs").add({
              type: action.type,
@@ -59,25 +73,36 @@ export async function dailyBrain() {
          });
          logger.info(`[Daily Brain] Queued strategic job: ${action.type} for ${JSON.stringify(action.payload)}`);
      }
-
   } catch (error: any) {
-      logger.error(`[Daily Brain] Engine failure: ${error.message}`);
+      if (error.message && error.message.includes("429")) {
+          logger.warn(`[Daily Brain] Rate limit exceeded. Skipping this cycle. (${error.message})`);
+      } else {
+          logger.error(`[Daily Brain] Engine failure: ${error.message}`);
+      }
   }
 }
 
 async function getSystemMetrics() {
-    // Collect a quick snapshot of the DB state
-    const conversionsSnap = await db.collection("conversions").get();
+    const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+    const recentConversions = await db.collection("conversions")
+      .where("timestamp", ">=", thirtyDaysAgo)
+      .limit(1000)
+      .get();
+    
     let totalRevenue = 0;
-    conversionsSnap.forEach(doc => totalRevenue += (doc.data().revenue || 0));
+    recentConversions.forEach(doc => totalRevenue += (doc.data().revenue || doc.data().amount || 0));
 
-    // Simple mock logic to fetch top and low content
-    const contentSnap = await db.collection("content").limit(2).get();
-    let contents: any[] = [];
-    contentSnap.forEach(doc => contents.push({ id: doc.id, ...doc.data() }));
+    const topContentSnap = await db.collection("article_metrics")
+      .orderBy("revenue", "desc")
+      .limit(1)
+      .get();
+    const topContent = topContentSnap.empty ? "none" : topContentSnap.docs[0].data().articleId || topContentSnap.docs[0].id;
 
-    const topContent = contents[0]?.id || "none";
-    const lowContent = contents[1]?.id || "none";
+    const lowContentSnap = await db.collection("article_metrics")
+      .orderBy("revenue", "asc")
+      .limit(1)
+      .get();
+    const lowContent = lowContentSnap.empty ? "none" : lowContentSnap.docs[0].data().articleId || lowContentSnap.docs[0].id;
 
     const systemDoc = await db.collection("system").doc("activeOffer").get();
     const activeOffer = systemDoc.exists ? systemDoc.data()?.name || "none" : "none";

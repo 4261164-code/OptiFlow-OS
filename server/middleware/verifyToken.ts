@@ -9,11 +9,19 @@ export async function verifyToken(req: any, res: Response, next: NextFunction) {
 
   const token = header.split('Bearer ')[1];
   
+  if (token.length < 100) {
+    logger.error('Token verification failed: Token too short', { 
+      tokenLength: token.length, 
+      tokenPrefix: token.substring(0, 10) 
+    });
+    return res.status(401).json({ error: 'Malformed token: Token too short' });
+  }
+  
   // For AI Studio Development Sandbox / Guest Offline Mode
-  if (process.env.NODE_ENV !== 'production' && token === 'sandbox-developer-bypass-token') {
+  if (process.env.NODE_ENV !== 'production' && process.env.ALLOW_DEV_AUTH_BYPASS === 'true' && token === 'sandbox-developer-bypass-token') {
     req.user = {
-      uid: 'q8i1F0a4i5er1dvWI7xljYkwaSH2', // Pre-approved developer UID in requireRole
-      email: '4261164@myuwc.ac.za', // Developer email from requireRole
+      uid: 'sandbox-dev-uid',
+      email: 'sandbox@example.com',
       email_verified: true,
       role: 'admin',
       isAnonymous: false,
@@ -41,14 +49,8 @@ export function requireRole(requiredRole: string | string[]) {
     }
     
     const allowedRoles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
-    // Rely on Firebase Custom Claims (role claim)
+    // Role must come ONLY from Firebase custom claims going forward for security
     let userRole = req.user.role || (req.user.admin ? 'admin' : 'user');
-    
-    // Auto-grant admin to the developer email for AI Studio preview
-    if (req.user.email === '4261164@myuwc.ac.za' || req.user.uid === 'q8i1F0a4i5er1dvWI7xljYkwaSH2') {
-       userRole = 'admin';
-       req.user.role = 'admin';
-    }
     
     // For development testing, we can inject a bypass header or just rely on the token.
     // In production, this must match EXACTLY.
@@ -60,4 +62,5 @@ export function requireRole(requiredRole: string | string[]) {
     next();
   };
 }
+
 

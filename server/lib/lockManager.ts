@@ -17,8 +17,9 @@ export class LockManager {
    */
   static async acquireLock(lockName: string, leaseDurationMs = 5 * 60 * 1000): Promise<boolean> {
     if (!hasServiceAccount) {
-      // In degraded mode, allow lock by default (single instance simulation)
-      return true;
+      // Degraded mode fails closed
+      logger.warn('[LockManager] acquireLock failed: Running in degraded mode without service account. Refusing to run.');
+      return false;
     }
     try {
       const lockRef = db.collection("worker_locks").doc(lockName);
@@ -52,8 +53,34 @@ export class LockManager {
     }
   }
 
+
+  static async renewLock(lockName: string, additionalLeaseDurationMs: number = 5 * 60 * 1000): Promise<boolean> {
+    if (!hasServiceAccount) return false;
+    try {
+      const lockRef = db.collection("worker_locks").doc(lockName);
+      const success = await db.runTransaction(async (tx: any) => {
+        const snap = await tx.get(lockRef);
+        const now = Date.now();
+        if (snap.exists) {
+          const data = snap.data() as LockDoc;
+          if (data && data.locked && data.ownerId === this.instanceId) {
+            tx.update(lockRef, {
+              leaseExpires: now + additionalLeaseDurationMs
+            });
+            return true;
+          }
+        }
+        return false;
+      });
+      return !!success;
+    } catch (err: any) {
+      logger.error(`[LockManager] Failed to renew lock for "${lockName}":`, err.message || err);
+      return false;
+    }
+  }
+
   /**
-   * Releases an owned lock in Firestore.
+ an owned lock in Firestore.
    */
   static async releaseLock(lockName: string): Promise<void> {
     if (!hasServiceAccount) return;

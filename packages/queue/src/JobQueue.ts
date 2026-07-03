@@ -22,6 +22,10 @@ export interface Job<T = any> {
 
 export type Processor<T = any> = (job: Job<T>) => Promise<any>;
 
+/**
+ * @deprecated WARNING: This is an IN-MEMORY queue. It is NOT durable and will lose jobs on server restart or container scale-down.
+ * DO NOT use this for anything user-facing or revenue-related. Use the Firestore-backed OrchestrationEngine for durable work.
+ */
 export class JobQueue<T = any> {
   public name: string;
   private jobs: Map<string, Job<T>> = new Map();

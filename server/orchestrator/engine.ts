@@ -7,6 +7,8 @@ import {
   TriggerEvent,
   AgentType,
 } from "./types";
+import { publishToWordPress } from "../integrations/wordpress";
+import { publishToPinterest } from "../integrations/pinterest";
 import {
   runResearchAgent,
   runWriterAgent,
@@ -231,38 +233,41 @@ export class OrchestrationEngine {
         return { optimized_article: optimized };
 
       case "MediaAgent":
+        const imageUrl = await runImageGenerationAgent(targetId, userId);
+        if (!imageUrl) throw new Error("Image generation failed");
         return {
-          media: [{ url: "https://via.placeholder.com/800", alt: targetId }],
+          media: [{ url: imageUrl, alt: targetId }],
         };
 
       case "PublisherAgent":
-        // Stub implementation
         logger.info(`[PublisherAgent] Publishing ${targetId}`);
-        return { publishedUrl: `/${targetId.replace(/ /g, "-")}` };
+        if (!context.title || !context.optimized_article) {
+          throw new Error("Missing title or article content for PublisherAgent");
+        }
+        const wpRes = await publishToWordPress({ title: context.title, article: context.optimized_article });
+        if (!wpRes || !wpRes.link) throw new Error("Failed to get published URL from WordPress");
+        return { publishedUrl: wpRes.link };
 
       case "DistributionAgent":
         logger.info(`[DistributionAgent] Distributing ${targetId}`);
-        return { distributionChannels: ["Pinterest", "Email"] };
+        if (!context.publishedUrl) throw new Error("Missing publishedUrl for DistributionAgent");
+        const pinRes = await publishToPinterest({ 
+          title: context.title || targetId, 
+          description: context.research || targetId, 
+          url: context.publishedUrl, 
+          image: context.media?.[0]?.url || "" 
+        });
+        if (!pinRes || !pinRes.id) throw new Error("Failed to get pin ID from Pinterest");
+        return { distributionChannels: ["Pinterest"], pinId: pinRes.id };
 
       case "TrackingAgent":
-        logger.info(
-          `[TrackingAgent] Attaching UTM and DB hooks for ${targetId}`,
-        );
-        return {
-          tracking_hooks: ["utm_source=autonomous", "utm_medium=engine"],
-        };
+        throw new Error("NotImplementedError");
 
       case "AnalyticsAgent":
-        logger.info(
-          `[AnalyticsAgent] Registering default baseline for ${targetId}`,
-        );
-        return { analytics_status: "baseline_secured" };
+        throw new Error("NotImplementedError");
 
       case "OptimizationAgent":
-        logger.info(
-          `[OptimizationAgent] Generating A/B testing strategy for ${targetId}`,
-        );
-        return { optimization_strategy: "A/B setup ready" };
+        throw new Error("NotImplementedError");
 
       default:
         throw new Error(`Unknown agent: ${agent}`);

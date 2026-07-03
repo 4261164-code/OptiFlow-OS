@@ -875,7 +875,7 @@ export function startSystemHardeningWorkers() {
 
   WorkerManager.registerWorker({
     name: "dailyBrainLoop",
-    intervalMs: 30_000, // Frequent check for demo
+    intervalMs: 5_400_000, // Reduced frequency to avoid quota exhaustion (90 mins)
     task: async () => { await dailyBrain(); },
     retryPolicy: { maxRetries: 3, backoffMs: 1000, backoffMultiplier: 2, maxBackoffMs: 3000 }
   });

@@ -76,7 +76,7 @@ export class WorkerManager {
       setTimeout(() => {
         JobScheduler.runNow(name).catch(e => logger.error(`[WorkerManager] Startup run failed for ${name}:`, e));
       }, delay);
-      delay += 500; // stagger by 500ms
+      delay += 5000; // stagger by 5000ms to reduce startup contention
     }
   }
 

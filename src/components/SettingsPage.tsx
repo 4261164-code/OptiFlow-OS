@@ -25,7 +25,7 @@ export function SettingsPage() {
   useEffect(() => {
     const checkAdminRole = async () => {
       if (!auth.currentUser) return;
-      if (auth.currentUser.email === '4261164@myuwc.ac.za' || localStorage.getItem('sandbox_developer_user')) {
+      if (false || localStorage.getItem('sandbox_developer_user')) {
         setIsAdmin(true);
         return;
       }
@@ -54,8 +54,8 @@ export function SettingsPage() {
       });
       // Sort: owner first, then by date descending
       list.sort((a, b) => {
-        if (a.email === '4261164@myuwc.ac.za') return -1;
-        if (b.email === '4261164@myuwc.ac.za') return 1;
+        if (a.role === 'admin') return -1;
+        if (b.role === 'admin') return 1;
         return (b.createdAt || '').localeCompare(a.createdAt || '');
       });
       setUsersList(list);
@@ -849,7 +849,7 @@ export function SettingsPage() {
                     </thead>
                     <tbody className="divide-y divide-white/5">
                       {usersList.map((usr) => {
-                        const isPrimaryOwner = usr.email === '4261164@myuwc.ac.za';
+                        const isPrimaryOwner = usr.role === 'admin';
                         const isActioning = actioningUserId === usr.id;
                         
                         return (

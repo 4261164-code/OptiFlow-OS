@@ -1,4 +1,7 @@
 import express from "express";
+import helmet from "helmet";
+import cors from "cors";
+import rateLimit from "express-rate-limit";
 import path from "path";
 import fs from "fs";
 import { createServer as createViteServer } from "vite";
@@ -16,6 +19,7 @@ import { workersRouter } from "./server/routes/api/workers";
 import { governanceRouter } from "./server/routes/api/governance";
 import { runResearchAgent, runWriterAgent, runMonetizationAgent, runPinterestAgent, runImageGenerationAgent, runAffiliateMatchAgent, runTrafficEngineAgent, runSEOLinkAgent, runSocialCopyAgent, runSEOClusterAgent, runReportDigestAgent, runExecutiveSummaryAgent, runCustomPinAgent, runDeepKeywordExplorerAgent, runCompetitorAuditAgent, runEbookCreatorAgent } from "./server/agents";
 import { getLinkedInProfile, publishToLinkedInFeed } from "./server/linkedinService";
+import { runStartupArchitectureAudit, getStartupDiagnostics } from "./server/startup";
 
 async function hasValidAIKey(userId?: string): Promise<boolean> {
   if (process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY || process.env.NVIDIA_API_KEY) return true;
@@ -35,7 +39,26 @@ async function hasValidAIKey(userId?: string): Promise<boolean> {
 }
 
 export const appPromise = (async () => {
+  await runStartupArchitectureAudit();
   const app = express();
+
+  // Baseline Hardening (Task 10)
+  app.use(helmet({
+    contentSecurityPolicy: false, // Vite Dev handles its own CSP, disable for local/sandbox if needed
+  }));
+  app.use(cors({
+    origin: process.env.NODE_ENV === 'production' 
+      ? [process.env.APP_URL || '', /https:\/\/.*\.run\.app$/] 
+      : '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
+  }));
+  
+  const globalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10000, // global high limit, specific routes have tighter limits
+    message: "Too many requests from this IP, please try again later"
+  });
+  app.use(globalLimiter);
   const PORT = 3000;
 
   app.use(express.json());
@@ -45,7 +68,7 @@ export const appPromise = (async () => {
   // Secure all API routes except public ones
   app.use("/api", (req, res, next) => {
     // Public routes
-    if (req.path === "/health" || req.path === "/postback" || req.path.startsWith("/webhooks")) {
+    if (req.path === "/health" || req.path.startsWith("/health/") || req.path === "/postback" || req.path.startsWith("/webhooks")) {
       return next();
     }
     return verifyToken(req, res, next);
@@ -149,6 +172,11 @@ export const appPromise = (async () => {
   
   app.use("/api/webhooks", postbackRouter);
   app.use("/api/maxbounty", maxbountyRouter);
+  
+  app.get("/api/startup-diagnostics", (req, res) => {
+    res.json(getStartupDiagnostics());
+  });
+
   console.log("[Server] Routers mounted.");
 
   // API constraints check

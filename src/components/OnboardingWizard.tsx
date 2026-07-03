@@ -86,7 +86,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
     "Assigning RBAC roles and claims in verification middleware...",
     "Configuring specialized sub-agents (Writer, SEO, Pinterest)...",
     "Securing self-attribution check loops and postback tracking parameters...",
-    "Injecting full administrative privileges for 4261164@myuwc.ac.za...",
+    "Injecting full administrative privileges for admin@example.com...",
     "OptiFlow Command Cockpit initialized successfully!"
   ];
 
