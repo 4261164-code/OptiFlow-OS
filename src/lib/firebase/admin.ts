@@ -51,4 +51,16 @@ export function initFirebaseAdmin() {
 // Initialize immediately so db and auth exports are available
 initFirebaseAdmin();
 
+export class DatabaseError extends Error {
+  constructor(message: string, public code?: string) {
+    super(message);
+    this.name = 'DatabaseError';
+  }
+}
+
+export function handleServerError(error: any): never {
+  console.error('[Database Server Error]:', error);
+  throw new DatabaseError(error?.message || String(error), error?.code);
+}
+
 export { db, auth, adminApp };

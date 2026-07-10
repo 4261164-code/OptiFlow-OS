@@ -15,6 +15,7 @@ export interface StartupDiagnostics {
   loadedEnvVars: string[];
   apiConnectionStatus: string;
   schedulerStatus: string;
+  errorMessage?: string;
 }
 
 let diagnostics: StartupDiagnostics = {
@@ -38,31 +39,50 @@ export async function runStartupArchitectureAudit(): Promise<void> {
   
   // 2. Validate secrets
   const requiredSecrets = ["FIREBASE_PROJECT_ID", "FIREBASE_CLIENT_EMAIL", "FIREBASE_PRIVATE_KEY"];
+  const missingSecrets: string[] = [];
   for (const secret of requiredSecrets) {
     if (!process.env[secret]) {
-      throw new Error(`[Startup Critical Error] Missing required secret: ${secret}`);
+      missingSecrets.push(secret);
     }
   }
-  diagnostics.serviceAccountLoaded = true;
-  logger.info("[Startup] Secrets validated.");
+
+  if (missingSecrets.length > 0) {
+    const errMsg = `[Startup Warn] Missing service account secrets: ${missingSecrets.join(", ")}.`;
+    logger.warn(errMsg);
+    diagnostics.errorMessage = errMsg;
+    diagnostics.serviceAccountLoaded = false;
+  } else {
+    diagnostics.serviceAccountLoaded = true;
+    logger.info("[Startup] Secrets validated.");
+  }
 
   // 3. Initialize Firebase Admin SDK
   try {
     const { adminApp } = initFirebaseAdmin();
     diagnostics.firebaseAdminInitialized = true;
-    diagnostics.projectId = adminApp.options.projectId || "";
+    diagnostics.projectId = adminApp ? (adminApp.options.projectId || "") : "";
     logger.info("[Startup] Firebase Admin SDK initialized.");
-  } catch (err) {
-    throw new Error(`[Startup Critical Error] Failed to initialize Firebase Admin: ${err instanceof Error ? err.message : String(err)}`);
+  } catch (err: any) {
+    const errMsg = `[Startup Error] Failed to initialize Firebase Admin: ${err?.message || String(err)}`;
+    logger.error(errMsg);
+    diagnostics.errorMessage = diagnostics.errorMessage ? `${diagnostics.errorMessage}\n${errMsg}` : errMsg;
+    diagnostics.firebaseAdminInitialized = false;
   }
 
   // 4. Verify Firestore connectivity
-  try {
-    await db.listCollections();
-    diagnostics.firestoreConnected = true;
-    logger.info("[Startup] Firestore connectivity verified.");
-  } catch (err) {
-    throw new Error(`[Startup Critical Error] Failed to connect to Firestore: ${err instanceof Error ? err.message : String(err)}`);
+  if (diagnostics.firebaseAdminInitialized) {
+    try {
+      await db.collection("settings").limit(1).get();
+      diagnostics.firestoreConnected = true;
+      logger.info("[Startup] Firestore connectivity verified.");
+    } catch (err: any) {
+      const errMsg = `[Startup Error] Failed to connect to Firestore: ${err?.message || String(err)}`;
+      logger.error(errMsg);
+      diagnostics.errorMessage = diagnostics.errorMessage ? `${diagnostics.errorMessage}\n${errMsg}` : errMsg;
+      diagnostics.firestoreConnected = false;
+    }
+  } else {
+    diagnostics.firestoreConnected = false;
   }
 
   // 5. Initialize integrations (placeholder, we can extend this)
@@ -81,11 +101,14 @@ export async function runStartupArchitectureAudit(): Promise<void> {
     await WorkerManager.startAll();
     diagnostics.workerStatus = "Started";
     logger.info("[Startup] WorkerManager started.");
-  } catch (err) {
-    throw new Error(`[Startup Critical Error] Failed to start WorkerManager: ${err instanceof Error ? err.message : String(err)}`);
+  } catch (err: any) {
+    const errMsg = `[Startup Error] Failed to start WorkerManager: ${err?.message || String(err)}`;
+    logger.error(errMsg);
+    diagnostics.errorMessage = diagnostics.errorMessage ? `${diagnostics.errorMessage}\n${errMsg}` : errMsg;
+    diagnostics.workerStatus = "Failed";
   }
 
-  logger.info("[Startup] Architecture audit completed successfully.");
+  logger.info("[Startup] Architecture audit completed.");
 }
 
 export function getStartupDiagnostics(): StartupDiagnostics {

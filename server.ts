@@ -39,7 +39,11 @@ async function hasValidAIKey(userId?: string): Promise<boolean> {
 }
 
 export const appPromise = (async () => {
-  await runStartupArchitectureAudit();
+  try {
+    await runStartupArchitectureAudit();
+  } catch (err) {
+    console.error("[Startup] Unexpected error during startup architecture audit:", err);
+  }
   const app = express();
 
   // Baseline Hardening (Task 10)

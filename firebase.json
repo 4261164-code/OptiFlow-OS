@@ -1,7 +1,7 @@
 {
   "firestore": [
     {
-      "database": "ai-studio-b17ddf8c-b59f-4f82-8ac3-b7bf4fcbe0ce",
+      "database": "ai-studio-optiflowos-b17ddf8c-b59f-4f82-8ac3-b7bf4fcbe0ce",
       "rules": "firestore.rules"
     }
   ],
