@@ -705,9 +705,9 @@ export const appPromise = (async () => {
           }
         }
         case 'openai': {
-          const openaiApiKey = settings?.openaiApiKey;
+          const openaiApiKey = settings?.openaiApiKey || process.env.OPENAI_API_KEY;
           if (!openaiApiKey) {
-            return res.json({ success: false, error: "OpenAI API Key is missing. Please save it first." });
+            return res.json({ success: false, error: "OpenAI API Key is missing. Please save it first or configure process.env.OPENAI_API_KEY." });
           }
           try {
             const response = await fetch("https://api.openai.com/v1/models", {
@@ -733,9 +733,9 @@ export const appPromise = (async () => {
           }
         }
         case 'nvidia': {
-          const nvidiaApiKey = settings?.nvidiaApiKey;
+          const nvidiaApiKey = settings?.nvidiaApiKey || process.env.NVIDIA_API_KEY;
           if (!nvidiaApiKey) {
-            return res.json({ success: false, error: "NVIDIA NIM API Key is missing. Please save it first." });
+            return res.json({ success: false, error: "NVIDIA NIM API Key is missing. Please save it first or configure process.env.NVIDIA_API_KEY." });
           }
           try {
             const response = await fetch("https://integrate.api.nvidia.com/v1/models", {
@@ -758,9 +758,9 @@ export const appPromise = (async () => {
           }
         }
         case 'midjourney': {
-          const midjourneyApiKey = settings?.midjourneyApiKey;
+          const midjourneyApiKey = settings?.midjourneyApiKey || process.env.MIDJOURNEY_API_KEY;
           if (!midjourneyApiKey) {
-            return res.json({ success: false, error: "Midjourney API Key is missing. Please save it first." });
+            return res.json({ success: false, error: "Midjourney API Key is missing. Please save it first or configure process.env.MIDJOURNEY_API_KEY." });
           }
           return res.json({
             success: true,
@@ -1369,6 +1369,7 @@ Details: ${JSON.stringify(err, (key, value) => key === 'apiKey' ? '***HIDDEN***'
     const { intelRouter } = await import("./server/routes/api/intel");
     const { distroRouter } = await import("./server/routes/api/distro");
     const { pipelineRouter } = await import("./server/routes/api/pipeline");
+    const { diagnosticsRouter } = await import("./server/routes/api/diagnostics");
     
     // System Agent routers
     const gscRouter = (await import("./server/routes/api/gsc")).default;
@@ -1384,6 +1385,7 @@ Details: ${JSON.stringify(err, (key, value) => key === 'apiKey' ? '***HIDDEN***'
     app.use("/api/intel", intelRouter);
     app.use("/api/distro", distroRouter);
     app.use("/api/pipeline", pipelineRouter);
+    app.use("/api/diagnostics", diagnosticsRouter);
     app.use("/api/gsc", gscRouter);
     app.use("/api/analyst", analystRouter);
     app.use("/api/orchestrator", orchestratorRouter);

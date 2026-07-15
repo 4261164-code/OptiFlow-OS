@@ -1,16 +1,13 @@
 // server/workers/agents/agentRouter.ts
 import OpenAI from "openai";
 
-// Assuming we use OpenAI per the prompt, though we have GoogleAI available.
-// If OpenAI key is absent, we can fall back to mock or handle it.
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || "dummy",
-});
-
 export async function runAgentRouter(input: any) {
   const { keyword } = input;
 
-  if (process.env.OPENAI_API_KEY) {
+  const apiKey = process.env.OPENAI_API_KEY;
+
+  if (apiKey) {
+      const openai = new OpenAI({ apiKey });
       // 1. SEO Agent (content strategy)
       const contentPlan = await openai.chat.completions.create({
         model: "gpt-4.1-mini",
