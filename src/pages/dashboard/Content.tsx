@@ -23,8 +23,8 @@ export function ContentCommand() {
             title: data.title || 'Untitled Article',
             keyword: data.keyword || '-',
             status: data.status || 'Published',
-            clicks: Math.floor(Math.random() * 500),
-            rev: '$' + (Math.floor(Math.random() * 100)),
+            clicks: data.clicks || 0,
+            rev: '$0',
             type: 'Blog Post',
             body: data.content || '<p>No content</p>',
             createdAt: data.createdAt || 0
@@ -38,8 +38,8 @@ export function ContentCommand() {
             title: data.title || 'Untitled Pin',
             keyword: data.keyword || '-',
             status: data.status || 'Published',
-            clicks: Math.floor(Math.random() * 100),
-            rev: '$' + (Math.floor(Math.random() * 20)),
+            clicks: data.clicks || 0,
+            rev: '$0',
             type: 'Social Update',
             platform: 'Pinterest',
             body: data.description || 'No description',
@@ -231,4 +231,3 @@ export function ContentCommand() {
     </div>
   );
 }
-

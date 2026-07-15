@@ -27,6 +27,7 @@ export function Overview() {
         const articlesSnap = await getDocs(query(collection(db, 'articles'), limit(100)));
         const offersSnap = await getDocs(query(collection(db, 'offers'), limit(100)));
         const postbacksSnap = await getDocs(query(collection(db, 'postbacks'), limit(100)));
+        const clicksSnap = await getDocs(query(collection(db, 'clicks'), limit(100)));
 
         let totalRev = 0;
         postbacksSnap.forEach(doc => {
@@ -36,10 +37,10 @@ export function Overview() {
         setMetrics({
           revenueToday: totalRev,
           revenueMonth: totalRev,
-          clicksToday: Math.floor(Math.random() * 50),
+          clicksToday: clicksSnap.size,
           conversionsToday: postbacksSnap.size,
           avgEpc: totalRev > 0 ? (totalRev / postbacksSnap.size).toFixed(2) as any : 0,
-          avgCtr: 2.4,
+          avgCtr: 0,
           publishedArticles: articlesSnap.size,
           activeOffers: offersSnap.size,
         });

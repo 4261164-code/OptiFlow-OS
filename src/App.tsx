@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { auth, db } from './lib/firebase';
 import { loginWithGoogle, loginAnonymously } from './lib/auth';
@@ -12,15 +12,15 @@ import { disableNetwork, enableNetwork, doc, getDoc, setDoc } from 'firebase/fir
 import { ShieldAlert, LogOut, Loader2, Key, Check } from 'lucide-react';
 
 import { AppLayout } from './components/AppLayout';
-import { Overview } from './pages/dashboard/Overview';
-import { ContentCommand } from './pages/dashboard/Content';
-import { Offers } from './pages/dashboard/Offers';
-import { Traffic } from './pages/dashboard/Traffic';
-import { Creators } from './pages/dashboard/Creators';
-import { AIBrain } from './pages/dashboard/AIBrain';
-import { Automations } from './pages/dashboard/Automations';
-import { Jobs } from './pages/dashboard/Jobs';
-import { AnalyticsLab } from './pages/dashboard/AnalyticsLab';
+const Overview = lazy(() => import('./pages/dashboard/Overview').then(module => ({ default: module.Overview })));
+const ContentCommand = lazy(() => import('./pages/dashboard/Content').then(m => ({ default: m.ContentCommand })));
+const Offers = lazy(() => import('./pages/dashboard/Offers').then(m => ({ default: m.Offers })));
+const Traffic = lazy(() => import('./pages/dashboard/Traffic').then(m => ({ default: m.Traffic })));
+const Creators = lazy(() => import('./pages/dashboard/Creators').then(m => ({ default: m.Creators })));
+const AIBrain = lazy(() => import('./pages/dashboard/AIBrain').then(m => ({ default: m.AIBrain })));
+const Automations = lazy(() => import('./pages/dashboard/Automations').then(m => ({ default: m.Automations })));
+const Jobs = lazy(() => import('./pages/dashboard/Jobs').then(m => ({ default: m.Jobs })));
+const AnalyticsLab = lazy(() => import('./pages/dashboard/AnalyticsLab').then(m => ({ default: m.AnalyticsLab })));
 import { SettingsPage } from './components/SettingsPage';
 import { StartupDiagnosticsPage } from './pages/StartupDiagnostics';
 import APILab from './pages/APILab';
@@ -301,7 +301,7 @@ export default function App() {
     <NotificationProvider>
       <ServiceHealthMonitor />
       <BrowserRouter>
-        <Routes>
+        <Suspense fallback={<div className="flex h-screen items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-gray-500" /></div>}><Routes>
           <Route element={<AppLayout />}>
             <Route path="/" element={<Overview />} />
             <Route path="/content" element={<ContentCommand />} />
@@ -318,7 +318,7 @@ export default function App() {
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
-        </Routes>
+        </Routes></Suspense>
       </BrowserRouter>
       <NotificationToast />
       <NotificationDrawer />

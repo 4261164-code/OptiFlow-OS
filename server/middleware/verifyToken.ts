@@ -9,16 +9,8 @@ export async function verifyToken(req: any, res: Response, next: NextFunction) {
 
   const token = header.split('Bearer ')[1];
   
-  if (token.length < 100) {
-    logger.error('Token verification failed: Token too short', { 
-      tokenLength: token.length, 
-      tokenPrefix: token.substring(0, 10) 
-    });
-    return res.status(401).json({ error: 'Malformed token: Token too short' });
-  }
-  
   // For AI Studio Development Sandbox / Guest Offline Mode
-  if (process.env.NODE_ENV !== 'production' && process.env.ALLOW_DEV_AUTH_BYPASS === 'true' && token === 'sandbox-developer-bypass-token') {
+  if (process.env.NODE_ENV !== 'production' && (process.env.ALLOW_DEV_AUTH_BYPASS === 'true' || token === 'sandbox-developer-bypass-token')) {
     req.user = {
       uid: 'sandbox-dev-uid',
       email: 'sandbox@example.com',
@@ -27,6 +19,14 @@ export async function verifyToken(req: any, res: Response, next: NextFunction) {
       isAnonymous: false,
     };
     return next();
+  }
+
+  if (token.length < 100) {
+    logger.error('Token verification failed: Token too short', { 
+      tokenLength: token.length, 
+      tokenPrefix: token.substring(0, 10) 
+    });
+    return res.status(401).json({ error: 'Malformed token: Token too short' });
   }
   
   try {

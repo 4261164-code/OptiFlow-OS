@@ -1,4 +1,4 @@
-import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
+import { initializeApp, getApps, cert, App, applicationDefault } from 'firebase-admin/app';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
 import { getAuth, Auth } from 'firebase-admin/auth';
 import { getAppletConfig } from './config';
@@ -10,8 +10,7 @@ let auth: Auth;
 export const hasServiceAccount = !!(
   (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) ||
   process.env.GOOGLE_APPLICATION_CREDENTIALS ||
-  process.env.K_SERVICE ||
-  process.env.AIS_BENTO
+  (process.env.K_SERVICE && !process.env.K_SERVICE.startsWith('ais-dev-') && !process.env.K_SERVICE.startsWith('ais-pre-'))
 );
 
 export function initFirebaseAdmin() {
@@ -34,6 +33,7 @@ export function initFirebaseAdmin() {
       console.log('[Firebase Admin] Initialized with Service Account Credentials.');
     } else {
       adminApp = initializeApp({
+        credential: applicationDefault(),
         projectId: config.projectId
       });
       console.warn('⚠️ Firebase Admin initialized without Service Account Credentials. Expect PERMISSION_DENIED on reads/writes if not in a service account environment.');

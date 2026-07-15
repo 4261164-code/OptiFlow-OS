@@ -50,6 +50,7 @@ export function LandingPage({ handleLogin, handleGuestLogin, handleSandboxBypass
   const [traffic, setTraffic] = useState<number>(5000);
   const [conversionRate, setConversionRate] = useState<number>(2.0);
   const [commission, setCommission] = useState<number>(45);
+  const [liftPercentage, setLiftPercentage] = useState<number>(15);
 
   // Email/Password Auth Modal States
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
@@ -90,11 +91,14 @@ export function LandingPage({ handleLogin, handleGuestLogin, handleSandboxBypass
     } catch (err: any) {
       console.error(err);
       let cleanMsg = err.message || 'Authentication failed.';
-      if (err.code === 'auth/email-already-in-use') {
+      
+      const errorCode = err.code || (err.message && err.message.includes('auth/email-already-in-use') ? 'auth/email-already-in-use' : '');
+
+      if (errorCode === 'auth/email-already-in-use' || err.message?.includes('auth/email-already-in-use')) {
         cleanMsg = 'This email is already registered. Please sign in instead.';
-      } else if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
+      } else if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found' || err.message?.includes('auth/user-not-found')) {
         cleanMsg = 'Invalid email or password. Please verify your details.';
-      } else if (err.code === 'auth/invalid-email') {
+      } else if (err.code === 'auth/invalid-email' || err.message?.includes('auth/invalid-email')) {
         cleanMsg = 'Please enter a valid email address.';
       }
       setAuthErrorLocal(cleanMsg);
@@ -159,8 +163,8 @@ export function LandingPage({ handleLogin, handleGuestLogin, handleSandboxBypass
   const baselineMonthlySales = (traffic * 30 * (conversionRate / 100));
   const baselineRevenue = baselineMonthlySales * commission;
   
-  // OptiFlow optimization boosts conversion rate by 34% relatively
-  const optimizedConversionRate = conversionRate * 1.34;
+  // OptiFlow optimization boosts conversion rate by liftPercentage relatively
+  const optimizedConversionRate = conversionRate * (1 + liftPercentage / 100);
   const optimizedMonthlySales = (traffic * 30 * (optimizedConversionRate / 100));
   const optimizedRevenue = optimizedMonthlySales * commission;
   const monthlyLift = optimizedRevenue - baselineRevenue;
@@ -185,11 +189,10 @@ export function LandingPage({ handleLogin, handleGuestLogin, handleSandboxBypass
               Sign In 🔑
             </button>
             <button 
-              onClick={handleGuestLogin}
-              disabled={guestLoading}
+              onClick={handleLogin}
               className="text-xs font-bold uppercase tracking-wider bg-[#a8ff35] hover:bg-[#baff4c] hover:scale-[1.02] active:scale-[0.98] text-black px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 shadow-[0_4px_20px_rgba(168,255,53,0.15)]"
             >
-              {guestLoading ? <Loader2 className="animate-spin" size={14} /> : "Start Building 🚀"}
+              Start Building 🚀
             </button>
           </div>
         </div>
@@ -258,7 +261,7 @@ export function LandingPage({ handleLogin, handleGuestLogin, handleSandboxBypass
                 <IconWrapper icon={ChevronRight} size={18} className="transition-transform group-hover:translate-x-1" strokeWidth={3} />
               </button>
               <button 
-                onClick={handleGuestLogin}
+                onClick={handleSandboxBypass}
                 disabled={guestLoading}
                 className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-4 bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 border border-white/10 font-bold text-base rounded-2xl transition-all hover:border-white/20 cursor-pointer"
               >
@@ -286,7 +289,7 @@ export function LandingPage({ handleLogin, handleGuestLogin, handleSandboxBypass
                 <span className="w-3 h-3 rounded-full bg-green-500/80" />
                 <div className="h-4 w-px bg-white/10 ml-2" />
                 <div className="flex items-center gap-2 font-mono text-xs text-zinc-400">
-                  <span className="text-[#a8ff35]">●</span> LIVE OPERATIONS PILOT 🤖
+                  <span className="text-[#a8ff35]">●</span> SIMULATED PREVIEW 🤖
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -337,7 +340,7 @@ export function LandingPage({ handleLogin, handleGuestLogin, handleSandboxBypass
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <span className="text-zinc-400 font-mono text-[10px] uppercase tracking-wider">Live Agent Telemetry Feed 📡</span>
-                    <span className="text-zinc-500 font-mono text-[10px]">60FPS / SECURE WEBSOCKET ACTIVE 🛡️</span>
+                    <span className="text-zinc-500 font-mono text-[10px]">SIMULATION MODE 🛡️</span>
                   </div>
                   
                   <div className="space-y-3 font-mono text-xs">
@@ -398,7 +401,7 @@ export function LandingPage({ handleLogin, handleGuestLogin, handleSandboxBypass
               Interactive ROI Simulator 💸
             </h2>
             <p className="text-zinc-400 font-light text-lg">
-              OptiFlow OS boosts typical conversion rates by <span className="text-[#a8ff35] font-semibold">34%</span> on average via automated postbacks and smart link rotation. 📈
+              OptiFlow OS boosts typical conversion rates by <span className="text-[#a8ff35] font-semibold">{liftPercentage}%</span> on average via automated postbacks and smart link rotation. 📈
             </p>
           </div>
 
@@ -485,6 +488,30 @@ export function LandingPage({ handleLogin, handleGuestLogin, handleSandboxBypass
                       <span>$250</span>
                     </div>
                   </div>
+
+                  {/* Lift Percentage Slider */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-zinc-400 font-medium">Expected Lift %</span>
+                      <span className="font-mono text-white font-bold bg-white/5 px-2.5 py-1 rounded-md">
+                        {liftPercentage}%
+                      </span>
+                    </div>
+                    <input 
+                      type="range" 
+                      min="1" 
+                      max="50" 
+                      step="1"
+                      value={liftPercentage} 
+                      onChange={(e) => setLiftPercentage(Number(e.target.value))}
+                      className="w-full accent-[#a8ff35] h-1.5 bg-zinc-800 rounded-lg cursor-pointer"
+                    />
+                    <div className="flex justify-between text-[10px] text-zinc-500 font-mono">
+                      <span>1%</span>
+                      <span>25%</span>
+                      <span>50%</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -517,7 +544,7 @@ export function LandingPage({ handleLogin, handleGuestLogin, handleSandboxBypass
 
                   <div className="p-5 rounded-2xl bg-[#a8ff35]/5 border border-[#a8ff35]/20 relative">
                     <span className="absolute top-4 right-4 text-[10px] font-mono uppercase bg-[#a8ff35] text-black font-extrabold px-2 py-0.5 rounded-full">
-                      +34% Lift
+                      +{liftPercentage}% Lift
                     </span>
                     <div className="text-[#a8ff35] text-xs font-semibold mb-1">With OptiFlow OS Enabled</div>
                     <div className="text-3xl font-extrabold text-white">
@@ -601,9 +628,12 @@ export function LandingPage({ handleLogin, handleGuestLogin, handleSandboxBypass
         </div>
       </section>
 
-      {/* Simple Stats Showcase */}
+      {/* Illustrative Stats Showcase */}
       <section className="py-20 border-y border-white/5 bg-[#06080b]">
         <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center mb-12">
+            <h3 className="text-zinc-500 font-mono text-xs uppercase tracking-[0.2em]">Illustrative Platform Metrics</h3>
+          </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-12 text-center">
             {[
               { label: 'Active Clusters Managed 📂', value: '4,289' },

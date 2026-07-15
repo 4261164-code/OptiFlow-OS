@@ -34,7 +34,7 @@ let diagnostics: StartupDiagnostics = {
 export async function runStartupArchitectureAudit(): Promise<void> {
   logger.info("[Startup] Commencing system architecture audit...");
 
-  // 1. Load environment variables (implicitly done by Node.js, we just log names)
+  // 1. Load environment variables
   diagnostics.loadedEnvVars = Object.keys(process.env).filter(key => key.startsWith('FIREBASE') || key.startsWith('GEMINI') || key.startsWith('OPENAI'));
   
   // 2. Validate secrets
@@ -56,57 +56,69 @@ export async function runStartupArchitectureAudit(): Promise<void> {
     logger.info("[Startup] Secrets validated.");
   }
 
-  // 3. Initialize Firebase Admin SDK
-  try {
-    const { adminApp } = initFirebaseAdmin();
-    diagnostics.firebaseAdminInitialized = true;
-    diagnostics.projectId = adminApp ? (adminApp.options.projectId || "") : "";
-    logger.info("[Startup] Firebase Admin SDK initialized.");
-  } catch (err: any) {
-    const errMsg = `[Startup Error] Failed to initialize Firebase Admin: ${err?.message || String(err)}`;
-    logger.error(errMsg);
-    diagnostics.errorMessage = diagnostics.errorMessage ? `${diagnostics.errorMessage}\n${errMsg}` : errMsg;
-    diagnostics.firebaseAdminInitialized = false;
-  }
+  // Define parallelizable tasks
+  const tasks = [];
 
-  // 4. Verify Firestore connectivity
-  if (diagnostics.firebaseAdminInitialized) {
+  // 3. Initialize Firebase Admin SDK
+  tasks.push((async () => {
     try {
-      await db.collection("settings").limit(1).get();
-      diagnostics.firestoreConnected = true;
-      logger.info("[Startup] Firestore connectivity verified.");
+      const { adminApp } = initFirebaseAdmin();
+      diagnostics.firebaseAdminInitialized = true;
+      diagnostics.projectId = adminApp ? (adminApp.options.projectId || "") : "";
+      logger.info("[Startup] Firebase Admin SDK initialized.");
+      
+      // 4. Verify Firestore connectivity (depends on Firebase initialization)
+      try {
+        await db.collection("settings").limit(1).get();
+        diagnostics.firestoreConnected = true;
+        logger.info("[Startup] Firestore connectivity verified.");
+      } catch (err: any) {
+        const errMsg = `[Startup Error] Failed to connect to Firestore: ${err?.message || String(err)}`;
+        logger.error(errMsg);
+        diagnostics.errorMessage = diagnostics.errorMessage ? `${diagnostics.errorMessage}\n${errMsg}` : errMsg;
+        diagnostics.firestoreConnected = false;
+      }
     } catch (err: any) {
-      const errMsg = `[Startup Error] Failed to connect to Firestore: ${err?.message || String(err)}`;
+      const errMsg = `[Startup Error] Failed to initialize Firebase Admin: ${err?.message || String(err)}`;
       logger.error(errMsg);
       diagnostics.errorMessage = diagnostics.errorMessage ? `${diagnostics.errorMessage}\n${errMsg}` : errMsg;
+      diagnostics.firebaseAdminInitialized = false;
       diagnostics.firestoreConnected = false;
     }
-  } else {
-    diagnostics.firestoreConnected = false;
-  }
+  })());
 
-  // 5. Initialize integrations (placeholder, we can extend this)
-  diagnostics.apiConnectionStatus = "Verified";
+  // 5. Initialize integrations
+  tasks.push((async () => {
+    diagnostics.apiConnectionStatus = "Verified";
+  })());
 
   // 6. Initialize LockManager
-  diagnostics.lockManagerStatus = "Initialized";
-  logger.info("[Startup] LockManager initialized.");
+  tasks.push((async () => {
+    diagnostics.lockManagerStatus = "Initialized";
+    logger.info("[Startup] LockManager initialized.");
+  })());
 
   // 7. Initialize Job Scheduler
-  diagnostics.schedulerStatus = "Initialized";
-  logger.info("[Startup] Job Scheduler initialized.");
+  tasks.push((async () => {
+    diagnostics.schedulerStatus = "Initialized";
+    logger.info("[Startup] Job Scheduler initialized.");
+  })());
 
   // 8. Start WorkerManager (MUST be last)
-  try {
-    await WorkerManager.startAll();
-    diagnostics.workerStatus = "Started";
-    logger.info("[Startup] WorkerManager started.");
-  } catch (err: any) {
-    const errMsg = `[Startup Error] Failed to start WorkerManager: ${err?.message || String(err)}`;
-    logger.error(errMsg);
-    diagnostics.errorMessage = diagnostics.errorMessage ? `${diagnostics.errorMessage}\n${errMsg}` : errMsg;
-    diagnostics.workerStatus = "Failed";
-  }
+  tasks.push((async () => {
+    try {
+      await WorkerManager.startAll();
+      diagnostics.workerStatus = "Started";
+      logger.info("[Startup] WorkerManager started.");
+    } catch (err: any) {
+      const errMsg = `[Startup Error] Failed to start WorkerManager: ${err?.message || String(err)}`;
+      logger.error(errMsg);
+      diagnostics.errorMessage = diagnostics.errorMessage ? `${diagnostics.errorMessage}\n${errMsg}` : errMsg;
+      diagnostics.workerStatus = "Failed";
+    }
+  })());
+
+  await Promise.all(tasks);
 
   logger.info("[Startup] Architecture audit completed.");
 }

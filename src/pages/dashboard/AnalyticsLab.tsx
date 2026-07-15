@@ -7,31 +7,30 @@ import autoTable from 'jspdf-autotable';
 export function AnalyticsLab() {
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const keywordData = [
-    { name: 'survey apps', searches: 15000, pos: 3, convRate: 2.1 },
-    { name: 'make money online', searches: 45000, pos: 12, convRate: 0.5 },
-    { name: 'best ai writers', searches: 8000, pos: 2, convRate: 4.5 },
-  ];
+  const [keywordData, setKeywordData] = useState<any[]>([]);
+  const [trendData, setTrendData] = useState<any[]>([]);
+  const [heatmapData, setHeatmapData] = useState<number[][]>(Array(7).fill(Array(24).fill(0)));
+  
+  React.useEffect(() => {
+    async function fetchData() {
+      try {
+        const res = await fetch('/api/analytics/lab');
+        if (res.ok) {
+          const data = await res.json();
+          setKeywordData(data.keywordData || []);
+          setTrendData(data.trendData || []);
+          if (data.heatmapData) setHeatmapData(data.heatmapData);
+        }
+      } catch (e) {
+        console.error("Failed to fetch analytics data", e);
+      }
+    }
+    fetchData();
+  }, []);
 
-  const trendData = [
-    { name: 'Jan', clicks: 4000, rev: 2400 },
-    { name: 'Feb', clicks: 3000, rev: 1398 },
-    { name: 'Mar', clicks: 2000, rev: 9800 },
-    { name: 'Apr', clicks: 2780, rev: 3908 },
-    { name: 'May', clicks: 1890, rev: 4800 },
-    { name: 'Jun', clicks: 2390, rev: 3800 },
-    { name: 'Jul', clicks: 3490, rev: 4300 },
-  ];
+  
 
-  const heatmapData = Array.from({ length: 7 }, (_, day) => 
-    Array.from({ length: 24 }, (_, hour) => {
-      // Simulate peak hours between 10am and 4pm, and 7pm to 10pm
-      let intensity = Math.random() * 20;
-      if (hour >= 10 && hour <= 16) intensity += Math.random() * 50 + 30;
-      if (hour >= 19 && hour <= 22) intensity += Math.random() * 40 + 20;
-      return intensity;
-    })
-  );
+  
 
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 

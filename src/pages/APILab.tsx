@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Activity, Play, CheckCircle, XCircle, Clock, Server } from 'lucide-react';
 import { motion } from 'motion/react';
+import { auth } from '../lib/firebase';
 
 export default function APILab() {
   const [selectedRoute, setSelectedRoute] = useState('/api/health');
@@ -52,7 +53,6 @@ export default function APILab() {
       }
 
       
-      const { auth } = await import('../lib/firebase');
       const token = await auth.currentUser?.getIdToken();
       if (token) {
         options.headers = {

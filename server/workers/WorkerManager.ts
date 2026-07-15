@@ -3,7 +3,7 @@ import { HealthManager } from "./HealthManager";
 import { JobScheduler } from "./JobScheduler";
 import { RetryFramework, RetryPolicy } from "./RetryFramework";
 import { LockManager } from "../lib/lockManager";
-import { db } from "../firebaseAdmin";
+import { db, hasServiceAccount } from "../firebaseAdmin";
 
 export interface WorkerDefinition {
   name: string;
@@ -26,6 +26,11 @@ export class WorkerManager {
     HealthManager.initializeWorker(worker.name);
 
     JobScheduler.schedule(worker.name, worker.intervalMs, async () => {
+      if (!hasServiceAccount) {
+         // Silently skip if there are no backend credentials to avoid spamming the console with PERMISSION_DENIED.
+         return;
+      }
+
       try {
         const settingsSnap = await db.collection("settings").where("maintenanceMode", "==", true).limit(1).get();
         if (!settingsSnap.empty) {
