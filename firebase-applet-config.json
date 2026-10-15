@@ -6,5 +6,7 @@
   "firestoreDatabaseId": "ai-studio-optiflowos-b17ddf8c-b59f-4f82-8ac3-b7bf4fcbe0ce",
   "storageBucket": "earn-pulse-51df9.firebasestorage.app",
   "messagingSenderId": "573812197531",
-  "measurementId": ""
+  "measurementId": "",
+  "oAuthClientId": "573812197531-e1t3ts6obtv53vsuut3t40amaqk98bs9.apps.googleusercontent.com",
+  "recaptchaSiteKey": ""
 }

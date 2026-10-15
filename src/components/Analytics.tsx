@@ -17,6 +17,7 @@ import {
   Target
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { LiveTrafficPulse } from './analytics/LiveTrafficPulse';
 
 export function Analytics() {
   const [articles, setArticles] = useState<Article[]>([]);
@@ -119,6 +120,11 @@ export function Analytics() {
             <p className="text-xs text-zinc-500 mt-2 font-mono">Confirmed network actions</p>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Real-time Telemetry & In-flight Traffic Pulse */}
+      <div className="mb-6">
+        <LiveTrafficPulse />
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">

@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { db } from "../../firebaseAdmin";
+import { telemetryHub } from "../../services/telemetryStream";
 
 const router = Router();
 
@@ -104,5 +105,51 @@ router.get("/lab", async (req: any, res) => {
   }
 });
 
+// GET /api/analytics/live-recent - Returns latest in-flight events
+router.get("/live-recent", (req, res) => {
+  return res.json({
+    success: true,
+    events: telemetryHub.getRecentEvents(),
+  });
+});
+
+// GET /api/analytics/live-pulse - Server-Sent Events real-time stream
+router.get("/live-pulse", (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders?.();
+
+  const onEvent = (data: any) => {
+    res.write(`data: ${JSON.stringify(data)}\n\n`);
+  };
+
+  telemetryHub.on("telemetry", onEvent);
+
+  res.write(`data: ${JSON.stringify({ type: "connected", timestamp: Date.now() })}\n\n`);
+
+  req.on("close", () => {
+    telemetryHub.off("telemetry", onEvent);
+    res.end();
+  });
+});
+
+// POST /api/analytics/simulate-traffic - Emit test traffic event for testing
+router.post("/simulate-traffic", (req, res) => {
+  const { type = "click", offerName = "NordVPN High-Yield CPA", country = "US", payout = 45 } = req.body;
+  const evt = telemetryHub.recordEvent({
+    type: type as any,
+    timestamp: Date.now(),
+    offerName,
+    source: "direct_simulation",
+    country,
+    device: "mobile",
+    payout: type === "conversion" ? payout : undefined,
+    latencyMs: 16,
+  });
+  return res.json({ success: true, event: evt });
+});
+
 export default router;
+
 

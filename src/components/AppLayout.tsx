@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { Plus, LogOut, Lock, Search, Bell, Network, Brain, Activity, Shield, Book, MessageSquare, X, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, TrendingUp, AlertTriangle } from "lucide-react";
+import { Plus, LogOut, Lock, Search, Bell, Network, Brain, Activity, Shield, Book, MessageSquare, X, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, TrendingUp, AlertTriangle, Sparkles, Crown } from "lucide-react";
 import { cn } from "../lib/utils";
 import { Button } from "./ui";
 import { logout } from "../lib/auth";
@@ -12,6 +12,7 @@ import { Logo } from "./Logo";
 import { IconWrapper } from './ui/IconWrapper';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
+import { BillingModal } from "./billing/BillingModal";
 import {
   DashboardIcon,
   CampaignIcon,
@@ -53,6 +54,14 @@ export function AppLayout() {
       }
     });
     return () => unsubscribe();
+  }, []);
+
+  const [isBillingOpen, setIsBillingOpen] = useState(false);
+
+  useEffect(() => {
+    const handleOpenBilling = () => setIsBillingOpen(true);
+    window.addEventListener('open-billing-modal', handleOpenBilling);
+    return () => window.removeEventListener('open-billing-modal', handleOpenBilling);
   }, []);
 
   const navigationCategories = [
@@ -175,11 +184,23 @@ export function AppLayout() {
              })}
           </nav>
 
-          <div className="px-4 mt-auto pt-3 border-t border-white/5">
+          <div className="px-4 mt-auto pt-3 border-t border-white/5 space-y-1">
               <Button 
                 variant="ghost" 
                 className={cn(
-                  "w-full text-zinc-400 hover:text-red-400 hover:bg-red-500/5 text-xs py-3 rounded-xl transition-all",
+                  "w-full text-[#d7f941] hover:bg-[#d7f941]/10 text-xs py-2.5 rounded-xl transition-all cursor-pointer font-bold",
+                  isSidebarCollapsed ? "justify-center px-0" : "justify-start px-4"
+                )} 
+                onClick={() => window.dispatchEvent(new CustomEvent('open-onboarding-wizard'))}
+                title="Launch Setup & Onboarding Tour"
+              >
+                <Sparkles className={cn("h-4 w-4 text-[#d7f941]", !isSidebarCollapsed && "mr-3")} /> 
+                {!isSidebarCollapsed && "Setup Tour"}
+              </Button>
+              <Button 
+                variant="ghost" 
+                className={cn(
+                  "w-full text-zinc-400 hover:text-red-400 hover:bg-red-500/5 text-xs py-2.5 rounded-xl transition-all",
                   isSidebarCollapsed ? "justify-center px-0" : "justify-start px-4"
                 )} 
                 onClick={logout}
@@ -216,10 +237,21 @@ export function AppLayout() {
         <div className="h-20 hidden md:flex items-center justify-between px-10 relative z-40 bg-zinc-950/20 border-b border-white/5">
            {/* Top floating header area for search/profile */}
            <div className="flex-1"></div>
-           <div className="flex items-center space-x-5">
-              <div className="h-10 w-64 bg-[#0B1017] rounded-full border border-white/5 flex items-center px-4 shadow-[0_4px_24px_rgba(0,0,0,0.15)]">
+           <div className="flex items-center space-x-4">
+              {/* Premium Tier Indicator Pill */}
+              <button
+                onClick={() => setIsBillingOpen(true)}
+                className="h-9 px-3.5 rounded-full bg-gradient-to-r from-[#a8ff35]/15 to-emerald-500/10 border border-[#a8ff35]/30 hover:border-[#a8ff35]/60 text-xs font-mono font-bold text-[#a8ff35] flex items-center gap-1.5 transition-all shadow-[0_0_15px_rgba(168,255,53,0.1)] hover:scale-105 cursor-pointer"
+                title="Manage Subscription & Quotas"
+              >
+                <Crown size={13} className="text-[#a8ff35]" />
+                <span>GROWTH FLEET</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-[#a8ff35] animate-pulse" />
+              </button>
+
+              <div className="h-10 w-60 bg-[#0B1017] rounded-full border border-white/5 flex items-center px-4 shadow-[0_4px_24px_rgba(0,0,0,0.15)]">
                  <Search className="w-3.5 h-3.5 text-zinc-500 mr-2.5" />
-                 <span className="text-zinc-500 text-xs font-mono">Enterprise intelligence query...</span>
+                 <span className="text-zinc-500 text-xs font-mono">Enterprise intelligence...</span>
               </div>
               <button 
                 onClick={() => setIsAIChatOpen(true)}
@@ -300,6 +332,9 @@ export function AppLayout() {
           </>
         )}
       </AnimatePresence>
+
+      {/* Global Billing & Subscription Modal */}
+      <BillingModal isOpen={isBillingOpen} onClose={() => setIsBillingOpen(false)} />
     </div>
   );
 }

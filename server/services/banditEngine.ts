@@ -2,10 +2,11 @@ import { logger } from "../lib/logger";
 import { db } from "../firebaseAdmin";
 
 /**
- * Contextual Multi-Armed Bandits (CMAB) System using Thompson Sampling
+ * Contextual Multi-Armed Bandits (CMAB) System using Thompson Sampling & Epsilon Exploration
  * 
- * Replaces Q-learning with a production-grade selection algorithm commonly
- * used in ad-tech networks. Modulates Beta distribution per context.
+ * Production-grade selection algorithm used in high-frequency ad-tech networks.
+ * Uses O(1) Gamma-based Beta distribution sampling with empirical Bayes prior smoothing
+ * to prevent small-sample distortion and infinite exploration lockouts.
  */
 
 export interface TrafficContext {
@@ -22,33 +23,65 @@ export interface BanditOfferArm {
   beta: number;  // failures + 1
 }
 
-// Memory cache for Beta distributions to save DB reads (in real prod, this is Redis/Memcached)
+// Memory cache for Beta distributions to save DB reads (Redis/Memory fallback)
 const contextBetaCache = new Map<string, BanditOfferArm[]>();
 
-// Simple function to generate beta distribution sample using an approximation
-function sampleBeta(alpha: number, beta: number): number {
-  // Simple Beta distribution generator using uniform randoms
-  let sumX = 0;
-  for (let i = 0; i < alpha; i++) sumX += -Math.log(1 - Math.random());
-  
-  let sumY = 0;
-  for (let i = 0; i < beta; i++) sumY += -Math.log(1 - Math.random());
-  
-  return sumX / (sumX + sumY);
+/**
+ * O(1) Marsaglia-Tsang Gamma random generator
+ */
+function sampleGamma(shape: number): number {
+  if (shape < 1) {
+    return sampleGamma(shape + 1) * Math.pow(Math.random(), 1 / Math.max(shape, 0.001));
+  }
+  const d = shape - 1 / 3;
+  const c = 1 / Math.sqrt(9 * d);
+  while (true) {
+    let u1 = Math.random();
+    let u2 = Math.random();
+    // Box-Muller for standard normal
+    let z = Math.sqrt(-2.0 * Math.log(Math.max(u1, 1e-10))) * Math.cos(2.0 * Math.PI * u2);
+    let v = 1 + c * z;
+    if (v <= 0) continue;
+    v = v * v * v;
+    let u = Math.random();
+    if (u < 1 - 0.0331 * z * z * z * z) return d * v;
+    if (Math.log(Math.max(u, 1e-10)) < 0.5 * z * z + d * (1 - v + Math.log(v))) return d * v;
+  }
+}
+
+/**
+ * O(1) Beta distribution generator using ratio of Gamma variates
+ */
+export function sampleBeta(alpha: number, beta: number): number {
+  const safeAlpha = Math.max(0.1, alpha);
+  const safeBeta = Math.max(0.1, beta);
+  const x = sampleGamma(safeAlpha);
+  const y = sampleGamma(safeBeta);
+  if (x + y <= 0) return 0.5;
+  return x / (x + y);
 }
 
 export class BanditEngine {
   /**
    * Generates a unique context key (hash/string)
    */
-  private static getContextKey(context: TrafficContext): string {
-    return `${context.geo}_${context.device}_${context.trafficSource}_${context.timeOfDay}`;
+  static getContextKey(context: TrafficContext): string {
+    const geo = (context.geo || "US").toUpperCase();
+    const device = (context.device || "desktop").toLowerCase();
+    const source = (context.trafficSource || "direct").toLowerCase();
+    const time = context.timeOfDay || "day";
+    return `${geo}_${device}_${source}_${time}`;
   }
 
   /**
    * Fetch Beta distribution parameters for all available arms (offers)
    */
-  private static async getArmsData(userId: string, contextKey: string, availableOffers: string[], defaultPayouts: Record<string, number> = {}): Promise<BanditOfferArm[]> {
+  private static async getArmsData(
+    userId: string, 
+    contextKey: string, 
+    availableOffers: string[], 
+    defaultPayouts: Record<string, number> = {}
+  ): Promise<BanditOfferArm[]> {
     const cacheKey = `${userId}_${contextKey}`;
     if (contextBetaCache.has(cacheKey)) {
       return contextBetaCache.get(cacheKey)!;
@@ -56,43 +89,76 @@ export class BanditEngine {
 
     const arms: BanditOfferArm[] = [];
     const banditRef = db.collection(`users/${userId}/bandit_models`);
-    const doc = await banditRef.doc(contextKey).get();
+    let doc: any = null;
+    try {
+      doc = await banditRef.doc(contextKey).get();
+    } catch (err) {
+      // Graceful fallback to uninitialized priors
+    }
     
     let dbArms: Record<string, { alpha: number, beta: number, payout: number }> = {};
-    if (doc.exists) {
+    if (doc && doc.exists) {
       dbArms = doc.data()?.arms || {};
     }
 
     for (const offerId of availableOffers) {
-      // Default to 1, 1 for uninitialized arms (uniform prior)
+      // Default to alpha=2, beta=18 (10% prior conversion rate with modest strength)
+      // to avoid small sample spikes where 1 conversion / 1 click yields 100% CTR
       if (dbArms[offerId]) {
-        arms.push({ offerId, payout: dbArms[offerId].payout, alpha: dbArms[offerId].alpha, beta: dbArms[offerId].beta });
+        arms.push({ 
+          offerId, 
+          payout: dbArms[offerId].payout || defaultPayouts[offerId] || 10, 
+          alpha: Math.max(1, dbArms[offerId].alpha), 
+          beta: Math.max(1, dbArms[offerId].beta) 
+        });
       } else {
-        arms.push({ offerId, payout: (defaultPayouts && defaultPayouts[offerId]) ? defaultPayouts[offerId] : 10, alpha: 1, beta: 1 });
+        arms.push({ 
+          offerId, 
+          payout: defaultPayouts[offerId] || 10, 
+          alpha: 2, 
+          beta: 18 
+        });
       }
     }
 
-    // Cache to prevent firestore read burst
     contextBetaCache.set(cacheKey, arms);
     return arms;
   }
 
   /**
-   * Core Selection Algorithm
+   * Core Selection Algorithm: 90% Thompson Sampling (Exploit/Optimal Expected Revenue),
+   * 10% Epsilon Exploration (Challenger testing)
    */
   static async selectOffer(userId: string, context: TrafficContext, availableOffers: string[]): Promise<string> {
+    if (!availableOffers || availableOffers.length === 0) {
+      return "";
+    }
+    if (availableOffers.length === 1) {
+      return availableOffers[0];
+    }
+
+    // 10% Epsilon Exploration: pick a random alternative offer to guarantee continuous discovery
+    if (Math.random() < 0.10) {
+      const randomIndex = Math.floor(Math.random() * availableOffers.length);
+      return availableOffers[randomIndex];
+    }
+
     const defaultPayouts: Record<string, number> = {};
-    const offersSnap = await db.collection("offers").where("__name__", "in", availableOffers).get();
-    offersSnap.forEach(doc => defaultPayouts[doc.id] = doc.data().payout || 10);
+    try {
+      const offersSnap = await db.collection("offers").where("__name__", "in", availableOffers.slice(0, 30)).get();
+      offersSnap.forEach(doc => defaultPayouts[doc.id] = doc.data().payout || 10);
+    } catch (e) {
+      // Continue with default payouts
+    }
 
     const contextKey = this.getContextKey(context);
     const arms = await this.getArmsData(userId, contextKey, availableOffers, defaultPayouts);
 
-    let bestOffer = availableOffers[0] || "";
+    let bestOffer = availableOffers[0];
     let maxExpectedRevenue = -1;
 
     for (const arm of arms) {
-      // Sample conversion probability from Beta distribution
+      // Sample conversion probability from Beta distribution in O(1)
       const pConv = sampleBeta(arm.alpha, arm.beta);
       // Expected Revenue = P(convert) * payout
       const expectedRevenue = pConv * arm.payout;
@@ -107,9 +173,15 @@ export class BanditEngine {
   }
 
   /**
-   * Reward Update System - call this upon conversion or failure
+   * Reward Update System - updates Bayesian Beta priors upon conversion or click
    */
-  static async updateReward(userId: string, context: TrafficContext, offerId: string, payout: number, converted: boolean): Promise<void> {
+  static async updateReward(
+    userId: string, 
+    context: TrafficContext, 
+    offerId: string, 
+    payout: number, 
+    converted: boolean
+  ): Promise<void> {
     const contextKey = this.getContextKey(context);
     const cacheKey = `${userId}_${contextKey}`;
     
@@ -119,28 +191,29 @@ export class BanditEngine {
     if (arm) {
       if (converted) arm.alpha += 1;
       else arm.beta += 1;
-      arm.payout = payout; // update to latest actual payout
+      if (payout > 0) arm.payout = payout;
     } else if (converted) {
-      arms.push({ offerId, alpha: 2, beta: 1, payout });
+      arms.push({ offerId, alpha: 3, beta: 18, payout: payout || 10 });
     } else {
-      arms.push({ offerId, alpha: 1, beta: 2, payout });
+      arms.push({ offerId, alpha: 2, beta: 19, payout: payout || 10 });
     }
     contextBetaCache.set(cacheKey, arms);
 
     // Persist to DB asynchronously
-    const docRef = db.collection(`users/${userId}/bandit_models`).doc(contextKey);
-    // Format for firestore doc structure
-    const dbData: Record<string, any> = {};
-    arms.forEach(a => {
-      dbData[a.offerId] = { alpha: a.alpha, beta: a.beta, payout: a.payout };
-    });
+    try {
+      const docRef = db.collection(`users/${userId}/bandit_models`).doc(contextKey);
+      const dbData: Record<string, any> = {};
+      arms.forEach(a => {
+        dbData[a.offerId] = { alpha: a.alpha, beta: a.beta, payout: a.payout };
+      });
 
-    await docRef.set({
-      contextKey,
-      updatedAt: Date.now(),
-      arms: dbData
-    }, { merge: true }).catch(err => {
-      logger.error("[BanditEngine] Error persisting bandit model reward", err);
-    });
+      await docRef.set({
+        contextKey,
+        updatedAt: Date.now(),
+        arms: dbData
+      }, { merge: true });
+    } catch (err: any) {
+      logger.error("[BanditEngine] Error persisting bandit model reward", err.message);
+    }
   }
 }

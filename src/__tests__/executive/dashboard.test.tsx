@@ -105,9 +105,6 @@ describe("Executive Dashboard Tests", () => {
         });
         
         render(<ExecutiveDashboard />);
-        const toggleBtn = screen.getByRole("button", { name: "" }); // the icon button has no standard name, let's find by class or just the only button in header.
-
-        // Wait... query via selector
         const toggle = document.querySelector('header button');
         fireEvent.click(toggle!);
 

@@ -39,28 +39,56 @@ goRouter.get("/smart/:userId", async (req, res) => {
         };
 
         // Get user's active offers to choose from
-        const userOffersSnap = await db.collection("offers").where("userId", "==", userId).limit(10).get();
+        const userOffersSnap = await db.collection("offers").where("userId", "==", userId).limit(25).get();
         if (userOffersSnap.empty) {
             return res.redirect(302, "/");
         }
         
-        const availableOffers = userOffersSnap.docs.map(doc => doc.id);
+        // Filter out any disabled or paused offers
+        const activeDocs = userOffersSnap.docs.filter(doc => {
+            const data = doc.data();
+            return data.active !== false && data.status !== "inactive" && data.status !== "paused";
+        });
+
+        if (activeDocs.length === 0) {
+            logger.warn(`[Smart Route] No active non-paused offers for user: ${userId}`);
+            return res.redirect(302, "/");
+        }
+        
+        const availableOffers = activeDocs.map(doc => doc.id);
         
         // Bandit RL system chooses the best offer for this specific traffic context
         const selectedOfferId = await BanditEngine.selectOffer(userId, context, availableOffers);
         
         const offerSnap = await db.collection("offers").doc(selectedOfferId).get();
-        const destinationUrl = offerSnap.data()?.link || "/";
+        const offerData = offerSnap.data();
+        let destinationUrl = offerData?.link;
         
-        const clickId = await processClick(selectedOfferId, undefined, source, userAgent, ip, referer, undefined);
+        if (!destinationUrl || !destinationUrl.startsWith("https://")) {
+            logger.error(`[Smart Route] Selected offer ${selectedOfferId} has non-HTTPS or missing destination URL: ${destinationUrl}`);
+            return res.redirect(302, "/");
+        }
+        
+        const countryHeader = req.headers['cf-ipcountry'] || req.headers['x-country-code'] || req.headers['x-geo-country'];
+        const clickId = (countryHeader)
+            ? await processClick(selectedOfferId, undefined, source, userAgent, ip, referer, undefined, countryHeader)
+            : await processClick(selectedOfferId, undefined, source, userAgent, ip, referer);
         
         let finalDestinationUrl = destinationUrl;
-        try {
-            const urlObj = new URL(finalDestinationUrl);
-            urlObj.searchParams.set("s1", clickId);
-            finalDestinationUrl = urlObj.toString();
-        } catch(e) {
-            // ignore
+        if (finalDestinationUrl.includes("#SUBID#")) {
+            finalDestinationUrl = finalDestinationUrl.replace(/#SUBID#/g, clickId);
+        } else if (finalDestinationUrl.includes("{clickid}")) {
+            finalDestinationUrl = finalDestinationUrl.replace(/{clickid}/g, clickId);
+        } else if (finalDestinationUrl.includes("{subid}")) {
+            finalDestinationUrl = finalDestinationUrl.replace(/{subid}/g, clickId);
+        } else if (offerData?.subIdParam) {
+            try {
+                const urlObj = new URL(finalDestinationUrl);
+                urlObj.searchParams.set(offerData.subIdParam, clickId);
+                finalDestinationUrl = urlObj.toString();
+            } catch(e) {
+                // ignore
+            }
         }
         
         // Optimistically apply a negative reward (failure/click). If it converts later, postback updates with a positive reward.
@@ -97,6 +125,11 @@ goRouter.get("/:offerId", async (req, res) => {
         }
 
         const offerData = offerSnap.data();
+        if (offerData?.active === false || offerData?.status === "inactive" || offerData?.status === "paused") {
+            logger.warn(JSON.stringify({ event: "click_error", offerId, errorMessage: "Offer is inactive or paused" }));
+            return res.redirect(302, "/");
+        }
+
         destinationUrl = offerData?.link;
 
         if (!destinationUrl || !destinationUrl.startsWith("https://")) {
@@ -104,15 +137,26 @@ goRouter.get("/:offerId", async (req, res) => {
             return res.redirect(302, "/");
         }
 
-        clickId = await processClick(offerId, articleId, source, userAgent, ip, referer, pinId);
+        const countryHeader = req.headers['cf-ipcountry'] || req.headers['x-country-code'] || req.headers['x-geo-country'];
+        clickId = (pinId || countryHeader)
+            ? await processClick(offerId, articleId, source, userAgent, ip, referer, pinId, countryHeader)
+            : await processClick(offerId, articleId, source, userAgent, ip, referer);
 
-        // Inject SubID tracking parameter (s1 for MaxBounty/general network routing)
-        try {
-            const urlObj = new URL(destinationUrl);
-            urlObj.searchParams.set("s1", clickId);
-            destinationUrl = urlObj.toString();
-        } catch(urlErr) {
-            logger.warn(`Could not parse destinationUrl for SubID injection: ${destinationUrl}`);
+        // Inject SubID tracking parameter when offer link uses standard placeholders or subIdParam
+        if (destinationUrl.includes("#SUBID#")) {
+            destinationUrl = destinationUrl.replace(/#SUBID#/g, clickId);
+        } else if (destinationUrl.includes("{clickid}")) {
+            destinationUrl = destinationUrl.replace(/{clickid}/g, clickId);
+        } else if (destinationUrl.includes("{subid}")) {
+            destinationUrl = destinationUrl.replace(/{subid}/g, clickId);
+        } else if (offerData?.subIdParam) {
+            try {
+                const urlObj = new URL(destinationUrl);
+                urlObj.searchParams.set(offerData.subIdParam, clickId);
+                destinationUrl = urlObj.toString();
+            } catch(urlErr) {
+                logger.warn(`Could not parse destinationUrl for SubID injection: ${destinationUrl}`);
+            }
         }
 
     } catch (e: any) {

@@ -1,8 +1,218 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (request.auth.token.role == 'admin' || request.auth.token.admin == true);
+    }
+
+    function isDocumentOwner() {
+      return isAuthenticated() && 
+        (resource == null || resource.data.userId == request.auth.uid);
+    }
+
+    // User profiles: Users can read own profile; clients cannot self-modify privileged billing or financial claims
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && 
+        !request.resource.data.keys().hasAny(['subscription', 'subscriptionTier', 'stripeCustomerId', 'role', 'isAdmin', 'balance']);
+      allow update: if (isOwner(userId) && 
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['subscription', 'subscriptionTier', 'stripeCustomerId', 'stripeSubscriptionId', 'role', 'isAdmin', 'balance', 'lifetimeEarned'])) || isAdmin();
+      allow delete: if isAdmin();
+      
+      // User bandit models subcollection
+      match /bandit_models/{modelId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow write: if false; // Server-managed via Admin SDK
+      }
+    }
+
+    // User private API keys & settings
+    match /user_settings/{userId} {
+      allow read, write: if isOwner(userId) || isAdmin();
+    }
+
+    // User content & workflow collections
+    match /articles/{articleId} {
+      allow read: if isDocumentOwner() || isAdmin();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isDocumentOwner() || isAdmin();
+    }
+
+    match /pins/{pinId} {
+      allow read: if isDocumentOwner() || isAdmin();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isDocumentOwner() || isAdmin();
+    }
+
+    match /jobs/{jobId} {
+      allow read: if isDocumentOwner() || isAdmin();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isDocumentOwner() || isAdmin();
+    }
+
+    match /campaigns/{campaignId} {
+      allow read: if isDocumentOwner() || isAdmin();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isDocumentOwner() || isAdmin();
+    }
+
+    match /offers/{offerId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isDocumentOwner() || isAdmin();
+    }
+
+    match /topic_clusters/{clusterId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /cluster_nodes/{nodeId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /strategic_memory/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /ceo_targets/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /agent_nodes/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /webops_patches/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /webops_seo_logs/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /profit_metrics/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if false;
+    }
+
+    match /keywords/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /automationLogs/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /agent_logs/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /ebooks/{docId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /system_health_metrics/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if false;
+    }
+
+    match /system_faults/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if false;
+    }
+
+    match /notifications/{notifId} {
+      allow read: if isDocumentOwner() || isAdmin();
+      allow create, update: if isDocumentOwner() || isAdmin();
+      allow delete: if isDocumentOwner() || isAdmin();
+    }
+
+    match /tracking_links/{linkId} {
+      allow read: if isDocumentOwner() || isAdmin();
+      allow create, update: if isAuthenticated();
+    }
+
+    // Financial & Telemetry Collections: CLIENT READ-ONLY, SERVER WRITE ONLY
+    match /affiliate_conversions/{convId} {
+      allow read: if isDocumentOwner() || isAdmin();
+      allow write: if false; // Only server (Firebase Admin) can persist verified postbacks
+    }
+
+    match /affiliate_clicks/{clickId} {
+      allow read: if isDocumentOwner() || isAdmin();
+      allow write: if false; // Only server can write clicks
+    }
+
+    match /revenue_metrics/{metricId} {
+      allow read: if isDocumentOwner() || isAdmin();
+      allow write: if false; // Only server can write revenue rollups
+    }
+
+    match /revenue_events/{eventId} {
+      allow read: if isDocumentOwner() || isAdmin();
+      allow write: if false; // Only server can write revenue events
+    }
+
+    match /daily_metrics/{metricId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Server aggregated only
+    }
+
+    match /article_metrics/{metricId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Server aggregated only
+    }
+
+    match /offer_metrics/{metricId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Server aggregated only
+    }
+
+    // Strict Server-Only Collections (Internal queues, idempotency caches, locks)
+    match /pending_click_events/{docId} {
+      allow read, write: if false;
+    }
+
+    match /unreconciled_conversions/{docId} {
+      allow read, write: if false;
+    }
+
+    match /stripe_processed_events/{docId} {
+      allow read, write: if false;
+    }
+
+    match /system_locks/{docId} {
+      allow read, write: if false;
+    }
+
+    match /click_errors/{docId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /postbacks/{docId} {
+      allow read, write: if false;
+    }
+
+    match /transactions/{docId} {
+      allow read: if isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid);
+      allow write: if false;
+    }
+
+    // Default deny all other collections
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
   }
 }

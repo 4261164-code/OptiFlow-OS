@@ -17,6 +17,7 @@ import { opsRouter } from "./server/routes/api/ops";
 import { maxbountyRouter } from "./server/routes/api/maxbounty";
 import { workersRouter } from "./server/routes/api/workers";
 import { governanceRouter } from "./server/routes/api/governance";
+import { billingRouter, checkQuota } from "./server/routes/api/billing";
 import { runResearchAgent, runWriterAgent, runMonetizationAgent, runPinterestAgent, runImageGenerationAgent, runAffiliateMatchAgent, runTrafficEngineAgent, runSEOLinkAgent, runSocialCopyAgent, runSEOClusterAgent, runReportDigestAgent, runExecutiveSummaryAgent, runCustomPinAgent, runDeepKeywordExplorerAgent, runCompetitorAuditAgent, runEbookCreatorAgent } from "./server/agents";
 import { getLinkedInProfile, publishToLinkedInFeed } from "./server/linkedinService";
 import { runStartupArchitectureAudit, getStartupDiagnostics } from "./server/startup";
@@ -65,14 +66,27 @@ export const appPromise = (async () => {
   app.use(globalLimiter);
   const PORT = 3000;
 
-  app.use(express.json());
+  app.use(express.json({
+    verify: (req: any, _res, buf) => {
+      req.rawBody = buf;
+    }
+  }));
 
   app.use("/go", goRouter);
+  app.use("/postback", postbackRouter);
 
   // Secure all API routes except public ones
   app.use("/api", (req, res, next) => {
-    // Public routes
-    if (req.path === "/health" || req.path.startsWith("/health/") || req.path === "/postback" || req.path.startsWith("/webhooks")) {
+    // Public routes (including webhooks, S2S affiliate postbacks, health checks, and SSE streams)
+    if (
+      req.path === "/health" || 
+      req.path.startsWith("/health/") || 
+      req.path === "/postback" || 
+      req.path.startsWith("/postback/") || 
+      req.path.startsWith("/webhooks") || 
+      req.path === "/billing/webhook" ||
+      req.path === "/analytics/live-pulse"
+    ) {
       return next();
     }
     return verifyToken(req, res, next);
@@ -83,6 +97,17 @@ export const appPromise = (async () => {
       const userId = req.user.uid;
       const { keyword, articleLength, seoLevel, country, language, tone, numPins } = req.body;
       if (!keyword) return res.status(400).json({ error: "Keyword required for seeds pipeline" });
+
+      // Enforce subscription quota for AI generations
+      const quota = await checkQuota(userId, "aiGenerations");
+      if (!quota.allowed) {
+        return res.status(403).json({
+          error: `AI Content Generation quota reached (${quota.current}/${quota.limit}) for your ${quota.planId.toUpperCase()} plan. Please upgrade in Settings to continue.`,
+          quotaExceeded: true,
+          limit: quota.limit,
+          current: quota.current,
+        });
+      }
 
       const jobId = `job-${Date.now()}`;
       await db.collection("jobs").doc(jobId).set({
@@ -175,7 +200,9 @@ export const appPromise = (async () => {
   app.use("/api/governance", adminOnly, governanceRouter);
   
   app.use("/api/webhooks", postbackRouter);
+  app.use("/api/postback", postbackRouter);
   app.use("/api/maxbounty", maxbountyRouter);
+  app.use("/api/billing", billingRouter);
   
   app.get("/api/startup-diagnostics", (req, res) => {
     res.json(getStartupDiagnostics());
@@ -1141,80 +1168,6 @@ export const appPromise = (async () => {
       res.json({ success: true, message: "Streak bonus claimed!" });
     } catch (e: any) {
       res.status(400).json({ error: e.message });
-    }
-  });
-
-  app.post("/api/postback", async (req, res) => {
-    try {
-      const secret = req.query.secret;
-      if (secret !== process.env.POSTBACK_SECRET && process.env.POSTBACK_SECRET) {
-        return res.status(401).json({ error: "Invalid secret" });
-      }
-
-      const { subId, transId, amount, provider, offerId } = req.body;
-      const userId = subId;
-      const amountCents = Math.floor(parseFloat(amount) * 100);
-
-      const postbackId = `pb-${transId}`;
-      const postbackRef = db.collection("postbacks").doc(postbackId);
-      const postbackSnap = await postbackRef.get();
-
-      if (postbackSnap.exists) {
-        return res.json({ success: true, message: "Duplicate postback ignored" });
-      }
-
-      await db.runTransaction(async (transaction: any) => {
-        const userRef = db.collection("users").doc(userId);
-        const userSnap = await transaction.get(userRef);
-        
-        if (!userSnap.exists) {
-          throw new Error("User not found");
-        }
-
-        const userData = userSnap.data();
-        
-        // Simple Fraud Check: Velocity (mock)
-        const fraudFlags = userData.fraudFlags || [];
-        // if (too_many_recent) fraudFlags.push("VELOCITY_HIGH");
-
-        transaction.update(userRef, {
-          balance: (userData.balance || 0) + amountCents,
-          lifetimeEarned: (userData.lifetimeEarned || 0) + amountCents,
-          fraudFlags,
-          updatedAt: Date.now()
-        });
-
-        const txId = `tx-${transId}`;
-        transaction.set(db.collection("transactions").doc(txId), {
-          id: txId,
-          userId,
-          amount: amountCents,
-          type: 'earn',
-          status: 'completed',
-          description: `Offer completion: ${offerId}`,
-          provider,
-          providerTransactionId: transId,
-          timestamp: Date.now()
-        });
-
-        transaction.set(postbackRef, {
-          id: postbackId,
-          userId,
-          provider,
-          providerTransactionId: transId,
-          offerId,
-          amountCents,
-          timestamp: Date.now(),
-          rawPayload: req.body,
-          status: 'success'
-        });
-      });
-
-      res.json({ success: true });
-    } catch (e: any) {
-      console.error("Postback error:", e);
-      // Return 200 to quieten providers but log error
-      res.json({ success: false, error: e.message });
     }
   });
 

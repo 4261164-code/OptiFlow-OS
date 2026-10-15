@@ -31,11 +31,25 @@ export async function signInWithEmail(email: string, password: string) {
 
 export async function loginWithGoogle() {
   const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
   try {
-    await signInWithPopup(auth, provider);
-  } catch (error) {
-    console.error("Error signing in with Google", error);
-    throw error;
+    const credential = await signInWithPopup(auth, provider);
+    return { user: credential.user, error: null };
+  } catch (error: any) {
+    const code = error?.code || '';
+    const message = error?.message || '';
+    if (
+      code === 'auth/popup-blocked' ||
+      code === 'auth/cancelled-popup-request' ||
+      code === 'auth/popup-closed-by-user' ||
+      message.includes('INTERNAL ASSERTION FAILED') ||
+      message.includes('Pending promise was never set')
+    ) {
+      console.info(`[Auth] Google sign-in popup handled gracefully: ${code || message}`);
+      return { user: null, error: { code: code || 'auth/popup-dismissed', message: 'Sign in popup was closed or interrupted.' } };
+    }
+    console.warn("[Auth] Sign in notice:", message || error);
+    return { user: null, error: { code: code || 'auth/unknown', message: message || 'Sign in failed' } };
   }
 }
 

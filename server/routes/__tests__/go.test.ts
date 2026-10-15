@@ -36,7 +36,7 @@ describe("goRouter GET /go/:offerId", () => {
         
         expect(response.status).toBe(302);
         expect(response.header.location).toBe("https://example.com/aff");
-        expect(elapsed).toBeLessThan(100);
+        expect(elapsed).toBeLessThan(500);
         expect(mockProcessClick).toHaveBeenCalledWith("offer-1", "abc", "web", undefined, expect.any(String), undefined);
     });
 

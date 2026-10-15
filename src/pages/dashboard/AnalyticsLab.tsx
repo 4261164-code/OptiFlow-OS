@@ -3,6 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
 import { Download, FileText, Loader2 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { LiveTrafficPulse } from '../../components/analytics/LiveTrafficPulse';
 
 export function AnalyticsLab() {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -142,6 +143,9 @@ export function AnalyticsLab() {
           {isGenerating ? "Generating PDF..." : "Download 30-Day Report"}
         </button>
       </div>
+
+      {/* Live In-Flight Traffic & Telemetry Stream */}
+      <LiveTrafficPulse />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
          <div className="bg-[#111827] border border-zinc-800 rounded-xl p-6">

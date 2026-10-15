@@ -35,7 +35,13 @@ export async function runStartupArchitectureAudit(): Promise<void> {
   logger.info("[Startup] Commencing system architecture audit...");
 
   // 1. Load environment variables
-  diagnostics.loadedEnvVars = Object.keys(process.env).filter(key => key.startsWith('FIREBASE') || key.startsWith('GEMINI') || key.startsWith('OPENAI'));
+  diagnostics.loadedEnvVars = Object.keys(process.env).filter(key => 
+    key.startsWith('FIREBASE') || 
+    key.startsWith('GEMINI') || 
+    key.startsWith('OPENAI') || 
+    key.startsWith('ENABLE_') ||
+    key === 'APP_URL'
+  );
   
   // 2. Validate secrets
   const requiredSecrets = ["FIREBASE_PROJECT_ID", "FIREBASE_CLIENT_EMAIL", "FIREBASE_PRIVATE_KEY"];

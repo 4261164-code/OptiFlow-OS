@@ -30,6 +30,7 @@ import { NotificationDrawer } from './components/NotificationDrawer';
 import { LandingPage } from './components/LandingPage';
 import { OnboardingWizard } from './components/OnboardingWizard';
 import { ServiceHealthMonitor } from './components/ServiceHealthMonitor';
+import { ErrorBoundary } from './components/executive/ErrorBoundary';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -52,8 +53,8 @@ export default function App() {
       let isApproved = false;
       let role = 'creator';
 
-      // Auto-approve primary owner email
-      if (user.email === 'admin@example.com') {
+      // Auto-approve primary owner email and current project owner
+      if (user.email === 'admin@example.com' || user.email === '4261164@myuwc.ac.za') {
         isApproved = true;
         role = 'admin';
       }
@@ -63,7 +64,7 @@ export default function App() {
         isApproved = userData.approved === true || isApproved;
         
         // Keep Firestore in sync if owner wasn't marked approved or admin
-        if (user.email === 'admin@example.com' && (userData.approved !== true || userData.role !== 'admin')) {
+        if ((user.email === 'admin@example.com' || user.email === '4261164@myuwc.ac.za') && (userData.approved !== true || userData.role !== 'admin')) {
           await setDoc(userRef, { approved: true, role: 'admin' }, { merge: true });
         }
       } else {
@@ -91,7 +92,7 @@ export default function App() {
     } catch (err) {
       console.error("Failed to verify user access/onboarding:", err);
       // Fallback for safety (owner is always approved)
-      if (user.email === 'admin@example.com') {
+      if (user.email === 'admin@example.com' || user.email === '4261164@myuwc.ac.za') {
         setUserApproved(true);
       } else {
         setUserApproved(false);
@@ -104,15 +105,30 @@ export default function App() {
   };
 
   useEffect(() => {
+    const handleOpenWizard = () => {
+      setOnboardingCompleted(false);
+    };
+    window.addEventListener('open-onboarding-wizard', handleOpenWizard);
+    return () => window.removeEventListener('open-onboarding-wizard', handleOpenWizard);
+  }, []);
+
+  useEffect(() => {
     if (!user) {
       setOnboardingCompleted(true);
       setUserApproved(null);
       return;
     }
 
-    // Bypass onboarding/approval for default sandbox developer user
+    const isLocallyOnboarded = localStorage.getItem('optiflow_onboarding_completed') === 'true' || 
+                               localStorage.getItem(`optiflow_onboarding_completed_${user.uid}`) === 'true';
+
+    // Sandbox developer user
     if (localStorage.getItem('sandbox_developer_user')) {
-      setOnboardingCompleted(true);
+      if (!isLocallyOnboarded) {
+        setOnboardingCompleted(false);
+      } else {
+        setOnboardingCompleted(true);
+      }
       setUserApproved(true);
       return;
     }
@@ -151,13 +167,24 @@ export default function App() {
   const handleLogin = async () => {
     setAuthError(null);
     try {
-      await loginWithGoogle();
-    } catch (error: any) {
-      if (error?.code === 'auth/popup-blocked' || error?.code === 'auth/cancelled-popup-request') {
-        setAuthError('Google Sign-In popup was blocked by your browser inside the preview iFrame. Please use the "Open App in New Tab" button or try "Dev Guest Access" below!');
-      } else {
-        setAuthError(`Sign-in error: ${error?.message || 'Failed to sign in.'}`);
+      const res = await loginWithGoogle();
+      if (res?.error) {
+        const code = res.error.code || '';
+        if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+          // User closed popup; silently dismiss
+          return;
+        } else if (code === 'auth/popup-blocked') {
+          setAuthError(
+            'Google Sign-In popup was blocked by browser iframe policies.\n' +
+            '• Click "⚡ Launch Demo Sandbox (Bypass)" below for instant full access, or\n' +
+            '• Sign in with Email / Password directly without popups!'
+          );
+        } else {
+          setAuthError(`Sign-in notice: ${res.error.message || 'Authentication could not be completed.'}`);
+        }
       }
+    } catch (error: any) {
+      setAuthError(`Sign-in notice: ${error?.message || 'Authentication could not be completed.'}`);
     }
   };
 
@@ -301,24 +328,28 @@ export default function App() {
     <NotificationProvider>
       <ServiceHealthMonitor />
       <BrowserRouter>
-        <Suspense fallback={<div className="flex h-screen items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-gray-500" /></div>}><Routes>
-          <Route element={<AppLayout />}>
-            <Route path="/" element={<Overview />} />
-            <Route path="/content" element={<ContentCommand />} />
-            <Route path="/offers" element={<Offers />} />
-            <Route path="/traffic" element={<Traffic />} />
-            <Route path="/creators" element={<Creators />} />
-            <Route path="/brain" element={<AIBrain />} />
-            <Route path="/automations" element={<Automations />} />
-            <Route path="/jobs" element={<Jobs />} />
-            <Route path="/analytics" element={<AnalyticsLab />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/apilab" element={<APILab />} />
-            <Route path="/diagnostics" element={<StartupDiagnosticsPage />} />
+        <ErrorBoundary>
+          <Suspense fallback={<div className="flex h-screen items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-[#a8ff35]" /></div>}>
+            <Routes>
+              <Route element={<AppLayout />}>
+                <Route path="/" element={<Overview />} />
+                <Route path="/content" element={<ContentCommand />} />
+                <Route path="/offers" element={<Offers />} />
+                <Route path="/traffic" element={<Traffic />} />
+                <Route path="/creators" element={<Creators />} />
+                <Route path="/brain" element={<AIBrain />} />
+                <Route path="/automations" element={<Automations />} />
+                <Route path="/jobs" element={<Jobs />} />
+                <Route path="/analytics" element={<AnalyticsLab />} />
+                <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/apilab" element={<APILab />} />
+                <Route path="/diagnostics" element={<StartupDiagnosticsPage />} />
 
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Route>
-        </Routes></Suspense>
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Route>
+            </Routes>
+          </Suspense>
+        </ErrorBoundary>
       </BrowserRouter>
       <NotificationToast />
       <NotificationDrawer />
