@@ -43,7 +43,7 @@ executiveApiRouter.get("/settings/get-ceo-name", async (req: any, res: any) => {
 
 executiveApiRouter.post("/soul/chat", async (req: any, res: any) => {
     try {
-        const { message, history } = req.body;
+        const { message, history, persona } = req.body;
         const userId = req.user.uid;
 
         const idempotencyKey = `ceo-chat-${userId}-${Date.now()}`;
@@ -58,7 +58,7 @@ executiveApiRouter.post("/soul/chat", async (req: any, res: any) => {
         const topoResult = await Layer3Execution.executeActionPlan(userId, plan, idempotencyKey);
         if (!topoResult.success) return res.status(500).json({ error: topoResult.error });
 
-        const result = await runCEOSoul(message, history || [], userId);
+        const result = await runCEOSoul(message, history || [], userId, persona);
         res.json({ ...result, auditLogId: topoResult.auditLogId });
     } catch (e: any) {
         res.status(500).json({ error: e.message });

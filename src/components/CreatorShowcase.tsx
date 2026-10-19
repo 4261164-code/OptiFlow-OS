@@ -780,10 +780,12 @@ export function CreatorShowcase() {
               <span className="text-[10px] font-bold font-mono uppercase tracking-widest text-zinc-500 block">Languages</span>
               <div className="flex gap-2 pt-1">
                 <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 border border-white/5 text-[10px] text-zinc-300 font-semibold" title="Hindi (Primary)">
-                  🇮🇳 <span>Hindi</span>
+                  <span className="text-[9px] font-mono px-1 py-0.5 rounded bg-zinc-800 text-zinc-400 font-bold">HI</span>
+                  <span>Hindi</span>
                 </span>
                 <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 border border-white/5 text-[10px] text-zinc-300 font-semibold" title="English (Fluent)">
-                  🇬🇧 <span>English</span>
+                  <span className="text-[9px] font-mono px-1 py-0.5 rounded bg-zinc-800 text-zinc-400 font-bold">EN</span>
+                  <span>English</span>
                 </span>
               </div>
             </div>

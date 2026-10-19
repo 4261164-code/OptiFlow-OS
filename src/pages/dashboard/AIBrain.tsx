@@ -3,6 +3,7 @@ import { Brain, CheckCircle, XCircle, Play } from 'lucide-react';
 import { db } from '../../lib/firebase';
 import { collection, addDoc } from 'firebase/firestore';
 import { RapidApiTools } from '../../components/RapidApiTools';
+import { CEOChat } from '../../components/executive/CEOChat';
 
 export function AIBrain() {
   const dispatchJob = async (type: string, payload: any) => {
@@ -22,12 +23,18 @@ export function AIBrain() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center mb-8">
+    <div className="space-y-8">
+      <div className="flex justify-between items-center mb-4">
         <div>
           <h1 className="text-3xl font-bold text-white tracking-tight">AI Brain</h1>
-          <p className="text-sm text-zinc-400 mt-1">ChatGPT + Business Analyst operating your platform.</p>
+          <p className="text-sm text-zinc-400 mt-1">ChatGPT + Business Analyst operating your platform with customizable agent personality presets.</p>
         </div>
+      </div>
+
+      {/* Interactive AI Brain Chat with Personality Presets & Pure Black Text */}
+      <div className="space-y-4">
+        <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-400 font-mono">Executive AI Conversational Engine</h3>
+        <CEOChat />
       </div>
 
       <div className="bg-[#111827] border border-zinc-800 rounded-xl overflow-hidden mb-6 p-8">

@@ -176,7 +176,7 @@ export default function App() {
         } else if (code === 'auth/popup-blocked') {
           setAuthError(
             'Google Sign-In popup was blocked by browser iframe policies.\n' +
-            '• Click "⚡ Launch Demo Sandbox (Bypass)" below for instant full access, or\n' +
+            '• Click "Launch Demo Sandbox (Bypass)" below for instant full access, or\n' +
             '• Sign in with Email / Password directly without popups!'
           );
         } else {

@@ -23,7 +23,10 @@ import {
   ChevronRight,
   Filter,
   Users,
-  Trophy
+  Trophy,
+  Bell,
+  BellOff,
+  Zap
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button } from './ui';
 import { db, auth } from '../lib/firebase';
@@ -794,8 +797,9 @@ export function KeywordExplorer() {
 
                   {!selectedSavedId ? (
                     <div className="p-4 rounded-xl border border-dashed border-white/5 bg-black/10 text-center space-y-2">
-                      <p className="text-xs text-zinc-400">
-                        ⚡ Want live trend warnings? Click <strong className="text-white">"Save to Workspace"</strong> above.
+                      <p className="text-xs text-zinc-400 flex items-center justify-center gap-1.5">
+                        <Zap className="w-3.5 h-3.5 text-[#a8ff35]" />
+                        <span>Want live trend warnings? Click <strong className="text-white">"Save to Workspace"</strong> above.</span>
                       </p>
                       <p className="text-[10px] text-zinc-500 leading-normal max-w-sm mx-auto">
                         Once saved, configure specific thresholds. The automated search engine will monitor indices in real-time, instantly issuing multi-channel notifications and audio signals.
@@ -816,7 +820,15 @@ export function KeywordExplorer() {
                                 : 'bg-[#111216] border border-white/5 text-zinc-450 hover:text-white'
                             }`}
                           >
-                            {alertTracked ? '🔔 Watching On' : '🔕 Watching Off'}
+                            {alertTracked ? (
+                              <span className="flex items-center gap-1.5">
+                                <Bell className="w-3.5 h-3.5" /> Watching On
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1.5">
+                                <BellOff className="w-3.5 h-3.5" /> Watching Off
+                              </span>
+                            )}
                           </button>
                         </div>
 

@@ -466,8 +466,17 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                   onClick={handleFillDemoKeys}
                   className="bg-[#d7f941]/10 border border-[#d7f941]/30 hover:bg-[#d7f941]/20 text-[#d7f941] text-xs font-bold px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
                 >
-                  <Zap className="w-3.5 h-3.5" />
-                  {demoKeysFilled ? "Demo Keys Applied ✓" : "Auto-Fill Demo Keys"}
+                  {demoKeysFilled ? (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Demo Keys Applied</span>
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-3.5 h-3.5" />
+                      <span>Auto-Fill Demo Keys</span>
+                    </>
+                  )}
                 </button>
               </div>
 

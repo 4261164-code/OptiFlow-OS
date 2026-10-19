@@ -178,7 +178,7 @@ export function LandingPage({ handleLogin, handleGuestLogin, handleSandboxBypass
             <Logo size="md" />
             <span className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-[10px] font-mono text-zinc-400">
               <span className="w-1.5 h-1.5 rounded-full bg-[#a8ff35] animate-pulse" />
-              v4.2 PRO 💎
+              v4.2 PRO
             </span>
           </div>
           <div className="flex items-center gap-4">
@@ -186,13 +186,13 @@ export function LandingPage({ handleLogin, handleGuestLogin, handleSandboxBypass
               onClick={() => { setAuthMode('login'); setAuthErrorLocal(null); setShowAuthModal(true); }}
               className="text-sm font-semibold text-zinc-400 hover:text-white transition-colors hidden sm:block px-3 py-1.5"
             >
-              Sign In 🔑
+              Sign In
             </button>
             <button 
               onClick={() => { setAuthMode('signup'); setAuthErrorLocal(null); setShowAuthModal(true); }}
               className="text-xs font-bold uppercase tracking-wider bg-[#a8ff35] hover:bg-[#baff4c] hover:scale-[1.02] active:scale-[0.98] text-black px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 shadow-[0_4px_20px_rgba(168,255,53,0.15)] cursor-pointer"
             >
-              Start Building 🚀
+              Start Building
             </button>
           </div>
         </div>
@@ -205,7 +205,7 @@ export function LandingPage({ handleLogin, handleGuestLogin, handleSandboxBypass
             <div className="flex gap-3 items-start">
               <IconWrapper icon={AlertCircle} size={20} className="flex-shrink-0 mt-0.5 text-red-400" />
               <div>
-                <p className="font-bold text-red-300">⚠️ Authentication Setup Required</p>
+                <p className="font-bold text-red-300">Authentication Setup Required</p>
                 <div className="mt-2 space-y-1.5 text-zinc-300 leading-relaxed">
                   {authError.split('\n').map((line, idx) => (
                     <p key={idx} className="opacity-90">{line}</p>
@@ -217,7 +217,7 @@ export function LandingPage({ handleLogin, handleGuestLogin, handleSandboxBypass
               onClick={handleSandboxBypass}
               className="mt-2 md:mt-0 px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-[#a8ff35] border border-[#a8ff35]/30 hover:border-[#a8ff35]/50 text-xs font-mono font-bold uppercase tracking-wider rounded-xl transition-all shadow-[0_0_15px_rgba(168,255,53,0.1)] flex-shrink-0 self-end md:self-start"
             >
-              ⚡ Launch Demo Sandbox (Bypass)
+              Launch Demo Sandbox (Bypass)
             </button>
           </div>
         </div>
@@ -238,18 +238,18 @@ export function LandingPage({ handleLogin, handleGuestLogin, handleSandboxBypass
           >
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 text-zinc-300 text-[10px] font-mono uppercase tracking-[0.25em] shadow-inner">
               <IconWrapper icon={Cpu} size={14} className="text-[#a8ff35]" strokeWidth={2.5} />
-              🤖 Autonomous Media Operations OS
+              Autonomous Media Operations OS
             </div>
             
             <h1 className="text-5xl sm:text-7xl md:text-[84px] font-extrabold text-white tracking-[-0.04em] leading-[0.9] font-display">
               The Intelligent OS <br />
               For <span className="relative inline-block text-black bg-[#a8ff35] px-6 py-2 rounded-2xl md:rounded-[28px] mt-4 transform -rotate-1 shadow-2xl">
-                Affiliate Publishers 🚀
+                Affiliate Publishers
               </span>
             </h1>
             
             <p className="text-lg md:text-2xl text-zinc-400 leading-relaxed max-w-3xl mx-auto font-sans font-light tracking-tight pt-2">
-              Scale programmatic content clusters, automate distribution pipelines, and dynamically optimize high-ticket affiliate links in real time with specialized AI Agents. 📈
+              Scale programmatic content clusters, automate distribution pipelines, and dynamically optimize high-ticket affiliate links in real time with specialized AI Agents.
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-8 max-w-lg mx-auto">
@@ -257,7 +257,7 @@ export function LandingPage({ handleLogin, handleGuestLogin, handleSandboxBypass
                 onClick={() => { setAuthMode('signup'); setAuthErrorLocal(null); setShowAuthModal(true); }}
                 className="w-full sm:w-auto flex items-center justify-center gap-2.5 px-8 py-4 bg-white hover:bg-zinc-100 text-black font-extrabold text-base rounded-2xl transition-all group shadow-2xl shadow-white/5 cursor-pointer"
               >
-                Launch App 💎
+                Launch App
                 <IconWrapper icon={ChevronRight} size={18} className="transition-transform group-hover:translate-x-1" strokeWidth={3} />
               </button>
               <button 
@@ -270,7 +270,7 @@ export function LandingPage({ handleLogin, handleGuestLogin, handleSandboxBypass
                 ) : (
                   <IconWrapper icon={UserCheck} size={18} strokeWidth={2.5} className="text-[#a8ff35]" />
                 )}
-                Explore Developer Mode ⚙️
+                Explore Developer Mode
               </button>
             </div>
           </motion.div>
@@ -289,7 +289,7 @@ export function LandingPage({ handleLogin, handleGuestLogin, handleSandboxBypass
                 <span className="w-3 h-3 rounded-full bg-green-500/80" />
                 <div className="h-4 w-px bg-white/10 ml-2" />
                 <div className="flex items-center gap-2 font-mono text-xs text-zinc-400">
-                  <span className="text-[#a8ff35]">●</span> SIMULATED PREVIEW 🤖
+                  <span className="text-[#a8ff35]">●</span> SIMULATED PREVIEW
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -298,7 +298,7 @@ export function LandingPage({ handleLogin, handleGuestLogin, handleSandboxBypass
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-mono text-zinc-300 border border-white/10 transition-colors cursor-pointer"
                 >
                   <IconWrapper icon={Activity} size={12} className={isSimulating ? "animate-pulse text-[#a8ff35]" : ""} />
-                  {isSimulating ? 'PAUSE ENGINE ⏸️' : 'RESUME ENGINE ▶️'}
+                  {isSimulating ? 'PAUSE ENGINE' : 'RESUME ENGINE'}
                 </button>
               </div>
             </div>
@@ -307,13 +307,13 @@ export function LandingPage({ handleLogin, handleGuestLogin, handleSandboxBypass
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-px bg-white/5">
               {/* Sidebar Agent Manifest */}
               <div className="lg:col-span-4 bg-[#0a0d13] p-6 space-y-4">
-                <div className="text-zinc-400 font-mono text-[10px] uppercase tracking-wider">Active Agent Matrix ⚙️</div>
+                <div className="text-zinc-400 font-mono text-[10px] uppercase tracking-wider">Active Agent Matrix</div>
                 <div className="space-y-2">
                   {[
-                    { name: '🔍 SEO Keyword Crawler', desc: 'Finds niche authority opportunities', idx: 0 },
-                    { name: '✍️ Content Synthesis Engine', desc: 'Generates structured articles & posts', idx: 1 },
-                    { name: '📌 Pinterest Traffic Automator', desc: 'Schedules boards & distributes assets', idx: 2 },
-                    { name: '🔗 Link Optimization Copilot', desc: 'Audits postbacks & rotates active offers', idx: 3 }
+                    { name: 'SEO Keyword Crawler', desc: 'Finds niche authority opportunities', idx: 0 },
+                    { name: 'Content Synthesis Engine', desc: 'Generates structured articles & posts', idx: 1 },
+                    { name: 'Pinterest Traffic Automator', desc: 'Schedules boards & distributes assets', idx: 2 },
+                    { name: 'Link Optimization Copilot', desc: 'Audits postbacks & rotates active offers', idx: 3 }
                   ].map((agent, i) => (
                     <div 
                       key={i} 
@@ -339,8 +339,8 @@ export function LandingPage({ handleLogin, handleGuestLogin, handleSandboxBypass
               <div className="lg:col-span-8 bg-[#0d1016] p-6 flex flex-col justify-between min-h-[340px]">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-zinc-400 font-mono text-[10px] uppercase tracking-wider">Live Agent Telemetry Feed 📡</span>
-                    <span className="text-zinc-500 font-mono text-[10px]">SIMULATION MODE 🛡️</span>
+                    <span className="text-zinc-400 font-mono text-[10px] uppercase tracking-wider">Live Agent Telemetry Feed</span>
+                    <span className="text-zinc-500 font-mono text-[10px]">SIMULATION MODE</span>
                   </div>
                   
                   <div className="space-y-3 font-mono text-xs">
@@ -367,7 +367,7 @@ export function LandingPage({ handleLogin, handleGuestLogin, handleSandboxBypass
                                 ? 'bg-zinc-800 text-zinc-400' 
                                 : 'bg-zinc-900 text-zinc-600'
                           }`}>
-                            {log.status === 'working' ? 'Processing ⚡' : log.status === 'success' ? 'Ready ✅' : 'Standby ⏳'}
+                            {log.status === 'working' ? 'Processing' : log.status === 'success' ? 'Ready' : 'Standby'}
                           </span>
                         </div>
                         <p className="text-zinc-300 font-sans mt-1">{log.message}</p>
@@ -383,9 +383,9 @@ export function LandingPage({ handleLogin, handleGuestLogin, handleSandboxBypass
                 <div className="pt-4 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-mono text-zinc-500 mt-4">
                   <div className="flex items-center gap-2">
                     <IconWrapper icon={CheckCircle2} size={14} className="text-[#a8ff35]" />
-                    <span>Connected integrations: WP (Local) 📝, Telegram 💬, Pinterest 📌, Google Analytics 📊</span>
+                    <span>Connected integrations: WP (Local), Telegram, Pinterest, Google Analytics</span>
                   </div>
-                  <span>Uptime: 100% (No crash instances) ✅</span>
+                  <span>Uptime: 100% (No crash instances)</span>
                 </div>
               </div>
             </div>
@@ -398,10 +398,10 @@ export function LandingPage({ handleLogin, handleGuestLogin, handleSandboxBypass
         <div className="max-w-7xl mx-auto px-6">
           <div className="max-w-3xl mx-auto text-center mb-16 space-y-4">
             <h2 className="text-4xl md:text-5xl font-bold text-white tracking-tight font-display">
-              Interactive ROI Simulator 💸
+              Interactive ROI Simulator
             </h2>
             <p className="text-zinc-400 font-light text-lg">
-              OptiFlow OS boosts typical conversion rates by <span className="text-[#a8ff35] font-semibold">{liftPercentage}%</span> on average via automated postbacks and smart link rotation. 📈
+              OptiFlow OS boosts typical conversion rates by <span className="text-[#a8ff35] font-semibold">{liftPercentage}%</span> on average via automated postbacks and smart link rotation.
             </p>
           </div>
 
@@ -559,19 +559,19 @@ export function LandingPage({ handleLogin, handleGuestLogin, handleSandboxBypass
 
               {/* Net lift calculation panel */}
               <div className="mt-8 pt-6 border-t border-white/5">
-                <div className="text-zinc-400 text-xs mb-1 uppercase tracking-wider font-mono">Net Monthly Profit Lift 💎</div>
+                <div className="text-zinc-400 text-xs mb-1 uppercase tracking-wider font-mono">Net Monthly Profit Lift</div>
                 <div className="text-5xl font-black text-[#a8ff35] tracking-tight">
                   +${Math.round(monthlyLift).toLocaleString()}
                 </div>
                 <p className="text-xs text-zinc-400 mt-2 font-light">
-                  That's an extra <span className="text-white font-bold">${Math.round(monthlyLift * 12).toLocaleString()}</span> in pure commission margin added to your annual ledger. 🚀
+                  That's an extra <span className="text-white font-bold">${Math.round(monthlyLift * 12).toLocaleString()}</span> in pure commission margin added to your annual ledger.
                 </p>
 
                 <button 
                   onClick={() => { setAuthMode('signup'); setAuthErrorLocal(null); setShowAuthModal(true); }}
                   className="w-full mt-6 py-4 rounded-xl bg-[#a8ff35] hover:bg-[#baff4c] text-black font-extrabold text-sm transition-all flex items-center justify-center gap-2 group cursor-pointer"
                 >
-                  Capture This Margin Now 💸
+                  Capture This Margin Now
                   <IconWrapper icon={ArrowRight} size={14} className="transition-transform group-hover:translate-x-1" strokeWidth={2.5} />
                 </button>
               </div>
@@ -586,7 +586,7 @@ export function LandingPage({ handleLogin, handleGuestLogin, handleSandboxBypass
           <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6">
             <div className="max-w-2xl">
               <h2 className="text-4xl md:text-5xl font-bold text-white tracking-tight font-display">
-                Designed to Autonomously Govern Your Assets 🛠️
+                Designed to Autonomously Govern Your Assets
               </h2>
               <p className="text-zinc-400 mt-4 text-base font-light font-sans">
                 No complex scripting or server configuration. Launch specialized AI agents to discover keyword deficits, write, format, distribute, and verify conversions.
@@ -594,18 +594,18 @@ export function LandingPage({ handleLogin, handleGuestLogin, handleSandboxBypass
             </div>
             <div className="flex items-center gap-2 text-[#a8ff35] font-mono text-xs uppercase tracking-widest bg-[#a8ff35]/5 px-4 py-2 rounded-lg border border-[#a8ff35]/15">
               <IconWrapper icon={Activity} size={14} className="animate-pulse" strokeWidth={2.5} />
-              All Sub-Systems Online ⚡
+              All Sub-Systems Online
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
-              { icon: Layers, title: 'SEO Clustering 🧠', desc: 'Automatically map and generate hierarchical keyword silos for maximum site authority.' },
-              { icon: Bot, title: 'Autonomous Publishing ✍️', desc: 'Direct webhook integration with WordPress. Drafts, images, and formatting handled seamlessly.' },
-              { icon: BarChart3, title: 'Intel Digest 📊', desc: 'Paste raw PDF reports or CSV matrices and have AI parse out strategic optimization blueprints.' },
-              { icon: Activity, title: 'Offer Matchmaking 🔗', desc: 'Connect with high-ticket programs. AI reads your content and slots in the highest converting offers.' },
-              { icon: TrendingUp, title: 'Traffic Engine 🚀', desc: 'Distribution agents that re-format your pillars into social snippets and interactive modules.' },
-              { icon: Shield, title: 'Secure Vault 🛡️', desc: 'Runs in isolated containers. Connect your API keys entirely on the client, never stored plainly.' },
+              { icon: Layers, title: 'SEO Clustering', desc: 'Automatically map and generate hierarchical keyword silos for maximum site authority.' },
+              { icon: Bot, title: 'Autonomous Publishing', desc: 'Direct webhook integration with WordPress. Drafts, images, and formatting handled seamlessly.' },
+              { icon: BarChart3, title: 'Intel Digest', desc: 'Paste raw PDF reports or CSV matrices and have AI parse out strategic optimization blueprints.' },
+              { icon: Activity, title: 'Offer Matchmaking', desc: 'Connect with high-ticket programs. AI reads your content and slots in the highest converting offers.' },
+              { icon: TrendingUp, title: 'Traffic Engine', desc: 'Distribution agents that re-format your pillars into social snippets and interactive modules.' },
+              { icon: Shield, title: 'Secure Vault', desc: 'Runs in isolated containers. Connect your API keys entirely on the client, never stored plainly.' },
             ].map((feature, i) => (
               <motion.div 
                 key={i}
@@ -636,10 +636,10 @@ export function LandingPage({ handleLogin, handleGuestLogin, handleSandboxBypass
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-12 text-center">
             {[
-              { label: 'Active Clusters Managed 📂', value: '4,289' },
-              { label: 'Pages Published Automatically 📝', value: '180,410' },
-              { label: 'Average Conversion Lift 📈', value: '34.2%' },
-              { label: 'Agent Server Uptime 🛡️', value: '99.99%' },
+              { label: 'Active Clusters Managed', value: '4,289' },
+              { label: 'Pages Published Automatically', value: '180,410' },
+              { label: 'Average Conversion Lift', value: '34.2%' },
+              { label: 'Agent Server Uptime', value: '99.99%' },
             ].map((stat, i) => (
               <div key={i} className="space-y-2">
                 <div className="text-3xl md:text-5xl font-extrabold text-white tracking-tighter font-display">{stat.value}</div>
@@ -655,7 +655,7 @@ export function LandingPage({ handleLogin, handleGuestLogin, handleSandboxBypass
         <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#a8ff35]/5 pointer-events-none" />
         <div className="max-w-4xl mx-auto px-6 relative z-10 space-y-8">
           <h2 className="text-5xl md:text-7xl font-bold text-white tracking-tight leading-tight font-display">
-            Ready to Automate <br />Your Publishing Empire? 👑
+            Ready to Automate <br />Your Publishing Empire?
           </h2>
           <p className="text-zinc-400 text-lg max-w-2xl mx-auto font-light font-sans">
             Deploy specialized sub-agents on premium infrastructure. Establish a fully autonomous loop from SEO research to postback conversion.
@@ -665,18 +665,18 @@ export function LandingPage({ handleLogin, handleGuestLogin, handleSandboxBypass
               onClick={() => { setAuthMode('signup'); setAuthErrorLocal(null); setShowAuthModal(true); }}
               className="px-12 py-5 rounded-2xl bg-[#a8ff35] hover:bg-[#baff4c] text-black font-extrabold text-lg tracking-tight shadow-[0_20px_50px_rgba(168,255,53,0.35)] transition-all flex items-center gap-3 mx-auto group hover:scale-105 active:scale-95 cursor-pointer"
             >
-              Launch OptiFlow OS 🚀
+              Launch OptiFlow OS
               <IconWrapper icon={ChevronRight} size={22} strokeWidth={3} className="transition-transform group-hover:translate-x-1" />
             </button>
-            <p className="text-zinc-500 mt-6 font-mono text-[10px] uppercase tracking-[0.3em]">No Credit Card Required • Instant Developer Provisioning ⚡</p>
+            <p className="text-zinc-500 mt-6 font-mono text-[10px] uppercase tracking-[0.3em]">No Credit Card Required • Instant Developer Provisioning</p>
           </div>
         </div>
       </section>
       
       {/* Footer */}
       <footer className="py-12 border-t border-white/5 text-center text-zinc-500 text-xs bg-[#040507]">
-        <p className="font-mono text-[10px] uppercase tracking-wider text-zinc-600 mb-2">OptiFlow OS Architecture v4.2 💎</p>
-        <p>OptiFlow OS &copy; {new Date().getFullYear()}. Engineered for production scale. All rights reserved. 🛡️</p>
+        <p className="font-mono text-[10px] uppercase tracking-wider text-zinc-600 mb-2">OptiFlow OS Architecture v4.2</p>
+        <p>OptiFlow OS &copy; {new Date().getFullYear()}. Engineered for production scale. All rights reserved.</p>
       </footer>
 
       {/* Auth Modal Overlay */}
@@ -879,7 +879,7 @@ export function LandingPage({ handleLogin, handleGuestLogin, handleSandboxBypass
                   }}
                   className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 hover:text-white transition cursor-pointer"
                 >
-                  ⚡ Direct Developer Sandbox Bypass
+                  Direct Developer Sandbox Bypass
                 </button>
               </div>
             </motion.div>

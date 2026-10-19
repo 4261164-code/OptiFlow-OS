@@ -14,7 +14,8 @@ import {
   ExternalLink,
   CheckCircle2,
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  X
 } from 'lucide-react';
 import { apiFetch } from '../../lib/auth';
 
@@ -162,7 +163,7 @@ export function BillingSubscriptionPanel() {
             <CheckCircle2 size={16} />
             <span>{successMsg}</span>
           </div>
-          <button onClick={() => setSuccessMsg(null)} className="text-zinc-400 hover:text-white">✕</button>
+          <button onClick={() => setSuccessMsg(null)} className="text-zinc-400 hover:text-white cursor-pointer"><X size={14} /></button>
         </div>
       )}
 
@@ -172,7 +173,7 @@ export function BillingSubscriptionPanel() {
             <AlertCircle size={16} />
             <span>{errorMsg}</span>
           </div>
-          <button onClick={() => setErrorMsg(null)} className="text-zinc-400 hover:text-white">✕</button>
+          <button onClick={() => setErrorMsg(null)} className="text-zinc-400 hover:text-white cursor-pointer"><X size={14} /></button>
         </div>
       )}
 

@@ -22,6 +22,7 @@ interface Message {
 }
 
 export function CEOChat() {
+  const [persona, setPersona] = useState<'Strategic Advisor' | 'Aggressive Growth Marketer' | 'Analytical Auditor'>('Strategic Advisor');
   const [messages, setMessages] = useState<Message[]>([
     { role: 'soul', content: "ExOS Strategic Partner initialized. I'm here to help you orchestrate your affiliate empire. Before we dive into the data, what are your primary targets for the week? Are we focusing on scale, or optimizing existing conversion silos?", mood: 'inquisitive' }
   ]);
@@ -128,7 +129,7 @@ export function CEOChat() {
 
       const res = await apiFetch('/api/executive/soul/chat', {
         method: 'POST',
-        body: JSON.stringify({ message: text, history })
+        body: JSON.stringify({ message: text, history, persona })
       });
 
       const data = await res.json();
@@ -178,6 +179,27 @@ export function CEOChat() {
         </div>
       </div>
 
+      {/* Agent Personality Configuration Panel */}
+      <div className="px-6 py-3 bg-zinc-100 dark:bg-zinc-900 border-b border-zinc-200 dark:border-white/5 flex flex-wrap items-center justify-between gap-2">
+        <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-600 dark:text-zinc-400 font-bold">Agent Persona:</span>
+        <div className="flex items-center gap-1.5">
+          {(['Strategic Advisor', 'Aggressive Growth Marketer', 'Analytical Auditor'] as const).map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => setPersona(p)}
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold font-mono uppercase tracking-wider transition cursor-pointer ${
+                persona === p
+                  ? 'bg-[#a8ff35] text-black shadow-sm'
+                  : 'bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-white/10 text-zinc-600 dark:text-zinc-400 hover:text-black dark:hover:text-white'
+              }`}
+            >
+              {p}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Messages */}
       <div 
         ref={scrollRef}
@@ -194,7 +216,7 @@ export function CEOChat() {
               <div className={`max-w-[85%] p-5 rounded-2xl ${
                 msg.role === 'user' 
                   ? 'bg-zinc-900 dark:bg-indigo-600 text-white rounded-tr-none font-medium shadow-lg' 
-                  : 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-200 rounded-tl-none border border-zinc-200 dark:border-white/5 shadow-md shadow-black/5'
+                  : 'bg-white dark:bg-zinc-950 text-[#000000] dark:text-zinc-100 rounded-tl-none border border-zinc-200 dark:border-white/10 shadow-md shadow-black/5 font-semibold'
               }`}>
                 {msg.role === 'soul' && (
                   <div className="flex items-center space-x-1.5 mb-2 opacity-60">
@@ -202,7 +224,7 @@ export function CEOChat() {
                     <span className="text-[9px] font-bold uppercase tracking-widest">{msg.mood || 'strategic'}</span>
                   </div>
                 )}
-                <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                <p className="text-sm leading-relaxed whitespace-pre-wrap text-[#000000] dark:text-zinc-100 font-semibold">{msg.content}</p>
                 
                 {msg.initiative && msg.initiative.action !== 'none' && (
                   <div className="mt-4 p-4 bg-zinc-50 dark:bg-black/40 rounded-xl border border-zinc-200 dark:border-white/10">
@@ -254,7 +276,7 @@ export function CEOChat() {
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSend()}
               placeholder="Issue strategic commands..."
-              className="w-full bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-white/5 p-4 pr-14 rounded-2xl text-sm focus:outline-none focus:border-[#a8ff35] transition-all shadow-inner placeholder:text-zinc-500"
+              className="w-full bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-white/5 p-4 pr-14 rounded-2xl text-sm text-black dark:text-white font-medium focus:outline-none focus:border-[#a8ff35] transition-all shadow-inner placeholder:text-zinc-500"
             />
             <button 
               onClick={() => handleSend()}

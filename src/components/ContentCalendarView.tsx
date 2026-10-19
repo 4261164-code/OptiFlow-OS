@@ -21,7 +21,8 @@ import {
   ExternalLink,
   Sliders,
   Play,
-  RotateCcw
+  RotateCcw,
+  Zap
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui';
 
@@ -552,8 +553,8 @@ export function ContentCalendarView({
                   </>
                 ) : (
                   <>
-                    <Activity className="w-4 h-4 text-black fill-current" />
-                    <span>⚡ Auto-Schedule All Backlog</span>
+                    <Zap className="w-4 h-4 text-black fill-current" />
+                    <span>Auto-Schedule All Backlog</span>
                   </>
                 )}
               </button>

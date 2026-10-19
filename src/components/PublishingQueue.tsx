@@ -80,7 +80,8 @@ function SocialDistributionSection({
     <div className="mt-4 pt-4 border-t border-white/5 space-y-4">
       <div className="flex items-center justify-between">
         <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-2">
-          <span>𝕏 (Twitter) & LinkedIn Distribution Engine</span>
+          <Twitter className="w-3.5 h-3.5 text-zinc-400" />
+          <span>X / Twitter & LinkedIn Distribution Engine</span>
         </h4>
         
         {!hasCopy ? (
@@ -157,12 +158,12 @@ function SocialDistributionSection({
                 ) : twStatus === 'published' ? (
                   <>
                     <RefreshCw className="w-3 h-3 text-[#d7f941]" />
-                    <span>Re-share to 𝕏</span>
+                    <span>Re-share to X</span>
                   </>
                 ) : (
                   <>
                     <Send className="w-3 h-3" />
-                    <span>Publish to 𝕏</span>
+                    <span>Publish to X</span>
                   </>
                 )}
               </button>

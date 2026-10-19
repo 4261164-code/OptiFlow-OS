@@ -36,7 +36,7 @@ export function initFirebaseAdmin() {
         credential: applicationDefault(),
         projectId: config.projectId
       });
-      console.warn('⚠️ Firebase Admin initialized without Service Account Credentials. Expect PERMISSION_DENIED on reads/writes if not in a service account environment.');
+      console.warn('[Firebase Admin Warning] Initialized without Service Account Credentials. Expect PERMISSION_DENIED on reads/writes if not in a service account environment.');
     }
   } else {
     adminApp = getApps()[0];

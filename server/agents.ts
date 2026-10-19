@@ -1432,12 +1432,19 @@ LATEST USER MESSAGE: ${message}`
   }
 }
 
-export async function runCEOSoul(message: string, history: any[], userId?: string): Promise<any> {
+export async function runCEOSoul(message: string, history: any[], userId?: string, persona?: string): Promise<any> {
   let agentName = "ExOS Strategic Core";
   let agentPersona = "You are conversational, inquisitive, and decisively analytical. Your goal is to help the CEO (the user) manage their autonomous affiliate empire.";
-  let memoryEntries: any[] = [];
-  let targets: any[] = [];
-  let metricsSummary: any = {};
+  
+  const personaPresets: Record<string, string> = {
+    'Strategic Advisor': "You are a measured, calm, long-term strategic visionary. You focus on brand equity, sustainable growth, risk management, and 3-month outlooks.",
+    'Aggressive Growth Marketer': "You are high-energy, conversion-obsessed, and scale-driven. You push for rapid traffic expansion, high-ticket CPA scaling, and aggressive experimentation.",
+    'Analytical Auditor': "You are data-driven, risk-averse, and EPC-obsessed. You meticulously analyze conversion funnels, click anomalies, and ROI metrics with uncompromising precision."
+  };
+
+  if (persona && personaPresets[persona]) {
+    agentPersona = personaPresets[persona];
+  }
 
   try {
     if (userId && hasServiceAccount) {
@@ -1451,7 +1458,7 @@ export async function runCEOSoul(message: string, history: any[], userId?: strin
       if (userSettingsSnap && userSettingsSnap.exists) {
         const data = userSettingsSnap.data();
         if (data?.ceoName) agentName = data.ceoName;
-        if (data?.ceoPersona) agentPersona = data.ceoPersona;
+        if (!persona && data?.ceoPersona) agentPersona = data.ceoPersona;
       }
 
       // Safe memories query fallback

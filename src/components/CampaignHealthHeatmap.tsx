@@ -10,7 +10,12 @@ import {
   Info, 
   HelpCircle,
   ArrowUpRight,
-  Play
+  Play,
+  Globe,
+  Pin,
+  Briefcase,
+  Share2,
+  Mail
 } from 'lucide-react';
 
 interface CampaignHealthHeatmapProps {
@@ -33,11 +38,11 @@ interface GridCell {
 }
 
 const CHANNELS = [
-  { id: 'seo', name: 'Google SEO Pillar', icon: '🌐' },
-  { id: 'pinterest', name: 'Pinterest Boards', icon: '📌' },
-  { id: 'linkedin', name: 'LinkedIn Feed', icon: '💼' },
-  { id: 'twitter', name: 'X / Twitter Copy', icon: '🐦' },
-  { id: 'email', name: 'Email Newsletter', icon: '✉️' }
+  { id: 'seo', name: 'Google SEO Pillar', icon: Globe },
+  { id: 'pinterest', name: 'Pinterest Boards', icon: Pin },
+  { id: 'linkedin', name: 'LinkedIn Feed', icon: Briefcase },
+  { id: 'twitter', name: 'X / Twitter Copy', icon: Share2 },
+  { id: 'email', name: 'Email Newsletter', icon: Mail }
 ];
 
 const DEFAULT_SEGMENTS = [
@@ -239,7 +244,7 @@ export function CampaignHealthHeatmap({ jobs }: CampaignHealthHeatmapProps) {
                         {/* Row Header */}
                         <div className="col-span-3 flex items-center justify-between pr-2.5">
                           <div className="flex items-center gap-2">
-                            <span className="text-xs">{channel.icon}</span>
+                            <channel.icon className="w-3.5 h-3.5 text-zinc-400" />
                             <span className="text-xs font-bold text-zinc-200 truncate max-w-[110px]" title={channel.name}>
                               {channel.name}
                             </span>

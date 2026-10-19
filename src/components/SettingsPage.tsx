@@ -401,7 +401,7 @@ export function SettingsPage() {
       requiredField: 'Google Gemini / OpenAI API Key',
       elementId: 'card-ai-connections',
       focusSelector: '#input-gemini-key',
-      guideText: '💡 Gemini is the primary core for all agent decisions. Get your free API key from Google AI Studio. Fill it in under the "AI Core Connections" card.'
+      guideText: 'Gemini is the primary core for all agent decisions. Get your free API key from Google AI Studio. Fill it in under the "AI Core Connections" card.'
     },
     {
       id: 'wordpress',
@@ -412,7 +412,7 @@ export function SettingsPage() {
       requiredField: 'WordPress Site URL & Application Password',
       elementId: 'card-wordpress',
       focusSelector: '#input-wordpress-url',
-      guideText: '📝 Link your self-hosted or WordPress.com blog. Enter your URL and generate an "Application Password" in your WordPress admin panel (Users -> Profile).'
+      guideText: 'Link your self-hosted or WordPress.com blog. Enter your URL and generate an "Application Password" in your WordPress admin panel (Users -> Profile).'
     },
     {
       id: 'social',
@@ -423,7 +423,7 @@ export function SettingsPage() {
       requiredField: 'Telegram Token / Pinterest Access Token',
       elementId: 'card-social',
       focusSelector: '#input-telegram-token',
-      guideText: '📢 Set up your social feeds. Create a Telegram channel and add a Bot to receive live campaign alerts, or link Pinterest API boards.'
+      guideText: 'Set up your social feeds. Create a Telegram channel and add a Bot to receive live campaign alerts, or link Pinterest API boards.'
     },
     {
       id: 'affiliate',
@@ -434,7 +434,7 @@ export function SettingsPage() {
       requiredField: 'MaxBounty / ClickBank API Key',
       elementId: 'card-affiliates',
       focusSelector: '#input-maxbounty-key',
-      guideText: '💰 Add CPA networks. Enter your developer keys to synchronize available campaigns, evaluate high EPC targets, and fetch CPA details.'
+      guideText: 'Add CPA networks. Enter your developer keys to synchronize available campaigns, evaluate high EPC targets, and fetch CPA details.'
     },
     {
       id: 'security',
@@ -445,7 +445,7 @@ export function SettingsPage() {
       requiredField: 'Admin Power Override Toggled ON',
       elementId: 'card-privileges',
       focusSelector: '#checkbox-admin-bypass',
-      guideText: '🛡️ Sandbox mode relies on administrator bypass. Enabling this toggle assigns the "admin" security claim to bypass any standard auth restrictions.'
+      guideText: 'Sandbox mode relies on administrator bypass. Enabling this toggle assigns the "admin" security claim to bypass any standard auth restrictions.'
     }
   ];
 
@@ -530,7 +530,7 @@ export function SettingsPage() {
             ) : saveSuccess ? (
               <>
                 <Check className="w-3.5 h-3.5 stroke-[3]" />
-                Saved to Cloud ✓
+                Saved to Cloud
               </>
             ) : (
               "Save Changes"
@@ -730,7 +730,7 @@ export function SettingsPage() {
               onClick={() => setSearchQuery('')}
               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white text-xs cursor-pointer"
             >
-              ✕
+              <X size={12} />
             </button>
           )}
         </div>
@@ -807,13 +807,13 @@ export function SettingsPage() {
                     <div className="space-y-2 pt-1 border-t border-white/5">
                       {state.status === 'success' && (
                         <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-2.5 py-1.5 rounded-xl text-[11px]">
-                          <span className="font-bold block">✓ Authenticated</span>
+                          <span className="font-bold block">Authenticated</span>
                           <span className="text-[10px] text-zinc-400 truncate block">{state.details || state.message}</span>
                         </div>
                       )}
                       {state.status === 'failed' && (
                         <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 px-2.5 py-1.5 rounded-xl text-[11px]">
-                          <span className="font-bold block">❌ Handshake Error</span>
+                          <span className="font-bold block">Handshake Error</span>
                           <span className="text-[10px] text-zinc-400 truncate block">{state.error}</span>
                         </div>
                       )}
@@ -838,7 +838,7 @@ export function SettingsPage() {
                             Testing...
                           </span>
                         ) : state.status === 'success' ? (
-                          "Re-Ping Node ✓"
+                          "Re-Ping Node"
                         ) : state.status === 'failed' ? (
                           "Retry Ping"
                         ) : (
@@ -1639,14 +1639,14 @@ export function SettingsPage() {
 
               {purgeSuccess && (
                 <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-4 py-3 rounded-2xl text-xs leading-normal">
-                  <span className="font-bold block mb-1">✓ Purge Success</span>
+                  <span className="font-bold block mb-1">Purge Success</span>
                   <span>{purgeSuccess}</span>
                 </div>
               )}
 
               {purgeError && (
                 <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 px-4 py-3 rounded-2xl text-xs leading-normal">
-                  <span className="font-bold block mb-1">❌ Purge Failed</span>
+                  <span className="font-bold block mb-1">Purge Failed</span>
                   <span>{purgeError}</span>
                 </div>
               )}

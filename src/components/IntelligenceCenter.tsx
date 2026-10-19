@@ -106,11 +106,11 @@ Matched Bounties with CTR limits:
     
     // Aesthetic log streaming to give it an immersive tactical agent feel
     const logs = [
-      "⚡ [Intelligence Core] Mounting document stream reader...",
-      "🔍 [Agent Parser] Segmenting text and identifying entity vectors...",
-      "🤖 [Gemini Controller] Consulting expert models with temperature parameters...",
-      "🧮 [KPI Engine] Extracting numeric correlations and SWOT matrices...",
-      "💡 [Strategy Optimizer] Generating actionable sub-agent dispatch procedures..."
+      "[Intelligence Core] Mounting document stream reader...",
+      "[Agent Parser] Segmenting text and identifying entity vectors...",
+      "[Gemini Controller] Consulting expert models with temperature parameters...",
+      "[KPI Engine] Extracting numeric correlations and SWOT matrices...",
+      "[Strategy Optimizer] Generating actionable sub-agent dispatch procedures..."
     ];
 
     logs.forEach((logContent, index) => {
@@ -185,9 +185,9 @@ Matched Bounties with CTR limits:
               setDeployedTasks(prev => ({ ...prev, [index]: true }));
               setDeployingTaskIndex(null);
               if (jobStatus === 'completed') {
-                setAgentLogs(prev => [...prev, `✔️ [Task Success] Optimization active for ${task.suggestedAction}`]);
+                setAgentLogs(prev => [...prev, `[Task Success] Optimization active for ${task.suggestedAction}`]);
               } else {
-                setAgentLogs(prev => [...prev, `❌ [Task Failed] Optimization failed for ${task.suggestedAction}`]);
+                setAgentLogs(prev => [...prev, `[Task Failed] Optimization failed for ${task.suggestedAction}`]);
               }
             }
           }

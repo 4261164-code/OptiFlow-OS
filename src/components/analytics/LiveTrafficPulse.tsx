@@ -33,19 +33,6 @@ interface LiveEvent {
   latencyMs?: number;
 }
 
-const COUNTRY_FLAGS: Record<string, string> = {
-  US: '🇺🇸',
-  GB: '🇬🇧',
-  CA: '🇨🇦',
-  DE: '🇩🇪',
-  AU: '🇦🇺',
-  FR: '🇫🇷',
-  NL: '🇳🇱',
-  JP: '🇯🇵',
-  BR: '🇧🇷',
-  IN: '🇮🇳',
-};
-
 export function LiveTrafficPulse() {
   const [events, setEvents] = useState<LiveEvent[]>([]);
   const [isConnected, setIsConnected] = useState(false);
@@ -282,7 +269,6 @@ export function LiveTrafficPulse() {
             </thead>
             <tbody className="divide-y divide-white/[0.03]">
               {filteredEvents.map((evt) => {
-                const flag = COUNTRY_FLAGS[evt.country] || '🌐';
                 const isConv = evt.type === 'conversion';
                 const isSmart = evt.type === 'smart_route';
 
@@ -312,8 +298,10 @@ export function LiveTrafficPulse() {
 
                     {/* Geo */}
                     <td className="py-3 px-4 font-mono text-zinc-300">
-                      <span className="mr-1.5 text-sm">{flag}</span>
-                      {evt.country}
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-zinc-800/80 border border-white/5 text-[10px] font-bold text-zinc-300">
+                        <Globe size={10} className="text-zinc-400" />
+                        {evt.country}
+                      </span>
                     </td>
 
                     {/* Device */}
