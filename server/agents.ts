@@ -1446,6 +1446,10 @@ export async function runCEOSoul(message: string, history: any[], userId?: strin
     agentPersona = personaPresets[persona];
   }
 
+  let memoryEntries: any[] = [];
+  let targets: any[] = [];
+  let metricsSummary: any = {};
+
   try {
     if (userId && hasServiceAccount) {
       let userSettingsSnap: any = null;

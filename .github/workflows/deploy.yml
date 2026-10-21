@@ -5,10 +5,9 @@ on:
     branches: [main]
 
 env:
-  PROJECT_ID: your-gcp-project-id
-  GAR_LOCATION: us-central1
-  SERVICE: affiliateos
-  REGION: us-central1
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID || 'ai-studio-optiflowos-b17ddf8c-b59f-4f82-8ac3-b7bf4fcbe0ce' }}
+  SERVICE: optiflow-os
+  REGION: ${{ secrets.GCP_REGION || 'europe-west2' }}
 
 jobs:
   deploy:

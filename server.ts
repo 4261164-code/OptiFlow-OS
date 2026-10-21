@@ -64,7 +64,7 @@ export const appPromise = (async () => {
     message: "Too many requests from this IP, please try again later"
   });
   app.use(globalLimiter);
-  const PORT = 3000;
+  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
   app.use(express.json({
     verify: (req: any, _res, buf) => {

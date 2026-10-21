@@ -36,7 +36,8 @@ import {
   RefreshCw,
   ArrowRight,
   ExternalLink,
-  CreditCard
+  CreditCard,
+  X
 } from 'lucide-react';
 import { db, auth } from '../lib/firebase';
 import { doc, getDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
