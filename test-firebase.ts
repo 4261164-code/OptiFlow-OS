@@ -1,4 +1,4 @@
-import { db } from './src/lib/firebase/admin';
+import { db } from './server/firebaseAdmin';
 async function test() {
   try {
     console.log("Fetching collections...");

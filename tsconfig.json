@@ -15,14 +15,29 @@
     "moduleDetection": "force",
     "allowJs": true,
     "jsx": "react-jsx",
+    "baseUrl": ".",
     "paths": {
       "@/*": [
-        "./*"
+        "src/*"
       ]
     },
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
     "allowImportingTsExtensions": true,
     "types": ["vite/client"],
     "noEmit": true
   },
-  "exclude": ["node_modules", "dist", "functions"]
+  "include": [
+    "src",
+    "server",
+    "server.ts",
+    "vite.config.ts",
+    "firebase-applet-config.json"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "functions"
+  ]
 }

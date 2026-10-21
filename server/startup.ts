@@ -1,4 +1,4 @@
-import { initFirebaseAdmin, db } from "../src/lib/firebase/admin";
+import { initFirebaseAdmin, db } from "./firebaseAdmin";
 import { logger } from "./lib/logger";
 import { WorkerManager } from "./workers/WorkerManager";
 import { JobScheduler } from "./workers/JobScheduler";
