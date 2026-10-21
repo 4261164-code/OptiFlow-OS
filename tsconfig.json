@@ -4,11 +4,7 @@
     "experimentalDecorators": true,
     "useDefineForClassFields": false,
     "module": "ESNext",
-    "lib": [
-      "ES2022",
-      "DOM",
-      "DOM.Iterable"
-    ],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "skipLibCheck": true,
     "moduleResolution": "bundler",
     "isolatedModules": true,
@@ -17,27 +13,14 @@
     "jsx": "react-jsx",
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "src/*"
-      ]
+      "@/*": ["./src/*"]
     },
+    "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    "allowImportingTsExtensions": true,
     "types": ["vite/client"],
     "noEmit": true
   },
-  "include": [
-    "src",
-    "server",
-    "server.ts",
-    "vite.config.ts",
-    "firebase-applet-config.json"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "functions"
-  ]
+  "exclude": ["node_modules", "dist", "functions"]
 }
